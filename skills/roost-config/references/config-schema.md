@@ -1,6 +1,6 @@
 # roost config schema
 
-A team's config is one YAML file. A machine can override some of its values in `~/.claude/roost/local.yml` (see "Machine overrides" at the end). `examples/config.example.yml` in the roost repo is a complete example to copy. Keys marked *optional* can be left out; the skills then use the default, or skip what depends on them.
+A team's config is one YAML file. A machine can override some of its values in `~/.claude/roost/local/<team.name>.yml` (see "Machine overrides" at the end). `examples/config.example.yml` in the roost repo is a complete example to copy. Keys marked *optional* can be left out; the skills then use the default, or skip what depends on them.
 
 ## `version`
 
@@ -155,15 +155,17 @@ The local environment the sessions run and test against.
 | `skill` | The skill that puts an epic on the roadmap, for example a team plugin's `add-roadmap-item`. |
 | `yes_when` / `no_when` | How to recommend whether an epic goes on it. |
 
-## Machine overrides: `~/.claude/roost/local.yml`
+## Machine overrides: `~/.claude/roost/local/<team.name>.yml`
 
-*Optional.* Values that differ on one machine, such as a second development machine with its own database or ports. Same keys as the team config; only the ones that differ. Mappings merge key by key, other values (lists included) replace whole, and `repos` entries match by `name`. Keep it out of the team's repo; it describes one machine.
+*Optional.* Values that differ on one machine for one team, such as a second development machine with its own database or ports. Same keys as the team config; only the ones that differ. Mappings merge key by key, other values (lists included) replace whole, and `repos` entries match by `name`. Keep it out of the team's repo; it describes one machine.
+
+The file is named after the team (`team.name`), so a machine that works for several teams keeps each team's overrides apart. The older `~/.claude/roost/local.yml` still works when there's no per-team file: it applies when its `team.name` matches the config's, or when it names no team at all, in which case it applies to every team's config on the machine. Give it a `team.name`, or move it to `local/<team.name>.yml`.
 
 ```yaml
+# ~/.claude/roost/local/Acme.yml
 # A second machine with its own Postgres, so it never touches the shared database
 stack:
   database:
-    local: this machine's own Postgres 18 (Docker container beakpoint-postgres, 172.17.0.1:5432, beakpoint-database)
-    note: Nothing here uses the shared Development database. Migrations and test data stay on this machine.
+    local: this machine's own Postgres (Docker container acme-postgres, 172.17.0.1:5432, database acme)
+    note: Nothing here uses the shared development database. Migrations and test data stay on this machine.
 ```
-

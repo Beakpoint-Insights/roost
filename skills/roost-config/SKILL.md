@@ -29,13 +29,18 @@ Read the whole file. Say in one line which file you're using, and its `team.name
 
 **The config you found is the config.** Use its values as they are, even when they look made up: a config the user names may be the example one (`examples/config.example.yml`, the made-up Acme team), and that's their choice. Don't stop to ask whether it's "really" theirs, and don't check it against who the user seems to be (their email, signed-in accounts, other configs on the machine). If a value is wrong, the first call that uses it fails and says so; report that then.
 
-**Then apply this machine's overrides,** if `~/.claude/roost/local.yml` exists. It holds only the values that differ on this machine (for example, a local database instead of the shared one), and its values win over the team config's:
+**Then apply this machine's overrides for this team.** They hold only the values that differ on this machine (for example, a local database instead of the shared one). Overrides belong to one team, so another team's never apply:
 
-- a mapping is merged key by key, so `stack.database.local` in `local.yml` changes only that key;
+1. `~/.claude/roost/local/<team.name>.yml`, if it exists. Use it, and ignore `local.yml`.
+2. Otherwise `~/.claude/roost/local.yml`, if it exists, but only if its `team.name` is this config's `team.name`, or it has no `team.name` (the older form). Skip one that names another team. For the older form, say once that it applies to every team's config on this machine, and that moving it to `~/.claude/roost/local/<team.name>.yml` makes it this team's only.
+
+The override's values win over the team config's:
+
+- a mapping is merged key by key, so `stack.database.local` in an override changes only that key;
 - any other value, a list included, replaces the team config's value whole;
 - `repos` entries are matched by `name`, so an override can change one repo's keys without restating the others.
 
-Use the merged result everywhere. When a value you act on came from `local.yml`, say so once ("using this machine's database, from `local.yml`"), so nobody mistakes it for the team's.
+Use the merged result everywhere. When a value you act on came from an override, say so once, naming the file ("using this machine's database, from `local/Acme.yml`"), so nobody mistakes it for the team's.
 
 ## Which roost is running
 
