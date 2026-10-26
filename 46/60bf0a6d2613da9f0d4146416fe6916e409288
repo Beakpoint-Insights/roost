@@ -1,0 +1,24 @@
+.gitignore
+  s_ce853c534e6e9a::t_c2fc26fe8d5441 7-9
+.roost/config.example.yml
+  s_ce853c534e6e9a::t_c2fc26fe8d5441 5,8-63
+  s_ce853c534e6e9a::t_def27c2469869e 1-4,6-7
+CONTRIBUTING.md
+  s_ce853c534e6e9a::t_ee42069c8a9d34 28-31
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "4660bf0a6d2613da9f0d4146416fe6916e409288",
+  "prompts": {},
+  "sessions": {
+    "s_ce853c534e6e9a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a9d2778a-eee1-4de0-88c4-4544b6b37c64",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Alan Cox <acox@beakpointinsights.com>"
+    }
+  }
+}
