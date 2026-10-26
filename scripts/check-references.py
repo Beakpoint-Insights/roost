@@ -35,15 +35,22 @@ def schema_keys():
         if line.startswith("## "):
             section = None
         if section and line.startswith("| `"):
-            first_cell = line.split("|")[1]
-            names = re.findall(r"`([\w.]+)`", first_cell)
+            cells = line.split("|")
+            names = re.findall(r"`([\w.]+)`", cells[1])
             parent = ""
+            row_keys = []
             for i, name in enumerate(names):
                 if i == 0:
                     parent = name.rsplit(".", 1)[0] + "." if "." in name else ""
-                    keys.add(f"{section}.{name}")
+                    row_keys.append(f"{section}.{name}")
                 else:
-                    keys.add(f"{section}.{parent}{name}" if "." not in name else f"{section}.{name}")
+                    row_keys.append(f"{section}.{parent}{name}" if "." not in name else f"{section}.{name}")
+            keys.update(row_keys)
+            # Sub-keys a row describes in words, like `e2e`'s `run_tags` or
+            # `apply_gate`'s `plan`: the plain identifiers in backticks in its meaning.
+            for child in re.findall(r"`([a-z_][a-z0-9_]*)`", cells[2] if len(cells) > 2 else ""):
+                for key in row_keys:
+                    keys.add(f"{key}.{child}")
     return keys
 
 
@@ -52,11 +59,8 @@ KEYS = schema_keys()
 
 def key_known(ref):
     ref = ref.replace("[]", "")
-    if ref in KEYS:
-        return True
-    # A sub-key the schema describes in words (e2e.run_tags) under a documented key,
-    # never just under a section name, or a parent of documented keys.
-    return any((ref.startswith(k + ".") and "." in k) or k.startswith(ref + ".") for k in KEYS)
+    # A documented key, or a parent of documented keys (`stack.database`).
+    return ref in KEYS or any(k.startswith(ref + ".") for k in KEYS)
 
 
 def documents():
@@ -89,7 +93,10 @@ for path in documents():
                 continue
             # Reference files.
             if re.fullmatch(r"(?:[\w-]+/)*references/[\w.-]+\.md", token) or re.fullmatch(r"[\w-]+\.md", token) and token.startswith("phase-"):
-                if os.path.basename(token) not in REFERENCE_FILES:
+                # A full path must exist as written; a short one (`references/x.md`)
+                # is some skill's reference file.
+                missing = not os.path.exists(token) if token.startswith("skills/") else os.path.basename(token) not in REFERENCE_FILES
+                if missing:
                     report(path, lineno, f"names a reference file that doesn't exist: {token}")
             # Repo paths.
             elif re.match(r"(scripts|skills|evals|examples|\.github)/", token):
@@ -98,7 +105,7 @@ for path in documents():
                     report(path, lineno, f"names a path that doesn't exist: {clean}")
             # Config keys.
             else:
-                m = re.fullmatch(r"((?:%s)(?:\[\])?(?:\.[a-z_]+(?:\[\])?)+)" % "|".join(SECTIONS), token)
+                m = re.fullmatch(r"((?:%s)(?:\[\])?(?:\.[a-z_][a-z0-9_]*(?:\[\])?)+)" % "|".join(SECTIONS), token)
                 if m and not key_known(m.group(1)):
                     report(path, lineno, f"names a config key that isn't in config-schema.md: {m.group(1)}")
 

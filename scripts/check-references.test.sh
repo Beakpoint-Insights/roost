@@ -18,6 +18,8 @@ cat >> "$copy/skills/run-bug/SKILL.md" <<'MD'
 
 Planted: see `references/phase-3-prototype.md`, use the `run-slices` skill, read
 `stack.databse.local`, run `scripts/no-such-script.sh`, and see [the guide](no-such-guide.md).
+Also `repos[].apply_gate.plna`, `team.name.typo`, `repos[].e2f` and
+`skills/no-such-skill/references/config-schema.md`.
 MD
 cat > "$copy/evals/update-moving/graders/planted.md" <<'MD'
 ---
@@ -33,7 +35,11 @@ for want in "reference file that doesn't exist: references/phase-3-prototype.md"
             "config key that isn't in config-schema.md: stack.databse.local" \
             "path that doesn't exist: scripts/no-such-script.sh" \
             "links to a file that doesn't exist: no-such-guide.md" \
-            "grader expects a skill that doesn't exist: no-such-skill"; do
+            "grader expects a skill that doesn't exist: no-such-skill" \
+            "config key that isn't in config-schema.md: repos[].apply_gate.plna" \
+            "config key that isn't in config-schema.md: team.name.typo" \
+            "config key that isn't in config-schema.md: repos[].e2f" \
+            "reference file that doesn't exist: skills/no-such-skill/references/config-schema.md"; do
   if ! grep -q -F "$want" <<<"$out"; then echo "FAIL: expected '$want' in:"; echo "$out"; fail=1; fi
 done
 

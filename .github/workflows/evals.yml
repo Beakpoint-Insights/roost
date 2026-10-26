@@ -18,10 +18,6 @@ permissions:
   contents: read
   pull-requests: write
 
-concurrency:
-  group: evals-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
-
 jobs:
   evals:
     if: >-
@@ -29,6 +25,11 @@ jobs:
       (startsWith(github.head_ref, 'release-please--') && github.event.action == 'reopened') ||
       (contains(github.event.pull_request.labels.*.name, 'run-evals') &&
        (github.event.action != 'labeled' || github.event.label.name == 'run-evals'))
+    # On the job, not the workflow: a run whose job is skipped (an unrelated label
+    # added) must not cancel one that's running.
+    concurrency:
+      group: evals-${{ github.event.pull_request.number || github.ref }}
+      cancel-in-progress: true
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
