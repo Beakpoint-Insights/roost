@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.0](https://github.com/Beakpoint-Insights/roost/compare/roost-v1.1.1...roost-v1.2.0) (2026-10-26)
+
+
+### Features
+
+* roost for GitHub-only teams: GitHub Issues, eval cases, plain PRs, optional sections ([#52](https://github.com/Beakpoint-Insights/roost/issues/52)) ([505a1da](https://github.com/Beakpoint-Insights/roost/commit/505a1dac331aac41457defd9cc2f6e40d5f3b384))
+
 ## [1.1.1](https://github.com/Beakpoint-Insights/roost/compare/roost-v1.1.0...roost-v1.1.1) (2026-10-26)
 
 
