@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Question or idea
+    url: https://github.com/Beakpoint-Insights/roost/discussions
+    about: Ask how something works, or talk an idea through before it becomes an issue.
+  - name: Security issue
+    url: https://github.com/Beakpoint-Insights/roost/security/advisories/new
+    about: Report a vulnerability privately. Please don't open a public issue.
