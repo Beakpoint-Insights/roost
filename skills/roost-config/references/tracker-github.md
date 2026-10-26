@@ -34,26 +34,28 @@ A prompt that must stand alone (the tech lead prompt) introduces the tracker as:
 | Operation | How |
 |---|---|
 | **Who am I** | `gh api user --jq .login`. Use it to assign; never hard-code a login. |
-| **Read a ticket** | `gh issue view <n> -R R --json title,body,state,stateReason,labels,assignees,milestone,comments`. Its parent: `gh api graphql -f query='{repository(owner:"<o>",name:"<r>"){issue(number:<n>){parent{number} subIssues(first:50){nodes{number state title}}}}}'`. |
-| **Search** | `gh issue list -R R --state all --search "<query>" --json number,title,state,labels`. Common searches below. |
+| **Read a ticket** | `gh issue view <n> -R R --json title,body,state,stateReason,labels,assignees,milestone,comments`. Its parent: `gh api graphql -f query='{repository(owner:"<o>",name:"<r>"){issue(number:<n>){parent{number}}}}'`. Its children, every page: `gh api --paginate repos/R/issues/<n>/sub_issues --jq '.[] \| {number, state, title}'`. |
+| **Search** | `gh issue list -R R --state all --limit 1000 --search "<query>" --json number,title,state,labels`. Never trust the default (30 results). If a search returns exactly the limit, there may be more: split it (by date range, say) until each part returns fewer. GitHub's search returns at most 1,000 results, so split any search that could match more. Common searches below. |
 | **Create** | `gh issue create -R R --title "…" --body-file <file> --label "<labels>"`, with the kind's label (or, with issue types, set the type right after: `gh api -X PATCH repos/R/issues/<n> -f type=<Type>`), Components labels, and status labels if not `todo`. Then set its parent (below). Create missing labels first: `gh label create "<name>" -R R`. |
 | **Edit fields** | `gh issue edit <n> -R R --add-label … --remove-label … --title … --body-file …`. |
 | **Set or clear a parent** | Sub-issues take the child's id, not its number: `id=$(gh api repos/R/issues/<child> --jq .id)`, then `gh api -X POST repos/R/issues/<parent>/sub_issues -F sub_issue_id=$id` to set it, or `gh api -X DELETE repos/R/issues/<parent>/sub_issue -F sub_issue_id=$id` to clear it. An issue has one parent: clear the old one before setting a new one. Read it back. |
-| **Assign and start** | `gh issue edit <n> -R R --add-assignee @me --add-label "<tracker.statuses.in_progress>"`. |
-| **Move to a status** | Remove the current status label and add the new one; for `done`, `gh issue close <n> -R R --reason completed`; for `wont_do`, `--reason "not planned"`; to reopen, `gh issue reopen <n> -R R`. Read it back. |
+| **Assign and start** | `gh issue edit <n> -R R --add-assignee @me`, then move it to `tracker.statuses.in_progress` ("Move to a status"), which reopens a closed issue and removes any other status label. |
+| **Move to a status** | Reopen it if it's closed and the new status is open (`gh issue reopen <n> -R R`); remove every other status label and add the new one; for `done`, `gh issue close <n> -R R --reason completed`; for `wont_do`, `--reason "not planned"`; to reopen, `gh issue reopen <n> -R R`. Read it back. |
 | **Comment** | `gh issue comment <n> -R R --body-file <file>`. |
 | **Edit a comment in place** | Find its id: `gh api repos/R/issues/<n>/comments --paginate --jq '.[] \| {id, body: .body[0:80]}'` (keep it in your state file), then `gh api -X PATCH repos/R/issues/comments/<id> -F body=@<file>`. Read it back. |
 | **Link two tickets** | A comment on one that mentions the other: `gh issue comment <n> -R R --body "Relates to #<m>"`. |
-| **Attach a file** | `gh gist create --desc "<KEY> <file name>" <file>` (secret by default), then a comment on the issue: "Attached: [<file name>](<gist URL>)". Never put a secret in a gist: anyone with its link can read it. It needs `gh` signed in with the `gist` scope (`gh auth status`; add it with `gh auth refresh -s gist`). |
-| **Read an attachment** | Find the gist link in the issue's comments, then `gh gist view <id> --filename "<file name>" --raw > <file>`. |
+| **Attach a file** | `gh gist create --desc "<KEY> <file name>" <file>` (secret by default), then a comment on the issue: "Attached: [<file name>](<gist URL>)". Gists hold text only: for a binary file (a screenshot, say), attach `base64 -i <file> -o <file>.b64` instead, named `<file name>.b64`, and say in the comment that it's base64. Never put a secret in a gist: anyone with its link can read it. It needs `gh` signed in with the `gist` scope (`gh auth status`; add it with `gh auth refresh -s gist`). |
+| **Read an attachment** | Find the gist link in the issue's comments, then `gh gist view <id> --filename "<file name>" --raw > <file>`. For a `.b64` attachment, decode it: `gh gist view <id> --filename "<file name>.b64" --raw \| base64 -d > <file>`. |
 | **Fix version** | `gh issue edit <n> -R R --milestone "<name>"`, using a milestone that already exists. |
 | **List components** | `gh label list -R R --search "<tracker.github.component_prefix>" --json name,description`. |
 
 ## Common searches
 
-- **Open children of an epic, at any depth:** its sub-issues (the GraphQL query in "Read a ticket"), then each child's, keeping the open ones.
+- **Open children of an epic, at any depth:** its sub-issues, every page ("Read a ticket"), then each child's the same way, keeping the open ones.
 - **Open and not waiting to ship:** add `-label:"<tracker.statuses.ready_for_release>"` to a search, or drop those with the label.
-- **Linked open tickets:** issues whose comments or body mention it, from its timeline: `gh api repos/R/issues/<n>/timeline --paginate --jq '.[] | select(.event=="cross-referenced") | .source.issue.number'`, keeping the open ones.
+- **Linked open tickets:** links go both ways, so collect both, then keep only open issues (not PRs), once each:
+  - **to it,** from its timeline: `gh api repos/R/issues/<n>/timeline --paginate --jq '.[] | select(.event=="cross-referenced") | select(.source.issue.pull_request == null) | .source.issue.number'`;
+  - **from it,** the `#<m>` mentions in its body and comments (`gh issue view <n> -R R --json body,comments`), checking each is an issue, not a PR (`gh issue view <m> -R R --json number` fails for a PR).
 - **Created during a window:** `--search "created:>=<start> created:<=<end>"`, then keep those whose parent is the epic or whose text mentions the key.
 - **Roadmap epics:** `--search "label:roadmap label:epic state:open sort:created-asc"` (or `type:Epic` with issue types).
 

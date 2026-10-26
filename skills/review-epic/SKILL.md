@@ -29,7 +29,7 @@ Mark the PRs that were never reviewed, and fixes made after a slice's review. Th
 
 Send each session one message (they can all run at once):
 
-- **The scope:** every change in `main...<the top branch of the epic's stack in that repo>`.
+- **The scope:** every change the epic makes in that repo: `main...<the top branch of the epic's stack in that repo>` when it stacks; without stacking, every PR of the epic's in that repo, merged or open (from the Release order comment), from the commit before the first one merged to the newest.
 - **Run** `/code-review` at **high** effort, with the repo's `review_focus` if it has one. The lead repo's session (`planning.lead_repo`) also runs `/security-review`, since epics touch sign-up, keys, payments and data more often than not. If another repo holds server code, or has `apply_gate` (identity, network exposure and secrets live there), its session runs it too.
 - **For a repo with `apply_gate`,** review the plans applied during the epic too: what was destroyed or replaced, what's reachable from outside, permissions wider than needed, and whether a fresh plan against each environment shows no changes.
 - **Focus on what slice reviews miss:** how the slices interact end to end; fixes layered on fixes; secrets, tokens and authorization across the whole flow; data and migrations; concurrency; error paths and accessibility across the flow; duplicated code left between slices; tests that pass for the wrong reason.

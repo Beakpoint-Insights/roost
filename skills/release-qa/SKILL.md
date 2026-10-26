@@ -11,11 +11,11 @@ You are QA for one epic. Find out whether "ready for release" is true, and file 
 
 **No app to QA in a browser?** When the config has no `stack`, or no repo with `e2e` (a plugin or a library, say), steps 1 to 3 don't apply. You run in the lead repo's session (`planning.lead_repo`) instead, and QA is:
 
-1. **Every repo's own checks** on the epic's newest code, as each repo's `tests` says (for this plugin, for example, `claude plugin validate --strict .` and its scripts' checks).
+1. **Every repo's own checks** on the epic's newest code (its newest branches or open PRs, merged or not; the same commits for all three checks), as each repo's `tests` says (for this plugin, for example, `claude plugin validate --strict .` and its scripts' checks).
 2. **The epic's tests,** run the way the tests adapter says (for `tests.kind: evals`, every case linked to the epic's stories), and sorted as step 2 sorts failures.
-3. **Each story's acceptance criteria,** checked against what the epic's merged code actually does, one row per criterion with its evidence.
+3. **Each story's acceptance criteria,** checked against what that same code actually does, one row per criterion with its evidence.
 
-Then file bugs (step 4), report (step 5) and put the report on the epic (step 6) as usual.
+Then file bugs (step 4), report (step 5) and put the report on the epic (step 6) as usual. Here a reproduction isn't a browser session: it's the command or test run that shows the failure, with its output (for an eval case, the failing grader and its verdict), and a signed-out check doesn't apply. A bug's regression test is a test in the team's form, created as the tests adapter's "Create a test" says (for eval cases, a drafted case on the bug).
 
 ## Inputs
 

@@ -28,7 +28,7 @@ A prompt that must stand alone (the tech lead prompt) introduces the tests as: "
 
 - **A test is an eval case:** a folder `<tests.evals.dir>/<case>/` (default `evals/<case>/`) in the repo `tests.evals.repo` (default the lead repo, `planning.lead_repo`). It holds `prompt.md`, with front matter and the prompt, and `graders/*.md`. There's no test ticket in the tracker.
 - **Its scenarios are its graders.** Each grader is one check; a run passes when every scored grader passes.
-- **Its story is in its tags.** A case's `tags` include the key of the story it tests, written as the tracker adapter writes a key in a tag (see "Keys" in the tracker adapter), plus the skill it exercises, so a PR that changes that skill runs it. A story's tests are the cases tagged with its key: `grep -l "<key tag>" <tests.evals.dir>/*/prompt.md`.
+- **Its story is in its tags.** A case's `tags` include the key of the story it tests, written as the tracker adapter writes a key in a tag (see "Keys" in the tracker adapter), plus the skill it exercises, so a PR that changes that skill runs it. A story's tests are the cases whose front-matter `tags` list holds exactly that key tag: match the whole entry in the `tags:` line, never the tag anywhere in the file, so `issue-42` doesn't pick up `issue-420` or a prompt that mentions it (for example `grep -lE '^tags: \[(.*, )?issue-42(, .*)?\]$' <tests.evals.dir>/*/prompt.md`).
 - **Cross-cutting:** a case that needs several stories is tagged with the last story it depends on.
 
 ## Running a case
