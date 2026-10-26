@@ -1,0 +1,19 @@
+docs/design/issue-56-release-notes.md
+  s_ce853c534e6e9a::t_d11f4041188cd8 1-121
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9d14521e9e62d746b40962f3a536765a80123da4",
+  "prompts": {},
+  "sessions": {
+    "s_ce853c534e6e9a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a9d2778a-eee1-4de0-88c4-4544b6b37c64",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Alan Cox <acox@beakpointinsights.com>"
+    }
+  }
+}
