@@ -9,6 +9,8 @@ The changes for a story are pushed. Prove which of its Xray tests are automated 
 
 **First, load the team config with `roost-config`,** and read its Xray adapter notes (`references/tests-xray.md`).
 
+**With `tests.kind: evals`,** this team's tests are eval cases in the repo: follow this skill's row in "In each skill" in `roost-config`'s `references/tests-evals.md` instead of the Xray steps below.
+
 **Input:** the story key. Everything below calls it STORY.
 
 ## Scope

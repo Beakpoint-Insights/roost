@@ -4,6 +4,8 @@
 
 **Goal:** Create Xray test issues with Cucumber scenarios that cover every slice.
 
+**With `tests.kind: evals`,** this team's tests are eval cases in the repo: follow this skill's row in "In each skill" in `roost-config`'s `references/tests-evals.md` instead of the Xray steps below.
+
 ## Process
 
 1. For each slice, identify the testable behaviors by reading its acceptance criteria and reviewing the corresponding part of the design: prototype surfaces, or the design doc's target state. Behaviour an automated suite can check before release gets an Xray test (see "Tests only for what a suite can check, or a person runs on purpose" in the Xray adapter notes). A slice whose work no suite can prove before release (for example a docs page, whose repo's `tests` are a build and a preview) gets none; a backend-only slice still gets Xray tests, automated in the backend: say so in the plan, and make sure its story's acceptance criteria are specific enough to check on the PR.

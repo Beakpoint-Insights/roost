@@ -36,10 +36,13 @@ Always `1`.
 
 | Key | Meaning |
 |---|---|
-| `kind` | `xray`. (`repo-gherkin` and `none` aren't supported yet.) |
-| `automated_label` | The label for a test whose every scenario is automated and passing. Default `automated`. |
-| `manual_label` | *Optional.* The label for a test that's run by hand on purpose, once, against a real environment, and closes on a recorded run instead of automation (see "Manual tests" in the Xray adapter notes). Leave it out to allow no manual tests. |
-| `xray.test_link_type` | The link type between a test and its story: `name`, `id`, and the `outward`/`inward` wording. Default `Test` ("tests" / "is tested by"). |
+| `kind` | `xray`: Xray tests in Jira, with Cucumber scenarios. `evals`: eval cases in a plugin's repo, run with `claude plugin eval` (see `tests-evals.md`). (`repo-gherkin` and `none` aren't supported yet.) |
+| `automated_label` | *For `xray`.* The label for a test whose every scenario is automated and passing. Default `automated`. |
+| `manual_label` | *Optional, for `xray`.* The label for a test that's run by hand on purpose, once, against a real environment, and closes on a recorded run instead of automation (see "Manual tests" in the Xray adapter notes). Leave it out to allow no manual tests. |
+| `xray.test_link_type` | *For `xray`.* The link type between a test and its story: `name`, `id`, and the `outward`/`inward` wording. Default `Test` ("tests" / "is tested by"). |
+| `evals.repo` | *Optional, for `evals`.* The repo that holds the eval cases. Default `planning.lead_repo`. |
+| `evals.dir` | *Optional, for `evals`.* The folder of cases in that repo. Default `evals`. |
+| `evals.run` | *Optional, for `evals`.* The command that runs one case, with `{case}`. Default `claude plugin eval . --no-publish --case {case}`. |
 | `xray.panel_test_id` | *Optional.* The Xray panel's test id in the Jira issue view, for browser steps. |
 
 ## `repos`

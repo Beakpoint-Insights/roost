@@ -11,6 +11,8 @@ The Xray Gherkin is the spec. Your job is to make every scenario in it run as an
 
 **Leave manual tests alone.** A test labelled `tests.manual_label` is run by hand on purpose and closes on a recorded run (see "Manual tests" in the Xray adapter notes). Don't write automation for it, don't propose splitting it, and don't count it as missing automation; list it in the report as "manual".
 
+**With `tests.kind: evals`,** this team's tests are eval cases in the repo: follow this skill's row in "In each skill" in `roost-config`'s `references/tests-evals.md` instead of the Xray steps below.
+
 ## Inputs
 
 - The test keys, or the story whose linked tests to cover (link type `tests.xray.test_link_type`: the test is inward, the story outward).

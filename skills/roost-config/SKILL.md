@@ -56,7 +56,7 @@ Write it as one line: "roost 1.0.0, installed" or "roost 1.0.0, checkout at ~/sr
 | Key | Supported now | Not yet |
 |---|---|---|
 | `tracker.kind` | `jira` | `github`, `linear` |
-| `tests.kind` | `xray` | `repo-gherkin`, `none` |
+| `tests.kind` | `xray`, `evals` | `repo-gherkin`, `none` |
 | `vcs.stacking` | `gh-stack`, `none` | `graphite` |
 
 If the config names one that isn't supported yet, stop and say which key and value, and that roost doesn't support it yet.
@@ -69,7 +69,9 @@ In this skill's `references/` folder:
 
 - `config-schema.md`: what every key means, and its default. Read it when a key's meaning isn't obvious from its name.
 - `tracker-jira.md`: how to do each tracker operation in Jira (create, set a parent, edit a comment in place, attach a file, transition, link, search). Read it before any tracker change.
-- `tests-xray.md`: how to read and update test scenarios in Xray, and what "automated" means. Read it before touching tests.
+- The tests adapter for `tests.kind`, before touching tests: `tests-xray.md` (Xray tests and their Cucumber scenarios), or `tests-evals.md` (eval cases in the repo). Each says what a test is, how one is linked to its story and run, and what "automated" means.
+
+**Skills written for Xray.** Many steps name Xray: Xray tests, "the Xray adapter notes", `create-xray-test`, `automate-xray-tests`. With another `tests.kind`, follow that adapter's "In each skill" table wherever it covers the step, and read "the Xray adapter notes" as that adapter.
 
 ## How skills refer to the config
 
