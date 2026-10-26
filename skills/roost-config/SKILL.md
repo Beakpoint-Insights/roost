@@ -33,6 +33,15 @@ Read the whole file. Say in one line which file you're using only when the user 
 
 Use the merged result everywhere. When a value you act on came from `local.yml`, say so once ("using this machine's database, from `local.yml`"), so nobody mistakes it for the team's.
 
+## Which roost is running
+
+Sessions can run different roosts: the installed plugin, or a checkout loaded with `claude --plugin-dir <checkout>` for that session only. Work out which one this session runs from this skill's own base directory, `<plugin root>/skills/roost-config`:
+
+- **The version:** `version` in `<plugin root>/.claude-plugin/plugin.json`.
+- **Installed or a checkout:** it's a checkout when `git -C <plugin root> rev-parse --show-toplevel` is the plugin root. Then add its branch, short commit, and whether it has uncommitted changes (`git -C <plugin root> status --porcelain`).
+
+Write it as one line: "roost 1.0.0, installed" or "roost 1.0.0, checkout at ~/src/roost, main@66cdcd9, uncommitted changes". Give it when the user asks which roost or which version is running. Orchestrators record it (see `run-slice`).
+
 ## 2. Check it's supported
 
 | Key | Supported now | Not yet |

@@ -226,6 +226,18 @@ The skills were written for Claude Code. In Cursor, set up the same MCP servers 
 
 Put it in `skills/<name>/SKILL.md`, with any reference files beside it, and add a row to the tables above. Start it by loading the team config with `roost-config`, and use config keys (in backticks, like `tracker.statuses.done`) for anything that differs between teams: names, commands, URLs, statuses. Examples use `PROJ-1234` and the example config's repos.
 
+## Trying changes before they're released
+
+A session runs the installed roost unless it's told otherwise, so a change in your checkout does nothing until it's released and installed. To try it first, start **every** session the work uses (the orchestrator and each repo session) with your checkout:
+
+```
+claude --plugin-dir ~/src/roost
+```
+
+For that session only, this replaces the installed roost; nothing else changes. To check, ask a session "which roost is running?": it answers with the version, and for a checkout its branch and commit. `run-slice` and `build-epic` ask every session the same question when they start, record the answers, and stop if the sessions don't all run the same roost.
+
+Evals already run against the checkout: `claude plugin eval .` loads the plugin from the folder it's run in.
+
 ## Making changes
 
 `main` is protected. Every change goes through a pull request:

@@ -84,7 +84,7 @@ Shipping (merging the stacks in Release order and deploying) isn't part of this 
 
 ## Keep the state file current
 
-`<team.state_dir>/EPIC.md` holds the story order, the story in progress, the sessions, the Release order and Carry-over comment IDs, and each story's outcome in one line (PRs, tests, what was carried over). Each story's own detail stays in `<team.state_dir>/STORY.md`, which `run-slice` keeps. Update it after every slice and every decision.
+`<team.state_dir>/EPIC.md` holds the roost the run uses (the line from "Which roost is running" in `roost-config`, checked against every session as `run-slice` step 0 does), the story order, the story in progress, the sessions, the Release order and Carry-over comment IDs, and each story's outcome in one line (PRs, tests, what was carried over). Each story's own detail stays in `<team.state_dir>/STORY.md`, which `run-slice` keeps. Update it after every slice and every decision.
 
 ## Progress updates
 
