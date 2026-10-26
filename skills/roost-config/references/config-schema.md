@@ -12,7 +12,7 @@ Always `1`.
 |---|---|
 | `name` | The team or company name. |
 | `product` | The product's name as customers see it. Used in roadmap and prototype wording. |
-| `state_dir` | *Optional.* Where orchestrator skills keep state files and update logs. Default `~/.claude/roost/state`. |
+| `state_dir` | *Optional.* Where orchestrator skills keep state files and update logs. Default `~/.claude/roost/state/<team.name>/`. State files are named by ticket key, so two teams on one machine need different folders: leave this out, or give each team its own. |
 | `drafts_dir` | *Optional.* Where drafts for the user (prototypes, prompts) are saved. Default `~/Downloads`. |
 | `shell` | *Optional.* The shell commands must paste into, for example `zsh`. Default `zsh`. |
 
