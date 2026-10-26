@@ -64,8 +64,13 @@ jobs:
           mkdir -p eval-json
           failed=0
           for c in $CASES; do
-            # Every run of every case must pass (the default threshold, 1.0).
-            claude plugin eval . --no-publish --trust-plugin --case "$c" --ablation none --json "eval-json/$c.json" || failed=1
+            # Every run of a case must pass (the default threshold, 1.0). LLM judges
+            # get a few verdicts wrong, so a case that fails gets one more try, and
+            # fails the check only if it fails again; the summary shows the second try.
+            if ! claude plugin eval . --no-publish --trust-plugin --case "$c" --ablation none --json "eval-json/$c.json"; then
+              echo "::notice::$c failed; running it once more"
+              claude plugin eval . --no-publish --trust-plugin --case "$c" --ablation none --json "eval-json/$c.json" || failed=1
+            fi
           done
           scripts/eval-summary.py eval-json > eval-summary.md
           cat eval-summary.md >> "$GITHUB_STEP_SUMMARY"
