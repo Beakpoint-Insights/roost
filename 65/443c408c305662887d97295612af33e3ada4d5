@@ -1,0 +1,32 @@
+examples/config.github-only.yml
+  s_0de49345ab4148::t_d32aee82ba18d4 1-59
+evals/verify-with-eval-cases/prompt.md
+  s_0de49345ab4148::t_7ea541a942fbf6 1-15
+CONTRIBUTING.md
+  s_0de49345ab4148::t_7ea541a942fbf6 61
+skills/setup/SKILL.md
+  s_0de49345ab4148::t_9836bfa7fee462 3,27,29-34,36-38,41,50-54,57
+evals/verify-with-eval-cases/graders/uses-verify.md
+  s_0de49345ab4148::t_7ea541a942fbf6 1-6
+scripts/check-references.py
+  s_0de49345ab4148::t_2844004f453dd8 91-92,96
+  s_0de49345ab4148::t_f2cf5eaab453f2 97
+evals/verify-with-eval-cases/graders/eval-cases-not-xray.md
+  s_0de49345ab4148::t_7ea541a942fbf6 1-11
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "65443c408c305662887d97295612af33e3ada4d5",
+  "prompts": {},
+  "sessions": {
+    "s_0de49345ab4148": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b1005a39-8915-42a2-974f-c030708f474d",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Alan Cox <acox@beakpointinsights.com>"
+    }
+  }
+}
