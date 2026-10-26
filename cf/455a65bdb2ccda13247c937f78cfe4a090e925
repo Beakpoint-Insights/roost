@@ -1,0 +1,77 @@
+skills/roost-config/SKILL.md
+  s_0de49345ab4148::t_ac9d5ef1a1a70a 73-74,80
+skills/cross-repo-handoff/SKILL.md
+  s_0de49345ab4148::t_4af9e38bbc74bf 29
+skills/roost-config/references/tracker-github.md
+  s_0de49345ab4148::t_dec0be0b9b9cb0 3,10-12
+  s_0de49345ab4148::t_ac9d5ef1a1a70a 47
+  s_0de49345ab4148::t_57abbb1b01245a 13
+skills/shape-epic/references/tech-lead-prompt-template.md
+  s_0de49345ab4148::t_dec0be0b9b9cb0 33-34
+skills/slice-handoff/SKILL.md
+  s_0de49345ab4148::t_56b40f91247849 36
+  s_0de49345ab4148::t_4af9e38bbc74bf 41
+  s_0de49345ab4148::t_1c48bcd0de574a 72-78
+skills/run-slice/SKILL.md
+  s_0de49345ab4148::t_4af9e38bbc74bf 44,170,205,216
+skills/live-verified-bdd/SKILL.md
+  s_0de49345ab4148::t_dec0be0b9b9cb0 18,45,91,93-94
+skills/bug-bash/SKILL.md
+  s_0de49345ab4148::t_4af9e38bbc74bf 39
+skills/shape-epic/references/phase-7-handoff.md
+  s_0de49345ab4148::t_4af9e38bbc74bf 9
+skills/build-epic/SKILL.md
+  s_0de49345ab4148::t_4af9e38bbc74bf 72
+skills/shape-epic/references/phase-6-guide.md
+  s_0de49345ab4148::t_4af9e38bbc74bf 12
+skills/shape-epic/references/phase-5-tests.md
+  s_0de49345ab4148::t_5d0720be68e34b 38,46
+  s_0de49345ab4148::t_b0a0bb6a02af9e 5,9,11,40-41,50
+skills/triage-ticket/SKILL.md
+  s_0de49345ab4148::t_56b40f91247849 43
+skills/close-out-epic/SKILL.md
+  s_0de49345ab4148::t_4af9e38bbc74bf 72
+  s_0de49345ab4148::t_56b40f91247849 20
+skills/run-bug/SKILL.md
+  s_0de49345ab4148::t_4af9e38bbc74bf 47
+  s_0de49345ab4148::t_1c48bcd0de574a 67
+skills/shape-epic/references/phase-2-epic.md
+  s_0de49345ab4148::t_4af9e38bbc74bf 11,19
+skills/roost-config/references/tracker-jira.md
+  s_0de49345ab4148::t_dec0be0b9b9cb0 7-14
+skills/verify-slice-tests/SKILL.md
+  s_0de49345ab4148::t_3c3077dd9eb6ff 3,8,10,16-18,22-23,25-26,31,33,36,38-39,45-47,52,56
+skills/release-qa/SKILL.md
+  s_0de49345ab4148::t_4af9e38bbc74bf 64,71-72
+skills/automate-xray-tests/SKILL.md
+  s_0de49345ab4148::t_2b3ef5cb4effe5 3,6,8,10,12,16,20,22,26-28,32-34,43,45,47,49,51,53,57,59-60
+skills/roost-config/references/tests-xray.md
+  s_0de49345ab4148::t_dec0be0b9b9cb0 5-8
+  s_0de49345ab4148::t_5d0720be68e34b 18
+  s_0de49345ab4148::t_1c48bcd0de574a 19
+  s_0de49345ab4148::t_a6b526891301d8 3-4,9-17,20-25
+skills/shape-epic/SKILL.md
+  s_0de49345ab4148::t_4af9e38bbc74bf 25,48,119
+skills/roost-config/references/tests-evals.md
+  s_0de49345ab4148::t_dec0be0b9b9cb0 5-8
+  s_0de49345ab4148::t_5d0720be68e34b 18
+  s_0de49345ab4148::t_1c48bcd0de574a 19
+  s_0de49345ab4148::t_db60e47b9042c3 3,9-17,20-25,30
+  s_0de49345ab4148::t_ac012fc735934b 4
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "cf455a65bdb2ccda13247c937f78cfe4a090e925",
+  "prompts": {},
+  "sessions": {
+    "s_0de49345ab4148": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b1005a39-8915-42a2-974f-c030708f474d",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Alan Cox <acox@beakpointinsights.com>"
+    }
+  }
+}
