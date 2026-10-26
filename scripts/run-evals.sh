@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Runs eval cases the way CI does: on Opus, up to four cases at once, each case
+# Runs eval cases the way CI does: on Opus, judged by Sonnet, up to four cases at once, each case
 # retried once if it fails (the judges get a few verdicts wrong, so a case fails
 # only if it fails twice). Results go to eval-json/ (a retried case's first try
 # to eval-json/first-try/) and each case's output to eval-logs/.
@@ -14,7 +14,7 @@ mkdir -p eval-json/first-try eval-logs
 
 run_case() {
   local c=$1
-  local args=(--no-publish --trust-plugin --model opus --ablation none --runs "$RUNS" --case "$c")
+  local args=(--no-publish --trust-plugin --model opus --judge-model sonnet --ablation none --runs "$RUNS" --case "$c")
   if [[ -n "${MAX_COST_USD:-}" ]]; then args+=(--max-cost-usd "$MAX_COST_USD"); fi
 
   if claude plugin eval . "${args[@]}" --json "eval-json/$c.json" > "eval-logs/$c.log" 2>&1; then

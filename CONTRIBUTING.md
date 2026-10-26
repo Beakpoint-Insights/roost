@@ -64,14 +64,14 @@ Evals already run against the checkout: `claude plugin eval .` loads the plugin 
 Run them before merging a change to a skill:
 
 ```
-claude plugin eval . --no-publish --model opus
+claude plugin eval . --no-publish --model opus --judge-model sonnet
 ```
 
-The evals test roost on Opus, in CI too, so pass `--model opus` to compare your results with CI's. Without it, a run uses your account's default model, and on another model some skills don't trigger at all.
+The evals test roost on Opus and judge with Sonnet, in CI too, so pass `--model opus --judge-model sonnet` to compare your results with CI's. Without it, a run uses your account's default model, and on another model some skills don't trigger at all.
 
 Don't give an eval `SendMessage` or `ListAgents` (with `--allow-tools`). The eval runs on your machine, so a run could message your real repo sessions. A grader can't check a tool the run wasn't given, so write "doesn't message a session" into an `llm` grader's rubric instead of a `tool_used` count.
 
-Each case runs 3 times with roost and 3 times without it, so you can see what the skill changes. A full run costs about $3 on your own Claude account. To check one case quickly: `claude plugin eval . --model opus --case <name> --runs 1 --ablation none`. Results go to `evals/results/`, which git ignores.
+Each case runs 3 times with roost and 3 times without it, so you can see what the skill changes. A full run costs about $3 on your own Claude account. To check one case quickly: `claude plugin eval . --model opus --judge-model sonnet --case <name> --runs 1 --ablation none`. Results go to `evals/results/`, which git ignores.
 
 They also run in CI (`.github/workflows/evals.yml`), but only when someone asks, because every run is a real Claude session paid for by the repository's credential:
 
@@ -79,7 +79,7 @@ They also run in CI (`.github/workflows/evals.yml`), but only when someone asks,
 - **Before a release,** reopen the release PR (it needs reopening anyway, so its required checks start): the cases whose skills changed since the last release run once each. Check that run before merging the release.
 - **By hand,** `gh workflow run Evals` does the same as a release. Name cases with `-f cases="update-moving status-is-a-table"`, or run every case with `-f all=true`, adding `-f runs=3` for three runs each, when you want a full baseline.
 
-Cases run on Opus, four at a time, through `scripts/run-evals.sh`, which you can run locally too: `scripts/run-evals.sh 1 <case>…`. Every run of a case must pass. The judges that grade the replies get a few verdicts wrong, so a case that fails is run once more, and fails the check only if it fails again. Each attempt has a cost ceiling, so a runaway case stops. The results are posted on the PR and printed in the run's log, and every run keeps an `eval-results` artifact for 30 days: each case's prompt, reply, grader verdicts and output, plus the first try of a retried case. Download it with `gh run download <run id> -n eval-results` to read why a case failed.
+Cases run on Opus, judged by Sonnet (the default judge, Haiku, fails too many correct replies on these rubrics), four at a time, through `scripts/run-evals.sh`, which you can run locally too: `scripts/run-evals.sh 1 <case>…`. Every run of a case must pass. The judges that grade the replies get a few verdicts wrong, so a case that fails is run once more, and fails the check only if it fails again. Each attempt has a cost ceiling, so a runaway case stops. The results are posted on the PR and printed in the run's log, and every run keeps an `eval-results` artifact for 30 days: each case's prompt, reply, grader verdicts and output, plus the first try of a retried case. Download it with `gh run download <run id> -n eval-results` to read why a case failed.
 
 CI needs a Claude credential in a repository secret: `ANTHROPIC_API_KEY`, an API key from the Claude Console, which bills the API account and leaves your subscription alone, or `CLAUDE_CODE_OAUTH_TOKEN` (from `claude setup-token`), which shares your subscription's limits with your own sessions. Without one, and on PRs from forks, the job skips with a warning.
 
