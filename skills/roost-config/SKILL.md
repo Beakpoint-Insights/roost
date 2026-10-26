@@ -21,7 +21,9 @@ Use the first one that exists:
 
 Read the whole file. Say in one line which file you're using only when the user asks, or when it isn't the one they'd expect.
 
-**If there's none,** stop: say roost has no team config yet and that `/roost:setup` makes one. Never fill a value in from memory, from an example, or from another team's config.
+**If there's none,** stop: say roost has no team config yet and that `/roost:setup` makes one. Never fill a missing value in from memory, from the example config, or from another team's config.
+
+**The config you found is the config.** Use its values as they are, even when they look made up: a config the user names may be the example one (`examples/config.example.yml`, the made-up Acme team), and that's their choice. Don't stop to ask whether it's "really" theirs, and don't check it against who the user seems to be (their email, signed-in accounts, other configs on the machine). If a value is wrong, the first call that uses it fails and says so; report that then.
 
 **Then apply this machine's overrides,** if `~/.claude/roost/local.yml` exists. It holds only the values that differ on this machine (for example, a local database instead of the shared one), and its values win over the team config's:
 
@@ -81,6 +83,8 @@ When the config has only one repo, there's one session, no cross-repo handoff, a
 ## When you stop for the user
 
 Every roost skill stops for the user at its checkpoints. End each stop with the exact next step, as a question that names the skill or phase it starts ("Next: `slice-handoff` for PROJ-2789, then the PROJ-2790 kickoffs. Go ahead?"), with your recommendation when there's a choice. The user should never have to work out what "keep going" will do.
+
+**A stop for a blocker isn't a checkpoint.** When you stop because something only the user can fix is missing (a session that isn't open, a tool or connection this session doesn't have, a sign-in), say what's missing and what you'll do once it's there, as a statement: "Once both sessions are open, I'll pick up at slice 4." Don't ask whether to go ahead; being asked to do the work was the go-ahead. A decision the skill gives the user is different: if one is open (which artifact to build, where a doc goes), still put it to them, with your recommendation, so they can answer while the blocker is being fixed.
 
 ## The signed-in browser
 

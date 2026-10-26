@@ -7,13 +7,22 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  actions: write
 
 jobs:
   release-please:
     runs-on: ubuntu-latest
     steps:
       - uses: googleapis/release-please-action@v5
+        id: release
         with:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
-
+      # A PR opened with GITHUB_TOKEN doesn't start other workflows, so start the
+      # full eval run on the release branch here, before the release PR merges.
+      - name: Run every eval on the release PR
+        if: steps.release.outputs.pr
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ fromJSON(steps.release.outputs.pr).headBranchName }}
+        run: gh workflow run evals.yml -R "$GITHUB_REPOSITORY" --ref "$BRANCH"
