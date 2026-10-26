@@ -14,7 +14,7 @@ You coordinate. Other Claude sessions do the work, one per repo in the config's 
 - **STORY:** the slice's ticket key.
 - A session for each repo the story touches must already be open. If one isn't, ask the user to open it and stop.
 
-Every run starts with **step R (resume check)**, even a first run, so stopping and restarting is always safe.
+Every run starts with **step R (resume check)**, even a first run, so stopping and restarting is always safe. Before step R's report, work out which roost you run ("Which roost is running" in `roost-config`) and say it in that report. Before sending any work, new or resumed, do **step 0** (find the sessions and check they run the same roost as you), even when step R picks up at a later step.
 
 If the user only asks where things stand ("where are we on PROJ-X?", "what's left?"), use **Status** below and stop there.
 
@@ -96,7 +96,7 @@ When a session's report (or its branch) adds a database migration, and `deploy.m
 ## Keep the state file current
 
 After every step and every checkpoint, update `<team.state_dir>/STORY.md`:
-- the session names and refs, and the directory each reported
+- the roost this run uses (from step 0), and the session names and refs, and the directory each reported
 - each step: done, its outcome, PRs and commits from the session's report
 - each checkpoint: the list shown and the user's decisions, word for word
 - tickets you created
@@ -109,9 +109,10 @@ The state file lives on this machine only. So that Status works anywhere, also p
 
 1. `ListAgents` to see the other sessions on this machine.
 2. Don't trust names (they change, and two can look alike). Send each candidate:
-   > Connectivity check from the run-slice orchestrator: reply with your working directory (`pwd`) and whether you're busy, then carry on as before.
+   > Connectivity check from the run-slice orchestrator: reply with your working directory (`pwd`), whether you're busy, and which roost you're running (the one line `roost-config` gives under "Which roost is running"), then carry on as before.
 3. A session whose directory ends in a repo's `name` is that repo's session. If there are two for one repo, or none for a repo the story touches, ask the user which to use.
 4. Note each session's name and ref for the rest of the run.
+5. **Check every session runs the same roost as you** ("Which roost is running" in `roost-config`). Record yours and theirs in the state file and say yours in your first report. If any differs (an installed version in one session and a checkout in another, or two versions), tell the user which session runs which, and that a session started with `claude --plugin-dir <checkout>` runs that checkout; carry on only once they say which roost the run uses.
 
 If a send comes back held or refused (a `[Cross-session delivery notice]`), tell the user that session needs to accept messages, and stop.
 

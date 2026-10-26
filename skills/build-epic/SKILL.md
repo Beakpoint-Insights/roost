@@ -22,6 +22,8 @@ Use `run-slice`'s Status for an epic: one row per story in story order, then the
 
 ## 1. Find where the epic is
 
+**Before anything else, new build or resumed:** work out which roost you run ("Which roost is running" in `roost-config`), then do `run-slice`'s step 0: find the sessions and check every one runs the same roost as you, stopping if they don't. Record all of them in `EPIC.md` and say yours in your first report. Planning (step 2) and the before-release work (step 4) send work without going through `run-slice`, so this check can't wait for it.
+
 1. **Story order:** the order the epic's build guide or its stories give ("Slice 1", "Slice 2", …); if neither says, the order the stories were created in.
 2. **Each story's state:** at `tracker.statuses.ready_for_release` or later is done; otherwise use `run-slice`'s resume check for it.
 3. **Your record:** read `<team.state_dir>/EPIC.md` if it exists: the story order, the current story, the session names, and the IDs of the epic's Release order and Carry-over comments. Check it against the tracker and GitHub the way `run-slice` checks its state file.
@@ -84,7 +86,7 @@ Shipping (merging the stacks in Release order and deploying) isn't part of this 
 
 ## Keep the state file current
 
-`<team.state_dir>/EPIC.md` holds the story order, the story in progress, the sessions, the Release order and Carry-over comment IDs, and each story's outcome in one line (PRs, tests, what was carried over). Each story's own detail stays in `<team.state_dir>/STORY.md`, which `run-slice` keeps. Update it after every slice and every decision.
+`<team.state_dir>/EPIC.md` holds the roost the run uses (the line from "Which roost is running" in `roost-config`, checked against every session as `run-slice` step 0 does), the story order, the story in progress, the sessions, the Release order and Carry-over comment IDs, and each story's outcome in one line (PRs, tests, what was carried over). Each story's own detail stays in `<team.state_dir>/STORY.md`, which `run-slice` keeps. Update it after every slice and every decision.
 
 ## Progress updates
 
