@@ -1,0 +1,25 @@
+README.md
+  s_0de49345ab4148::t_216f93f91f176f 273
+evals/which-roost-is-running/graders/names-version.md
+  s_0de49345ab4148::t_075b4a3b6ee36e 1-5
+evals/which-roost-is-running/graders/reads-manifest.md
+  s_0de49345ab4148::t_a89a4f413d73d0 1-6
+evals/which-roost-is-running/prompt.md
+  s_0de49345ab4148::t_120d8263cec038 1-10
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "cd505a57caf78984a60f2cb6ae889bdff90e7c30",
+  "prompts": {},
+  "sessions": {
+    "s_0de49345ab4148": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b1005a39-8915-42a2-974f-c030708f474d",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Alan Cox <acox@beakpointinsights.com>"
+    }
+  }
+}
