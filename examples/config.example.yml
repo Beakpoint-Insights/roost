@@ -1,0 +1,122 @@
+# An example roost config for a made-up team, Acme, with a backend and a frontend repo.
+# Copy it to ~/.claude/roost/config.yml (or .roost/config.yml in a repo) and change every value,
+# or run /roost:setup. skills/roost-config/references/config-schema.md says what each key means.
+# The evals use this file as their team config.
+version: 1
+
+team:
+  name: Acme
+  product: Acme Cloud
+  state_dir: ~/.claude/roost/state
+  drafts_dir: ~/Downloads
+  shell: zsh
+
+tracker:
+  kind: jira
+  jira:
+    site: acme.atlassian.net
+    cloud_id: 00000000-0000-0000-0000-000000000000
+    project: PROJ
+  statuses:
+    todo: To Do
+    in_progress: In Progress
+    ready_for_release: Ready for Release
+    done: Done
+    wont_do: Won't Do
+  components_required: true
+
+tests:
+  kind: xray
+  automated_label: automated
+  manual_label: manual
+  xray:
+    test_link_type: { name: Test, outward: tests, inward: is tested by }
+
+repos:
+  - name: acme-api
+    github: acme/acme-api
+    role: backend
+    session: API session
+    order: 1
+    kickoff_title: Backend kickoff (acme-api)
+    branch_suffix: backend
+    owns: the API, domain, database, migrations and third-party integrations
+    tests: unit tests next to the code, and integration tests in tests/integration
+  - name: acme-web
+    github: acme/acme-web
+    role: frontend
+    session: Web session
+    order: 2
+    depends_on: [acme-api]
+    kickoff_title: Frontend kickoff (acme-web)
+    branch_suffix: frontend
+    owns: the web app and its e2e suite
+    tests: component tests next to the components, and Cucumber e2e scenarios
+    contract: >-
+      Regenerate the API client (src/api/generated) against the API running on :8080,
+      once it runs the backend branch. Don't check out acme-api, and don't hand-write API types.
+    e2e:
+      run_all: npm run test:e2e
+      run_tags: 'npm run test:e2e -- --tags "{tags}"'
+      scenarios_dir: e2e/features/<area>/
+      tag_style: "the test's key as a tag (@PROJ-1234)"
+      backend_marker: "@backend-automated @skip, with a comment naming the backend test"
+      secrets_file: .env.test
+
+stack:
+  name: Docker Compose
+  owner_repo: acme-api
+  how: Run everything with `docker compose up` from acme-api, and start or stop services as tests need them.
+  never: ["npm run dev outside Compose"]
+  services:
+    - { name: API, url: "http://localhost:8080" }
+    - { name: web app, url: "http://localhost:3000" }
+  restart_after_api_change: docker compose restart api
+  test_data: From acme-api, `npm run seed -- --tenant qa` loads a test tenant with a month of usage.
+  flag_state: curl -s http://localhost:8080/api/flags
+  telemetry:
+    logs: docker compose logs <service> --since 10m
+  database:
+    local: the Compose Postgres container
+    apply_migrations: npm run migrate
+
+vcs:
+  host: github
+  stacking: gh-stack
+  signed_commits: true
+  signing_blocker: the signing key isn't unlocked
+  pr_title: conventional
+  merge_method: squash
+  branch_name: "{key}-short-description"
+
+planning:
+  lead_repo: acme-api
+  plan_skill: superpowers writing-plans
+  execute_skill: superpowers executing-plans
+  plans_dir: docs/plans
+  services_needing_setup: Stripe
+  review_focus: security, our architecture, test quality, and accessibility
+
+deploy:
+  migrations_run_on_deploy: true
+  migration_apply: npm run migrate
+  migration_verify: npm run migrate:status
+  secret_read: a one-line kubectl command
+  release_tool: release-please
+  logs_tool: Grafana
+  runbooks:
+    repo: acme-api
+    dir: docs/runbooks
+    config_sources: [config/staging.yml, config/production.yml]
+    never_run_against: [staging, production, Stripe, a shared database]
+
+qa:
+  test_account_email: qa+<something><timestamp>@example.com
+  security_label: security
+
+design:
+  system: Acme Design System
+  url: https://claude.ai/design/p/00000000-0000-0000-0000-000000000000
+  read_with: the Design Sync tools
+  read_first: [README.md, "the preview/ pattern pages"]
+  source_of_truth: acme-web/src/components

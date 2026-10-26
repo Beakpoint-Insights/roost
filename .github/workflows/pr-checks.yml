@@ -1,0 +1,37 @@
+name: PR checks
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  conventional-title:
+    runs-on: ubuntu-latest
+    steps:
+      - name: PR title is a Conventional Commit
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          echo "Title: $PR_TITLE"
+          if ! printf '%s' "$PR_TITLE" | grep -Eq '^(feat|fix|docs|refactor|perf|test|ci|build|chore|revert)(\([^)]+\))?!?: .+'; then
+            echo "::error::The PR title must be a Conventional Commit, for example 'feat: add a skill' or 'fix(shape-epic): correct the test step'. release-please reads it when the PR is squash-merged."
+            exit 1
+          fi
+
+  validate-plugin:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Install Claude Code
+        run: npm install -g @anthropic-ai/claude-code@2.1.296
+      - name: Validate the plugin and marketplace
+        run: claude plugin validate --strict .
+      - name: Check each skill's SKILL.md
+        run: scripts/check-skills.sh
