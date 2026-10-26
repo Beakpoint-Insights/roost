@@ -14,7 +14,7 @@ You coordinate. Other Claude sessions do the work, one per repo in the config's 
 - **STORY:** the slice's ticket key.
 - A session for each repo the story touches must already be open. If one isn't, ask the user to open it and stop.
 
-Every run starts with **step R (resume check)**, even a first run, so stopping and restarting is always safe.
+Every run starts with **step R (resume check)**, even a first run, so stopping and restarting is always safe. Before step R's report, work out which roost you run ("Which roost is running" in `roost-config`) and say it in that report. Before sending any work, new or resumed, do **step 0** (find the sessions and check they run the same roost as you), even when step R picks up at a later step.
 
 If the user only asks where things stand ("where are we on PROJ-X?", "what's left?"), use **Status** below and stop there.
 
