@@ -64,12 +64,14 @@ Evals already run against the checkout: `claude plugin eval .` loads the plugin 
 Run them before merging a change to a skill:
 
 ```
-claude plugin eval . --no-publish
+claude plugin eval . --no-publish --model opus
 ```
+
+The evals test roost on Opus, in CI too, so pass `--model opus` to compare your results with CI's. Without it, a run uses your account's default model, and on another model some skills don't trigger at all.
 
 Don't give an eval `SendMessage` or `ListAgents` (with `--allow-tools`). The eval runs on your machine, so a run could message your real repo sessions. A grader can't check a tool the run wasn't given, so write "doesn't message a session" into an `llm` grader's rubric instead of a `tool_used` count.
 
-Each case runs 3 times with roost and 3 times without it, so you can see what the skill changes. A full run costs about $3 on your own Claude account. To check one case quickly: `claude plugin eval . --case <name> --runs 1 --ablation none`. Results go to `evals/results/`, which git ignores.
+Each case runs 3 times with roost and 3 times without it, so you can see what the skill changes. A full run costs about $3 on your own Claude account. To check one case quickly: `claude plugin eval . --model opus --case <name> --runs 1 --ablation none`. Results go to `evals/results/`, which git ignores.
 
 They also run in CI (`.github/workflows/evals.yml`), on every PR: `scripts/eval-cases.sh` picks the cases the PR's changes can affect. A change to `skills/<name>/` runs the cases tagged `<name>`, a change to a case runs that case, and a change to `roost-config`, the example config or the plugin manifest runs them all. A release PR, or a run started by hand (`gh workflow run Evals`), runs every case: release-please starts that run on its release branch whenever it opens or updates the release PR, since a PR it opens can't start workflows itself. Check that run before merging the release. Every run of a case must pass. The judges that grade the replies get a few verdicts wrong, so a case that fails is run once more, and fails the check only if it fails again. The results are posted on the PR and printed in the run's log, and every run keeps an `eval-results` artifact for 30 days: each case's prompt, reply and grader verdicts, plus the first try of a retried case. Download it with `gh run download <run id> -n eval-results` to read why a case failed. CI needs a Claude credential in a repository secret, `CLAUDE_CODE_OAUTH_TOKEN` (from `claude setup-token`) or `ANTHROPIC_API_KEY`; without one, and on PRs from forks, the job skips with a warning.
 

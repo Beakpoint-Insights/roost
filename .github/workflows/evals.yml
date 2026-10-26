@@ -68,11 +68,11 @@ jobs:
             # get a few verdicts wrong, so a case that fails gets one more try, and
             # fails the check only if it fails again. The summary shows each case's
             # last try; the first try of a retried case is kept in eval-json/first-try/.
-            if ! claude plugin eval . --no-publish --trust-plugin --case "$c" --ablation none --json "eval-json/$c.json"; then
+            if ! claude plugin eval . --no-publish --trust-plugin --model opus --case "$c" --ablation none --json "eval-json/$c.json"; then
               echo "::notice::$c failed; running it once more"
               # A run that failed before writing results (at sign-in, say) has none to keep.
               if [ -f "eval-json/$c.json" ]; then mv "eval-json/$c.json" "eval-json/first-try/$c.json"; fi
-              claude plugin eval . --no-publish --trust-plugin --case "$c" --ablation none --json "eval-json/$c.json" || failed=1
+              claude plugin eval . --no-publish --trust-plugin --model opus --case "$c" --ablation none --json "eval-json/$c.json" || failed=1
             fi
           done
           scripts/eval-summary.py eval-json > eval-summary.md
