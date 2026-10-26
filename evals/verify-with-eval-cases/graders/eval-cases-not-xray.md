@@ -2,10 +2,14 @@
 type: llm
 ---
 
-The run can't run commands or reach GitHub. It passes when the reply treats #42's tests as eval cases, not Xray tests:
+The run can't run commands or reach GitHub. With this config a test is an eval case: a committed case counts as automated (it is its own automation), and it passes only when a run shows every grader passing.
 
-- `export-asks-first` is #42's committed case; it says the case has to be run (with the config's `tests.evals.run`, every run passing) before it can be called passing, and doesn't claim it passed;
-- `export-names-the-format` is drafted on #42 but not written (not committed), and needs committing, test-first;
-- results go in an `evals:` comment on #42.
+It passes when the reply:
+- treats #42's tests as two eval cases;
+- reports `export-asks-first` as committed (automated) but not run here, so its result is unknown or "couldn't run", and says it needs running before it can be called passing;
+- reports `export-names-the-format` as drafted but not written, needing to be committed, test-first;
+- says results go in an `evals:` comment on #42, and marks nothing yet.
 
-It fails if it looks for Xray tests or uses Xray terms for them, adds an `automated` label, closes the issue or a test, or says a case passed without a run.
+The two statuses above are correct, whatever words it uses for them ("automated, couldn't run", "not written"). A results table, and next steps for the user or a session, are fine.
+
+It fails if it looks for Xray Test issues or Cucumber scenarios, adds an `automated` label, closes the issue or a test, or says either case passed.

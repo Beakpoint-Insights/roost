@@ -70,7 +70,7 @@ A bug is done when all of these are true:
 - if it added a database migration and `deploy.migrations_run_on_deploy` is false, a deploy note covers it: the **Migrations to apply** comment and the staging and production pre-deploy sub-tasks, on the epic's deploy ticket or, for a standalone bug, on the bug itself (see `stacked-prs`). Add or update them if they're missing.
 - the owning session ran `/code-review` on the fix's own diff (its branch against the branch below it, or `main` for a standalone bug), and each finding is fixed, or decided by the user like any other finding.
 
-Then move the ticket to `tracker.statuses.ready_for_release` (a session that already did is fine; read it back). New problems a session found along the way become tickets for later only with the user's decision: list them in the report with a recommendation.
+Then move the ticket to `tracker.statuses.ready_for_release` (without stacking, once the user has merged its PRs; "Without stacking" in `roost-config`) (a session that already did is fine; read it back). New problems a session found along the way become tickets for later only with the user's decision: list them in the report with a recommendation.
 
 ## Report to the user
 

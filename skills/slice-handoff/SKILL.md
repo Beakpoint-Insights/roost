@@ -97,7 +97,7 @@ Rewrite each comment as one whole, current text. Don't add "Update:" notes to th
 - If `deploy.migrations_run_on_deploy` is false, every migration on the stacks is on the epic's deploy ticket: its **Migrations to apply** comment and the staging and production pre-deploy sub-tasks (`stacked-prs`). Compare the stack's migration files with the list, and add whatever is missing.
 - When any repo DONE or NEXT touches uses the local stack (isn't `local_stack: false`): the local stack runs the newest branch of each repo that uses it, its migrations are applied to `stack.database.local`, and every `stack.services` URL answers, so NEXT's kickoff starts clean.
 - Every repo with `apply_gate` that DONE touched has DONE's plan applied and recorded, and a fresh plan shows no changes. Drift, or a plan nobody applied, is an open item for step 2.
-- DONE is at `tracker.statuses.ready_for_release`.
+- DONE is at `tracker.statuses.ready_for_release` (without stacking, only once its PRs have merged; "Without stacking" in `roost-config`).
 
 ## Report
 
