@@ -1,0 +1,25 @@
+scripts/eval-cases.sh
+  s_0de49345ab4148::t_2e81233a17d12f 46-47
+.github/workflows/evals.yml
+  s_0de49345ab4148::t_27f9672949b5b8 36
+.github/workflows/release-please.yml
+  s_0de49345ab4148::t_c5064ca7012eb0 10,17,21-28
+README.md
+  s_0de49345ab4148::t_2c00cc3752b914 273
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3b4ccd4a83f5228f84b61c397a400f371ae5a170",
+  "prompts": {},
+  "sessions": {
+    "s_0de49345ab4148": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b1005a39-8915-42a2-974f-c030708f474d",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Alan Cox <acox@beakpointinsights.com>"
+    }
+  }
+}
