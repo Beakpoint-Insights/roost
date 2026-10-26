@@ -84,6 +84,8 @@ A skill writes a config key in backticks, for example `tracker.statuses.ready_fo
 - **A repo's review focus:** its `review_focus`, or else `planning.review_focus`.
 - **Person-owned tasks:** tickets under an epic labelled `tracker.person_task_label` (default `person-owned`). They're work no repo session can do, with a named owner and a "When" (before release, after release, or after a named slice). Never send one to a session, never move one out of its epic, and never count one as leftover work; remind its owner when its "When" arrives.
 - **The state directory:** `team.state_dir`, where orchestrators keep their records. Default `~/.claude/roost/state/<team.name>/`, so two teams on one machine never share state files. Say which folder you're using the first time you read or write one.
+  - **A run's record may be somewhere else.** When an orchestrator finds no state file for its ticket in this folder, before it treats the run as new or rebuilds it from the tracker, it looks for `<KEY>.md` in the other folders under `~/.claude/roost/state/` and in that folder itself. If one is there, stop: say where it is and which config it records, and carry on only once the user says which config the run uses.
+  - **Older records.** Before per-team folders, a config without `state_dir` kept its records directly in `~/.claude/roost/state/`. When this team's folder is the default and that folder has state files of its own (`*.md`, not in a team's folder), say how many there are and ask the user which team they belong to. Move them into that team's folder only once the user says; never assume they're this team's, and never leave them unmentioned.
 
 ### The apply gate
 
