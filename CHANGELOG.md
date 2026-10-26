@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.1](https://github.com/Beakpoint-Insights/roost/compare/roost-v1.2.0...roost-v1.2.1) (2026-10-26)
+
+
+### Documentation
+
+* maintainers build roost with roost; contributors may, but needn't ([#65](https://github.com/Beakpoint-Insights/roost/issues/65)) ([61d1bd6](https://github.com/Beakpoint-Insights/roost/commit/61d1bd6662d58ee3fe80f4781e3a070c0c35d945))
+
 ## [1.2.0](https://github.com/Beakpoint-Insights/roost/compare/roost-v1.1.1...roost-v1.2.0) (2026-10-26)
 
 
