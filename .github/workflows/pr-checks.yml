@@ -35,3 +35,30 @@ jobs:
         run: claude plugin validate --strict .
       - name: Check each skill's SKILL.md
         run: scripts/check-skills.sh
+      - name: Test the private-details check
+        run: scripts/check-private-details.test.sh
+
+  private-details:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: No team's private details in the PR
+        env:
+          # One string per line: tracker sites, IDs, hostnames and the like that
+          # belong in a team's own config. It's a secret so this check doesn't
+          # publish the values it guards.
+          FORBIDDEN_STRINGS: ${{ secrets.FORBIDDEN_STRINGS }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          if [ -z "$FORBIDDEN_STRINGS" ]; then
+            echo "::warning::Skipped: the FORBIDDEN_STRINGS secret isn't available (a PR from a fork, or it isn't set). A maintainer runs this check before merging."
+            exit 0
+          fi
+          list=$(mktemp)
+          printf '%s\n' "$FORBIDDEN_STRINGS" > "$list"
+          scripts/check-private-details.sh "$list" "$BASE_SHA" "$HEAD_SHA"
