@@ -58,6 +58,7 @@ Evals already run against the checkout: `claude plugin eval .` loads the plugin 
 | `status-is-a-table` | "Where are we on PROJ-X?" gets `run-slice`'s status table, first and on its own, and doesn't offer to start or resume work |
 | `question-checked-before-answer` | A question about how the code works, asked mid-slice, gets checked in the code or by the owning session before it's answered, with no guess sent in the meantime |
 | `update-your-turn` | A progress update while a session is blocked on the user starts with `## 🙋 YOUR TURN` and the action first |
+| `verify-with-eval-cases` | With the GitHub-only example config, `verify-slice-tests` treats a story's tests as eval cases tagged with its key, not Xray tests, and closes nothing |
 | `which-roost-is-running` | "Which roost is running?" gets the version from the plugin's own manifest, not a guess |
 | `update-moving` | A progress update when nothing needs the user is a `#### 🟢` heading and one plain line |
 

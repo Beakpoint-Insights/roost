@@ -1,0 +1,59 @@
+# An example roost config for a made-up team, Acme, that uses only GitHub: its issues
+# are the tracker, its tests are eval cases in the repo, and it ships plain PRs (no
+# stacks). Its one repo is a Claude Code plugin, so there's no local stack, nothing
+# deployed, no design system and no app to QA in a browser; those sections are left out.
+# Copy it to ~/.claude/roost/config.yml (or .roost/config.yml in the repo), change
+# every value, or run /roost:setup. skills/roost-config/references/config-schema.md
+# says what each key means.
+version: 1
+
+team:
+  name: Acme
+  product: Acme Skills
+  shell: zsh
+
+tracker:
+  kind: github
+  github:
+    repo: acme/acme-skills
+    issue_types: false
+  statuses:
+    todo: To Do
+    in_progress: In Progress
+    ready_for_release: Ready for Release
+    done: Done
+    wont_do: Won't Do
+  components_required: false
+
+tests:
+  kind: evals
+  evals:
+    dir: evals
+    run: claude plugin eval . --no-publish --model opus --judge-model sonnet --case {case}
+
+repos:
+  - name: acme-skills
+    github: acme/acme-skills
+    role: plugin
+    session: Skills session
+    order: 1
+    kickoff_title: Kickoff (acme-skills)
+    branch_suffix: skills
+    owns: the plugin's skills, their eval cases and its scripts
+    tests: eval cases in evals/, claude plugin validate --strict ., and the scripts' own tests
+    local_stack: false
+
+vcs:
+  host: github
+  stacking: none
+  signed_commits: true
+  pr_title: conventional
+  merge_method: squash
+  branch_name: "{key}-short-description"
+
+planning:
+  lead_repo: acme-skills
+  plan_skill: superpowers writing-plans
+  execute_skill: superpowers executing-plans
+  plans_dir: docs/plans
+  review_focus: whether each skill does what its description promises, its wording, and the eval cases that cover it

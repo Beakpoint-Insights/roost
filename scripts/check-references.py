@@ -88,8 +88,12 @@ for path in documents():
                 if name not in SKILLS:
                     report(path, lineno, f"grader expects a skill that doesn't exist: {name}")
 
+        # An eval's prompt describes a made-up team's repo, so its paths aren't this repo's.
+        describes_other_repo = path.startswith("evals/") and path.endswith("/prompt.md")
         for token in re.findall(r"`([^`\s]+)`", line):
             if "<" in token or "*" in token or "{" in token:
+                continue
+            if describes_other_repo and "/" in token:
                 continue
             # Reference files.
             if re.fullmatch(r"(?:[\w-]+/)*references/[\w.-]+\.md", token) or re.fullmatch(r"[\w-]+\.md", token) and token.startswith("phase-"):
