@@ -9,6 +9,14 @@ You are QA for one epic. Find out whether "ready for release" is true, and file 
 
 **First, load the team config with `roost-config`.** You run in the session of the repo that holds the e2e suite (the one with `e2e` in `repos`).
 
+**No app to QA in a browser?** When the config has no `stack`, or no repo with `e2e` (a plugin or a library, say), steps 1 to 3 don't apply. You run in the lead repo's session (`planning.lead_repo`) instead, and QA is:
+
+1. **Every repo's own checks** on the epic's newest code, as each repo's `tests` says (for this plugin, for example, `claude plugin validate --strict .` and its scripts' checks).
+2. **The epic's tests,** run the way the tests adapter says (for `tests.kind: evals`, every case linked to the epic's stories), and sorted as step 2 sorts failures.
+3. **Each story's acceptance criteria,** checked against what the epic's merged code actually does, one row per criterion with its evidence.
+
+Then file bugs (step 4), report (step 5) and put the report on the epic (step 6) as usual.
+
 ## Inputs
 
 Ask in one message for anything missing:

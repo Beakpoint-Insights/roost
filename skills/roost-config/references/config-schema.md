@@ -67,7 +67,7 @@ A list, one entry per repo a story's work can touch. One entry is fine.
 
 ## `stack`
 
-The local environment the sessions run and test against.
+The local environment the sessions run and test against. *Optional.* Leave it out when there's no local environment to run (a plugin or a library, say): skills then skip starting, checking and browser-testing it, as if every repo had `local_stack: false`.
 
 | Key | Meaning |
 |---|---|
@@ -112,6 +112,8 @@ The local environment the sessions run and test against.
 
 ## `deploy`
 
+*Optional.* Leave it out when nothing is deployed (a plugin released as a package, say): skills then skip migration notes, deploy tickets and runbook steps that need it.
+
 | Key | Meaning |
 |---|---|
 | `migrations_run_on_deploy` | `false` if staging and production don't run migrations on deploy, so every migration needs a deploy note. |
@@ -140,6 +142,8 @@ The local environment the sessions run and test against.
 | `not_ours` | *Optional.* Other design systems in the same account that must not be used. |
 
 ## `qa`
+
+*Optional.* Leave it out when there's no app to QA in a browser.
 
 | Key | Meaning |
 |---|---|
