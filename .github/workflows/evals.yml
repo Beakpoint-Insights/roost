@@ -77,9 +77,11 @@ jobs:
               cases=$(scripts/eval-cases.sh "$last_release" "$HEAD_SHA")
             fi
           elif [[ "$HEAD_REF" == release-please--* ]]; then
-            # A release: the cases whose skills changed since the last release.
+            # A release: the cases whose skills changed since the last release. Compare
+            # with the PR's base (what merged since), not its head, whose version bump
+            # in the plugin manifests would otherwise select every case.
             if [ -n "$last_release" ]; then
-              cases=$(scripts/eval-cases.sh "$last_release" "$HEAD_SHA")
+              cases=$(scripts/eval-cases.sh "$last_release" "$BASE_SHA")
             else
               cases=$(scripts/eval-cases.sh --all)
             fi
