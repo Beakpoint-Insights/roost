@@ -29,7 +29,7 @@ Every skill reads one team config before it does anything. Run:
 
 It links your team's shared config if you have one, or asks about your tracker, repos, local stack, branching and deploy rules and writes one. [`examples/config.example.yml`](examples/config.example.yml) is a complete example, and [`skills/roost-config/references/config-schema.md`](skills/roost-config/references/config-schema.md) says what every key means.
 
-roost looks for the config in this order: a path you name, `$ROOST_CONFIG`, `.roost/config.yml` in the current repo, then `~/.claude/roost/config.yml`. Most teams keep one config in a private repo, next to any skills of their own, and link it into `~/.claude/roost/config.yml` on each machine so `git pull` keeps everyone in step.
+roost looks for the config in this order: a path you name, `$ROOST_CONFIG`, `.roost/config.yml` in the current repo, then `~/.claude/roost/config.yml`. To work for more than one team on one machine, start each session with `ROOST_CONFIG=<that team's config> claude`: orchestrators run outside the repos, so they never see a repo's `.roost/config.yml`. They record the config they started with and stop if a resumed run loads a different one. Most teams keep one config in a private repo, next to any skills of their own, and link it into `~/.claude/roost/config.yml` on each machine so `git pull` keeps everyone in step.
 
 A machine that differs from the rest (its own database, other ports) keeps just those values in `~/.claude/roost/local.yml`, which overrides the shared config on that machine only.
 

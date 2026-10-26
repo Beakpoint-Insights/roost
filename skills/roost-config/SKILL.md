@@ -19,7 +19,11 @@ Use the first one that exists:
 3. `.roost/config.yml` in the current directory or the nearest parent that has one (stop at the repo root).
 4. `~/.claude/roost/config.yml` (often a link to the team's shared config in its private repo).
 
-Read the whole file. Say in one line which file you're using only when the user asks, or when it isn't the one they'd expect.
+Read the whole file. Say in one line which file you're using, and its `team.name`, when the user asks, when it isn't the one they'd expect, or when more than one of these places has a config (for example `$ROOST_CONFIG` names one team's and `~/.claude/roost/config.yml` another's), so nobody runs one team's work on another's config.
+
+**One machine, several teams.** A session outside every repo (an orchestrator) finds only `$ROOST_CONFIG` or `~/.claude/roost/config.yml`. To work for a team whose config isn't the one in `~/.claude/roost/config.yml`, start the session with `ROOST_CONFIG=<path to that team's config> claude`, or name the path in the conversation.
+
+**Orchestrators record their config.** `run-slice` and `build-epic` write the config's path and `team.name` into their state file when a run starts. On a resume, if the config you loaded isn't the recorded one, stop and say which each is: the run continues on the recorded config once the user names it, or on the new one if they say so.
 
 **If there's none,** stop: say roost has no team config yet and that `/roost:setup` makes one. Never fill a missing value in from memory, from the example config, or from another team's config.
 
