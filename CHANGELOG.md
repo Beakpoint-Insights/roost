@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.1](https://github.com/Beakpoint-Insights/roost/compare/roost-v1.2.0...roost-v1.2.1) (2026-10-26)
+
+
+### Documentation
+
+* design for release notes that match what shipped ([#56](https://github.com/Beakpoint-Insights/roost/issues/56)) ([#58](https://github.com/Beakpoint-Insights/roost/issues/58)) ([ae349c3](https://github.com/Beakpoint-Insights/roost/commit/ae349c34d4b6a768fb7ae4630653002afab79919))
+
 ## [1.2.0](https://github.com/Beakpoint-Insights/roost/compare/roost-v1.1.1...roost-v1.2.0) (2026-10-26)
 
 
