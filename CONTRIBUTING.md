@@ -45,7 +45,7 @@ Evals already run against the checkout: `claude plugin eval .` loads the plugin 
 | `bdd-for-existing-feature` | Writing scenarios for a feature that already runs goes to `live-verified-bdd`, not straight to filing |
 | `shape-epic-starts-with-problem` | A bare idea starts at Phase 1, reads that phase's steps file, and asks questions before building anything |
 | `prototype-stops-without-design-system` | The prototype phase stops when it can't reach the config's design system, instead of guessing the look |
-| `verify-not-automate` | "Which tests are automated?" after a push goes to `verify-slice-tests`, not `automate-xray-tests` |
+| `verify-not-automate` | "Which tests are automated?" after a push goes to `verify-slice-tests`, not `automate-tests` |
 | `design-without-ui-is-architecture` | The design phase, for an epic with no UI change, proposes an architecture or design-doc PR and builds no prototype |
 | `manual-test-not-automated` | `verify-slice-tests` reports a test labelled manual by its recorded runs, and never proposes automating or splitting it |
 | `pasted-stack-steps` | Pasted GitHub stack-conflict steps go to `stacked-prs`, which follows them without asking for a go-ahead |

@@ -1,6 +1,6 @@
 ---
 name: verify-slice-tests
-description: After a slice's changes are pushed, prove which of its story's tests are automated and passing, mark those automated, and propose splits for tests with scenarios that aren't automated, waiting for the user's answer. Reports one table and fixes nothing. Use when the user asks which tests for a story are automated, to "verify the tests for PROJ-X", or to mark a slice's tests automated. To write missing automation instead, use automate-xray-tests.
+description: After a slice's changes are pushed, prove which of its story's tests are automated and passing, mark those automated, and propose splits for tests with scenarios that aren't automated, waiting for the user's answer. Reports one table and fixes nothing. Use when the user asks which tests for a story are automated, to "verify the tests for PROJ-X", or to mark a slice's tests automated. To write missing automation instead, use automate-tests.
 ---
 
 # Verify Slice Tests

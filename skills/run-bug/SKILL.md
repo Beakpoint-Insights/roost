@@ -44,7 +44,7 @@ Several bugs of one epic stack on each other in the order the user gave.
 2. Send it to the owning session: "Use the `bug-bash` skill for PROJ-X." Then give the branch and base from step 2, for example: "Branch `PROJ-X` stacked on `PROJ-2790-backend`" or "Branch `PROJ-X` from `main`, its own PR". Add:
    - a PR title that follows `vcs.pr_title`, for example `fix(PROJ-X): …`;
    - a test that fails first, then the fix;
-   - if the bug has a test, automate its scenario (`automate-xray-tests`); if it has none and the behaviour could regress, add or update one first (the tests adapter's "Create a test" or "Update a test's scenarios");
+   - if the bug has a test, automate its scenario (`automate-tests`); if it has none and the behaviour could regress, add or update one first (the tests adapter's "Create a test" or "Update a test's scenarios");
    - for a repo others depend on: after the fix, `stack.restart_after_api_change` and check the fix on the running stack;
    - judge CI by each check's newest completed result, and don't re-run cancelled runs;
    - send the report as the last thing it does, with no promise of a later report.

@@ -69,7 +69,7 @@ Person-owned tasks (labelled `tracker.person_task_label`) are never sent to a se
 1. Send each "before release" item to the session that owns its code, by kind:
    - **A Bug:** `bug-bash` in that session.
    - **A task or follow-up ticket** (not a Bug): the ticket itself, sent as one instruction (test-first, one commit, pushed on the stack, and the ticket moved to `tracker.statuses.ready_for_release`), with the usual report request.
-   - **Unautomated scenarios:** `automate-xray-tests`, for the test they're in, in the session of the repo that holds that test's automation (the e2e repo's, or the repo with the eval cases). Never for a manual test.
+   - **Unautomated scenarios:** `automate-tests`, for the test they're in, in the session of the repo that holds that test's automation (the e2e repo's, or the repo with the eval cases). Never for a manual test.
    - **A manual test not run yet:** to the session of the repo that owns the work it checks, to run and record as `run-slice` step 2 says.
    - **An item that needs more than one repo:** write each repo's part with `cross-repo-handoff`, then send them in `repos` order. Send a dependent repo's part only when the repo it depends on reports done and the stack is restarted. Writing the parts isn't the fix; each has to be built.
 

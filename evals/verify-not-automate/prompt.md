@@ -1,5 +1,5 @@
 ---
-description: Checking which tests are automated after a push goes to verify-slice-tests, not automate-xray-tests.
+description: Checking which tests are automated after a push goes to verify-slice-tests, not automate-tests.
 tags: [verify-slice-tests, routing]
 max_turns: 8
 allowed_tools: [Read, Glob, Grep, Skill]
