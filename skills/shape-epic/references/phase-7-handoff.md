@@ -6,7 +6,7 @@
 
 ## Process
 
-0. **Check how you'll attach files, first.** Before anything else, find out whether uploads will work ("Attach a file" in the tracker adapter): for Jira, whether `JIRA_EMAIL` and `JIRA_API_TOKEN` are set, or else whether the Playwright browser is signed in to the tracker. If neither, tell the user now, in a 🙋 **Your turn** line (set the token, or sign in), and carry on with the steps that don't need it. Don't find out at upload time.
+0. **Check how you'll attach files, first.** Before anything else, find out whether uploads will work ("Attach a file" in the tracker adapter): for Jira, whether `JIRA_EMAIL` and `JIRA_API_TOKEN` are set, or else whether the Playwright browser is signed in to the tracker; for GitHub Issues, whether `gh auth status` shows a sign-in that can create gists. If neither, tell the user now, in a 🙋 **Your turn** line (set the token, or sign in), and carry on with the steps that don't need it. Don't find out at upload time.
 
 1. **Get the artifacts onto the epic.** Developer agents can't open local files or private claude.ai links, so the epic needs these attachments:
    - `<EPIC> Build Guide.html`, the phase 6 guide

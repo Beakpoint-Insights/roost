@@ -20,13 +20,16 @@ Always `1`.
 
 | Key | Meaning |
 |---|---|
-| `kind` | `jira`. (`github` and `linear` aren't supported yet.) |
-| `jira.site` | The Jira site, for example `acme.atlassian.net`. |
-| `jira.cloud_id` | The site's cloud ID, for the Atlassian MCP tools. |
-| `jira.project` | The project key, for example `PROJ`. |
+| `kind` | `jira`, or `github` for GitHub Issues (see `tracker-github.md`). (`linear` isn't supported yet.) |
+| `github.repo` | *For `github`.* The `owner/repo` whose issues are the tracker. |
+| `github.issue_types` | *Optional, for `github`.* `true` when the organisation has issue types (Epic, Story, Task, Bug) to use; otherwise the kind is a label. Default `false`. |
+| `github.component_prefix` | *Optional, for `github`.* The prefix of the labels that stand for Components. Default `component: `. |
+| `jira.site` | *For `jira`.* The Jira site, for example `acme.atlassian.net`. |
+| `jira.cloud_id` | *For `jira`.* The site's cloud ID, for the Atlassian MCP tools. |
+| `jira.project` | *For `jira`.* The project key, for example `PROJ`. |
 | *(environment)* | Not in the config, because they're secrets: `JIRA_EMAIL` and `JIRA_API_TOKEN` let skills change parents, edit comments and upload attachments without a browser; `XRAY_CLIENT_ID` and `XRAY_CLIENT_SECRET` let them read and write Xray tests through its API. |
 | `jira.epic_issue_type_id` | *Optional.* The Epic issue type's ID, when creating epics needs it. |
-| `statuses.todo` / `in_progress` / `done` | The workflow's status names. |
+| `statuses.todo` / `in_progress` / `done` | The workflow's status names. With `github`, `todo` is an open issue, `done` a closed one, and the others are labels with these names. |
 | `statuses.ready_for_release` | *Optional.* The status for work that's merged and waiting to ship. Leave it out if merged work goes straight to `done`; skills then move tickets to `done` at that point and skip the release-time checks for it. |
 | `statuses.wont_do` | *Optional.* The status for a ticket closed without a fix. |
 | `components_required` | *Optional.* `true` if every ticket needs Components set. Default `false`. |

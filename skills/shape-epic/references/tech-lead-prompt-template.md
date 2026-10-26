@@ -7,7 +7,7 @@ Phase 7 fills in this template for one epic. The result is a prompt a tech lead 
 - `{{PLACEHOLDER}}` is a value to fill in from the epic. Never leave one in the finished prompt.
 - `<!-- FILL: ... -->` explains how to work out a value. Delete the comment once it's filled in.
 - **Fixed text** (everything else) stays the same for every epic. Don't reword it. It holds the rules we've learned to want every time.
-- Each checklist item has a general rule followed by "*In this epic:*". The rule is fixed. The "In this epic" line comes from this epic's description, its decisions, the code and its Jira links. Gather it from those sources; don't invent it. If an item doesn't apply, write "*In this epic:* doesn't apply, because …".
+- Each checklist item has a general rule followed by "*In this epic:*". The rule is fixed. The "In this epic" line comes from this epic's description, its decisions, the code and its tracker links. Gather it from those sources; don't invent it. If an item doesn't apply, write "*In this epic:* doesn't apply, because …".
 - Look things up in the code before writing a "Starting points" or "In this epic" line. A line that says what the code does should name a file.
 - Write in plain language. No em dashes.
 - **Values from the team config** (`roost-config`) are filled in literally, so the prompt stands alone: the tech lead agent doesn't need to read the config. The `CONFIG` rows in the table below say which keys.
@@ -20,17 +20,18 @@ The sources for each value:
 
 | Value | Source |
 |---|---|
-| Stories, order, tests | Jira children of the epic and their "is tested by" links (from phases 4 and 5) |
+| Stories, order, tests | The epic's children in the tracker, and each story's tests as the tests adapter links them (from phases 4 and 5) |
 | Decisions | Settled during shaping: the epic description, the user's answers in this session, story descriptions |
 | Artifacts | The build guide (phase 6), the prototype and the design-doc PR (phase 3), the design system, and any cross-epic guide the user mentioned |
 | Prototype screens per story | The prototype's controls bar, and the "UI" section of each story. Only with a prototype |
 | Starting points, known gaps | A read of each repo the epic touches |
-| Blockers | Dependencies in the epic and story descriptions, plus Jira status of what they point to |
+| Blockers | Dependencies in the epic and story descriptions, plus the tracker status of what they point to |
 | Hard-parts components, data assumptions | The components the epic changes (a read of the code), and the data facts its decisions rest on (queries and results in the epic's comments and this session) |
 | `{{REVIEWER}}` | The person running `shape-epic`: their first name, from "Who am I" in the tracker adapter. They approve the plan. |
 | `{{LEAD_REPO}}` | CONFIG `planning.lead_repo` |
 | `{{OTHER_REPOS}}` | CONFIG every other repo the epic touches, by `name`, as sibling folders (`../<name>`). If there are none, delete the sentence that names them. |
-| `{{TRACKER_SITE}}`, `{{TRACKER_ID}}` | CONFIG `tracker.jira.site` and `tracker.jira.cloud_id` |
+| `{{TRACKER_LINE}}` | CONFIG the tracker, as one sentence: for `jira`, "Its tracker is Jira: site `<tracker.jira.site>`, cloud ID `<tracker.jira.cloud_id>`."; for `github`, "Its tracker is GitHub Issues in `<tracker.github.repo>`. A file attached to an issue is a gist linked from one of its comments." |
+| `{{TESTS_LINE}}` | CONFIG the tests, as one sentence: for `xray`, "The Xray tests linked to each story. Their Cucumber scenarios are in the Xray “Test details” panel. If you can't read that panel, use the test summaries in the build guide."; for `evals`, "The eval cases for each story: those already in `<tests.evals.dir>/` tagged with its key, and the drafts in its `evals:` comment, which you commit first, test-first." |
 | `{{PLAN_SKILL}}`, `{{EXECUTE_SKILL}}`, `{{PLANS_DIR}}` | CONFIG `planning.plan_skill`, `planning.execute_skill`, `planning.plans_dir` |
 | `{{REPO_SPLIT}}`, `{{REPO_TESTS}}` | CONFIG one bullet per repo the epic touches, in `repos` order, from its `name`, `owns` and `tests` |
 | `{{DESIGN_ROW}}` | CONFIG `design`: its name, `url` and `source_of_truth`. With no `design`, or no UI in the epic, delete the row |
@@ -56,12 +57,12 @@ You are the tech lead agent for this epic, running in the `{{LEAD_REPO}}` repo. 
 
 ## 1. Context
 
-**Epic:** {{EPIC_KEY}}, "{{EPIC_TITLE}}". Jira site `{{TRACKER_SITE}}`, cloud ID `{{TRACKER_ID}}`.
+**Epic:** {{EPIC_KEY}}, "{{EPIC_TITLE}}". {{TRACKER_LINE}}
 
 Read these first:
 1. The epic description, and the stories under it.
-2. The artifacts listed below. Download the Jira attachments and open them.
-3. The Xray tests linked to each story. Their Cucumber scenarios are in the Xray "Test details" panel. If you can't read that panel, use the test summaries in the build guide.
+2. The artifacts listed below. Download the tracker attachments and open them.
+3. {{TESTS_LINE}}
 
 | Order | Story | Slice | Tested by |
 |---|---|---|---|
@@ -73,13 +74,13 @@ Read these first:
 
 ### Artifacts
 
-Prefer the Jira attachments. The claude.ai links are private to {{REVIEWER}} and may not open for you.
+Prefer the tracker attachments. The claude.ai links are private to {{REVIEWER}} and may not open for you.
 
 | Artifact | Where | What it's for |
 |---|---|---|
-| **Build guide** | Jira attachment on {{EPIC_KEY}}: `{{EPIC_KEY}} Build Guide.html`. Live copy: {{BUILD_GUIDE_URL}} | The decisions, the build order, a picture per slice (a mockup, or a map of where things run), and the test coverage table |
+| **Build guide** | Tracker attachment on {{EPIC_KEY}}: `{{EPIC_KEY}} Build Guide.html`. Live copy: {{BUILD_GUIDE_URL}} | The decisions, the build order, a picture per slice (a mockup, or a map of where things run), and the test coverage table |
 <!-- IF UI -->
-| **Prototype** | Jira attachment on {{EPIC_KEY}}: `{{EPIC_KEY}} Prototype.html` | The clickable target UI in light and dark mode. Use the controls bar at the top to switch screens and states (see the next table) |
+| **Prototype** | Tracker attachment on {{EPIC_KEY}}: `{{EPIC_KEY}} Prototype.html` | The clickable target UI in light and dark mode. Use the controls bar at the top to switch screens and states (see the next table) |
 {{DESIGN_ROW}}
 <!-- FILL: "| **<design.system>** | <design.url>, which mirrors `<design.source_of_truth>` | Tokens, components and page patterns. The code is the source of truth |". Delete this line if the config has no design system. -->
 <!-- END IF UI -->
@@ -137,13 +138,13 @@ Use the **{{PLAN_SKILL}}** skill. Invoke it; don't imitate it.
    {{REPO_SPLIT}}
    <!-- FILL: one bullet per repo the epic touches, in order, as "**<name>:** <owns>". -->
    - **Order:** repos go in the order above. Say what each later repo waits for, such as an endpoint, a response field or a migration.
-4. Plan testing at every level, not only the Jira e2e tests:
+4. Plan testing at every level, not only the epic's tests:
    - unit tests for new and changed logic
    {{REPO_TESTS}}
    <!-- FILL: one bullet per repo the epic touches, from its `tests`. -->
    {{EXTRA_TEST_TOOLING}}
    <!-- FILL: any special test tooling this epic needs, such as "the payment provider's test clocks wherever billing behavior over time matters". Delete this line if there is none. -->
-5. For each Xray scenario, decide how it's checked: which repo's tests automate it (a backend test, the e2e suite, or another repo's scripted check), or, for a test labelled as manual, that it stays a manual check, run once and recorded, with no automation built for it. {{LAYER_EXAMPLE}} Put that mapping in the plan.
+5. For each of the epic's test scenarios (each grader, for eval cases), decide how it's checked: which repo's tests automate it (a backend test, the e2e suite, or another repo's scripted check), or, for a test labelled as manual, that it stays a manual check, run once and recorded, with no automation built for it. {{LAYER_EXAMPLE}} Put that mapping in the plan.
    <!-- FILL: LAYER_EXAMPLE is one scenario from this epic's tests for each way this epic's tests are checked, as "For example, "…" belongs in <the backend, the UI, a scripted check in <repo>>, and "…" stays a manual check." Name only the ways this epic uses. -->
 6. Work through the tech lead checklist below. Each item is a general rule followed by what it means for this epic. Give each item its own section in the plan. Where an item doesn't apply, say so in one line.
 
@@ -157,7 +158,7 @@ Use the **{{PLAN_SKILL}}** skill. Invoke it; don't imitate it.
    <!-- FILL: name each new or changed endpoint, list field and response shape. Always add, for each repo the epic touches that has a `contract`: "<repo name>: <contract>. The agent for <the repo it depends on> (or `run-slice`) makes sure the local stack runs the right branch." -->
 3. **Name blockers outside the epic.** List each dependency on another epic, team or service, its current status, and how the plan proceeds: build a stand-in, sequence around it, or mark it blocked.
    *In this epic:* {{CL_BLOCKERS}}
-   <!-- FILL: each dependency with its Jira key and current status, checked in Jira now, and the choice the tech lead must make. -->
+   <!-- FILL: each dependency with its tracker key and current status, checked in the tracker now, and the choice the tech lead must make. -->
 4. **Plan the rollout.** Say how each branch merges without breaking production: feature flags, migrations, backfills, and what existing customers or data see. Include a **release order** table: every branch in deploy order across every repo, the **deploy** that ships it (Deploy 1, Deploy 2, …), and what each waits for. <!-- IF STACKED -->Branches of one deploy form one stack; a later deploy's branches form their own stack. A repo's stack usually merges and deploys before the stacks of repos that depend on it.<!-- END IF STACKED --><!-- IF NOT STACKED -->Each branch is its own PR against `main`; one that needs another's code waits for it to merge, then starts from the new `main`.<!-- END IF NOT STACKED --> End the section with one line, **Rollout needed: yes** or **no**, and why. It's yes when merging and deploying isn't enough on its own: a migration, a backfill or other data change, a feature flag to turn on, setup in {{SERVICES_NEEDING_SETUP}}, or deploys that must happen in a set order.
    *In this epic:* {{CL_ROLLOUT}}
    <!-- FILL: the feature flags involved (search each repo the epic touches), any backfill, and any existing customer or data that must not change. -->
@@ -198,7 +199,7 @@ When the plan is committed, stop. Reply to {{REVIEWER}} with:
 - for each branch, the callers it reaches outside its own subsystem (checklist item 7)
 - the **Rollout needed** line from checklist item 4
 
-**Do not post any Jira comments until {{REVIEWER}} approves the plan.** If they ask for changes, update the plan, commit it, and stop again.
+**Do not post any tracker comments until {{REVIEWER}} approves the plan.** If they ask for changes, update the plan, commit it, and stop again.
 
 ---
 
@@ -209,7 +210,7 @@ When the plan is committed, stop. Reply to {{REVIEWER}} with:
 - Use the `write-runbook` skill for the rollout in the plan, on that ticket. It writes the runbook in `docs/runbooks/`, with one sub-task of the deploy ticket for each of its stages. The code doesn't exist yet, so this runbook is a **draft**: say so at its top, get the stages and their sub-tasks right, and write each command as far as the plan allows. The commands are checked against the finished code before release.
 - Name the deploy ticket and the runbook in the Release order comment below.
 
-For each of {{STORY_KEYS}}, add one Jira comment per repo that has work in the story. Skip a repo with no work.
+For each of {{STORY_KEYS}}, add one tracker comment per repo that has work in the story. Skip a repo with no work.
 
 {{KICKOFF_TITLES}}
 <!-- FILL: one line per repo the epic touches, in order, as "**<name>:** title it `<kickoff_title>`; its branch suffix is `<branch_suffix>`." -->
@@ -221,10 +222,10 @@ Each comment is a self-contained prompt for a separate coding agent. Write it so
 3. **Plan section:** the path to the plan, and which section to execute with the {{EXECUTE_SKILL}} skill.
 4. **Scope fence. Copy this word for word:**
    > You are the **[repo name]** agent. Change only **[repo name]**. Do not edit any other repo, even for a "quick" fix. If you find you need a change on the other side, stop, write down exactly what you need, and leave it for the other agent.
-5. **E2E tests:** which Xray test IDs and scenarios to automate at this level of the stack, and which belong to the other layer. If none apply at this level, say "none". {{FLAG_STATE}}
+5. **E2E tests:** which of the epic's tests (by key or case name) and scenarios to automate at this level of the stack, and which belong to the other layer. If none apply at this level, say "none". {{FLAG_STATE}}
    <!-- FILL: "Don't name flag tags (<stack.flag_tags>) from memory: tag the scenarios for the local stack's real flag state (check with `<stack.flag_state>`)." -->
-6. **Testing:** "The Jira e2e tests are the minimum, not the whole job. Write unit tests for every new or changed function, test-first, plus integration tests where code crosses a boundary (database, third-party service, HTTP). Run the full relevant test suite before you open the PR."
-7. **Artifacts:** name the exact artifacts and sections the agent should open. Use the Jira attachment names first and the live links second.
+6. **Testing:** "The epic's tests in the tracker are the minimum, not the whole job. Write unit tests for every new or changed function, test-first, plus integration tests where code crosses a boundary (database, third-party service, HTTP). Run the full relevant test suite before you open the PR."
+7. **Artifacts:** name the exact artifacts and sections the agent should open. Use the tracker attachment names first and the live links second.
    <!-- IF UI -->
    - **Comments for a repo with UI:** the prototype screen and states for this story (from the table in section 1), the matching slice card in the build guide, and the design-system pattern to follow.
    - **Other comments:** the slice card in the build guide, plus the prototype state that shows the behavior the repo must support, or the section of the design doc it builds.
@@ -240,7 +241,7 @@ Each comment is a self-contained prompt for a separate coding agent. Write it so
    <!-- FILL: "<stack.how> (for example <stack.extra_resources>). Never use <stack.never>. Local runs use the local database your roost config names for the machine you're on (`stack.database.local`; load it with `roost-config`), which may not be the shared one, so never pass another database's address to a command; after adding a migration, the agent for the repo that owns migrations applies it there with `<stack.database.apply_migrations>` and checks it with one call that touches the new schema." When `deploy.migrations_run_on_deploy` is false, add: "Every new migration also goes on the epic's deploy ticket (the Migrations to apply comment and pre-deploy sub-tasks in `stacked-prs`); add the note if it isn't there." Leave out what the config doesn't have. -->
 {{APPLY_GATE_ITEM}}
    <!-- FILL: for each repo the epic touches that has `apply_gate`, an item for its comments only: "**Plan and apply:** run `<apply_gate.plan>` and post the plan in the PR, again after every push that changes it. Never run `<apply_gate.apply>` yourself<, unless the orchestrator tells you {{REVIEWER}} approved that exact plan, when apply_gate.who is agent_after_approval>. The plan is applied <before the PR merges | after it merges>, and the branch is done when the apply is recorded and a fresh plan shows no changes." Delete this line if no touched repo has `apply_gate`. -->
-10. **Only ask for what the agent can do.** Don't require steps a coding agent can't do (for example attaching images to a PR). Screenshots go on the story's Jira issue, linked from the PR.
+10. **Only ask for what the agent can do.** Don't require steps a coding agent can't do (for example attaching images to a PR). Screenshots go on the story's tracker issue, linked from the PR.
 11. **Rules and tests:** in every comment, include the checklist item 10 rules for the components this branch changes, each with a test that proves it. Comments for repos with server code must also include the checklist item 5 server-side rules, each with a test that proves it.
 12. **Failure visibility (repos with server code only):** the logs and metrics from checklist item 6 that this branch adds.
 13. **Definition of done:** the story's acceptance criteria, and that all tests pass.
@@ -256,7 +257,7 @@ Then post one **Release order** comment on the epic: a table of every branch and
 
 When the comments are posted, reply with a table with one row per story: a column per repo saying whether its kickoff comment was posted (yes or no), and the order. If the rollout needed a deploy ticket, also give its key, its sub-tasks and the runbook's path.
 
-Don't change anything in Jira other than the comments, and the deploy ticket and its sub-tasks, described in section 5.
+Don't change anything in the tracker other than the comments, and the deploy ticket and its sub-tasks, described in section 5.
 ```
 
 ---

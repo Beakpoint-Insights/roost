@@ -55,7 +55,7 @@ Write it as one line: "roost 1.0.0, installed" or "roost 1.0.0, checkout at ~/sr
 
 | Key | Supported now | Not yet |
 |---|---|---|
-| `tracker.kind` | `jira` | `github`, `linear` |
+| `tracker.kind` | `jira`, `github` | `linear` |
 | `tests.kind` | `xray`, `evals` | `repo-gherkin`, `none` |
 | `vcs.stacking` | `gh-stack`, `none` | `graphite` |
 
@@ -68,7 +68,9 @@ If the config names one that isn't supported yet, stop and say which key and val
 In this skill's `references/` folder:
 
 - `config-schema.md`: what every key means, and its default. Read it when a key's meaning isn't obvious from its name.
-- `tracker-jira.md`: how to do each tracker operation in Jira (create, set a parent, edit a comment in place, attach a file, transition, link, search). Read it before any tracker change.
+- The tracker adapter for `tracker.kind`, before any tracker change: `tracker-jira.md` or `tracker-github.md`. Each says how to do every tracker operation (create, set a parent, edit a comment in place, attach a file, change a status, link, search) and how its keys are written.
+
+**Skills written for Jira.** Many steps name Jira: a Jira comment, the Jira attachment, ADF, the Atlassian MCP, `tracker.jira.project`. With another `tracker.kind`, read those as the adapter's equivalents (its "Words" table), and write keys as the adapter says ("Keys").
 - The tests adapter for `tests.kind`, before touching tests: `tests-xray.md` (Xray tests and their Cucumber scenarios), or `tests-evals.md` (eval cases in the repo). Each says what a test is, how one is linked to its story and run, and what "automated" means.
 
 **Skills written for Xray.** Many steps name Xray: Xray tests, "the Xray adapter notes", `create-xray-test`, `automate-xray-tests`. With another `tests.kind`, follow that adapter's "In each skill" table wherever it covers the step, and read "the Xray adapter notes" as that adapter.
@@ -77,7 +79,7 @@ In this skill's `references/` folder:
 
 A skill writes a config key in backticks, for example `tracker.statuses.ready_for_release` or `stack.services`. Use the value from the config. A few names come up everywhere:
 
-- **The project:** `tracker.jira.project`. Ticket keys look like `<project>-1234`; the skills' examples use `PROJ-1234`.
+- **The project:** for Jira, `tracker.jira.project`, with keys like `<project>-1234`; for GitHub Issues, `tracker.github.repo`, with keys like `#1234`. The skills' examples use `PROJ-1234` either way.
 - **The repos:** the `repos` list. Each has a `name`, a `role`, an `order`, and a `session` name (for example "API session"). "Each repo, in order" means by `order`. A repo with `depends_on` waits for those repos' work and follows its `contract` to consume it.
 - **The lead repo:** `planning.lead_repo`, where the tech lead plans, the plan and runbooks live, and the stack's owner usually runs. Default: the repo with the lowest `order`.
 - **A repo's session:** the Claude session whose working directory ends in that repo's `name`.
@@ -112,7 +114,7 @@ Every roost skill stops for the user at its checkpoints. End each stop with the 
 
 ## The signed-in browser
 
-Jira steps the MCP can't do (attachments, parent changes, comment edits) use an API token when `JIRA_API_TOKEN` is set, and need no browser (see the Jira adapter notes). Only without the token, or to file Xray tests without the Xray keys, do they use the user's signed-in browser (the Playwright MCP). Every session on the machine shares that one browser, and only one session can use it at a time.
+With `tracker.kind: github`, `gh` does everything and no browser is needed for the tracker. Jira steps the MCP can't do (attachments, parent changes, comment edits) use an API token when `JIRA_API_TOKEN` is set, and need no browser (see the Jira adapter notes). Only without the token, or to file Xray tests without the Xray keys, do they use the user's signed-in browser (the Playwright MCP). Every session on the machine shares that one browser, and only one session can use it at a time.
 
 - **"Browser is already in use":** another session holds it. Never kill the browser or its processes; that ends another session's work. Tell the user which step is waiting, and ask them to free it (finish or close the other session's browser work), then retry.
 - **Checks that don't need anyone signed in** (opening a local prototype, a page on the local stack) use an isolated browser if one is set up (a second Playwright MCP server started with `--isolated`). If none is, and the shared one is busy, say plainly that the check wasn't done and why. Never present unchecked work as checked.
