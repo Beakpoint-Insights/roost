@@ -270,7 +270,9 @@ Don't give an eval `SendMessage` or `ListAgents` (with `--allow-tools`). The eva
 
 Each case runs 3 times with roost and 3 times without it, so you can see what the skill changes. A full run costs about $3 on your own Claude account. To check one case quickly: `claude plugin eval . --case <name> --runs 1 --ablation none`. Results go to `evals/results/`, which git ignores.
 
-They don't run in CI, because they need a Claude API key and cost money on every PR. When you change a skill's behaviour, add or update a case for it.
+They also run in CI (`.github/workflows/evals.yml`), on every PR: `scripts/eval-cases.sh` picks the cases the PR's changes can affect. A change to `skills/<name>/` runs the cases tagged `<name>`, a change to a case runs that case, and a change to `roost-config`, the example config or the plugin manifest runs them all. A release PR, or a run started by hand (`gh workflow run Evals`), runs every case. Every run of every case must pass, and the results are posted on the PR. CI needs a Claude credential in a repository secret, `CLAUDE_CODE_OAUTH_TOKEN` (from `claude setup-token`) or `ANTHROPIC_API_KEY`; without one, and on PRs from forks, the job skips with a warning.
+
+When you change a skill's behaviour, add or update a case for it, and tag it with the skill's name so CI runs it.
 
 ## Versions
 

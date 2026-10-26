@@ -1,0 +1,82 @@
+name: Evals
+
+# Runs the eval cases a PR's changes can affect (see scripts/eval-cases.sh), and
+# every case on a release PR or when started by hand. Needs a Claude credential:
+# the CLAUDE_CODE_OAUTH_TOKEN secret (from `claude setup-token`) or ANTHROPIC_API_KEY.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: evals-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  evals:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Choose the cases
+        id: cases
+        env:
+          EVENT: ${{ github.event_name }}
+          HEAD_REF: ${{ github.head_ref }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          if [ "$EVENT" = workflow_dispatch ] || [[ "$HEAD_REF" == release-please--* ]]; then
+            cases=$(scripts/eval-cases.sh --all)
+          else
+            cases=$(scripts/eval-cases.sh "$BASE_SHA" "$HEAD_SHA")
+          fi
+          echo "cases=$(echo $cases)" >> "$GITHUB_OUTPUT"
+          echo "Cases to run: ${cases:-none}"
+      - uses: actions/setup-node@v7
+        if: steps.cases.outputs.cases != ''
+        with:
+          node-version: 22
+      - name: Install Claude Code
+        if: steps.cases.outputs.cases != ''
+        run: npm install -g @anthropic-ai/claude-code@2.1.296
+      - name: Run the evals
+        id: run
+        if: steps.cases.outputs.cases != ''
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CASES: ${{ steps.cases.outputs.cases }}
+        run: |
+          if [ -z "$CLAUDE_CODE_OAUTH_TOKEN" ] && [ -z "$ANTHROPIC_API_KEY" ]; then
+            echo "::warning::Skipped: no Claude credential (CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY). PRs from forks don't get secrets; a maintainer runs the evals before merging."
+            echo "skipped=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          mkdir -p eval-json
+          failed=0
+          for c in $CASES; do
+            # Every run of every case must pass (the default threshold, 1.0).
+            claude plugin eval . --no-publish --trust-plugin --case "$c" --ablation none --json "eval-json/$c.json" || failed=1
+          done
+          scripts/eval-summary.py eval-json > eval-summary.md
+          cat eval-summary.md >> "$GITHUB_STEP_SUMMARY"
+          exit $failed
+      - name: Post the results on the PR
+        if: always() && github.event_name == 'pull_request' && steps.run.outcome != 'skipped' && steps.run.outputs.skipped != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          [ -f eval-summary.md ] || echo "### Evals"$'\n\n'"The run failed before it could summarize." > eval-summary.md
+          printf '\n[Full run](%s)\n' "$RUN_URL" >> eval-summary.md
+          # Keep one evals comment per PR, updated in place.
+          gh pr comment "$PR" --edit-last --body-file eval-summary.md 2>/dev/null || gh pr comment "$PR" --body-file eval-summary.md
