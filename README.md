@@ -1,8 +1,16 @@
 # roost
 
-Claude Code skills for taking a product idea to a release, packaged as a plugin: shape an epic, plan it, build it slice by slice through one Claude session per repo, review it as a whole, close it out, QA it, and run the rollout with you one step at a time.
+**Spec-driven development that doesn't stop at the code.**
 
-roost is opinionated about **how** the work goes: test-first, small stacked PRs, your decisions at named checkpoints, nothing left only in a chat, and a rollout runbook you run yourself. It's configurable about **where** things live: your tracker and project, your repos, your local stack, your branching and deploy rules. Those come from one team config file.
+roost takes a product idea all the way to production. It shapes the epic, builds it slice by slice with one coding-agent session per repo, reviews the whole epic, QAs it in a real browser, and walks you through the rollout one command at a time.
+
+- **The whole cycle, not just the build.** Most spec-driven kits hand off once the code is written. roost carries on through review, close-out, release QA and the rollout.
+- **You make the calls.** Agents do the work and stop at named checkpoints: the plan, each slice's findings, what's deferred, and each rollout gate. You run every rollout command yourself.
+- **Nothing lives only in a chat.** Plans, kickoffs, carry-over and test results go in your tracker, so any run can be picked up where it left off.
+- **One agent per repo.** An orchestrator session drives a worker session in each repo, in order, against your real local stack.
+- **Its behavior is tested.** [Eval cases](#evals) check what the skills do, run with and without roost.
+
+roost is a set of skills, not an agent: it hosts nothing and runs inside your coding agent. It's opinionated about **how** the work goes: test-first, small PRs on a stack, your decisions at named checkpoints, nothing left only in a chat, and a rollout runbook you run yourself. It's open about **which tools** you use: your tracker, test tool, repos, local stack, branching and deploy rules come from one team config file, and each tool plugs in through an adapter. Today roost runs fully in Claude Code with Jira, Xray and `gh stack` on GitHub. Other trackers, test tools, git hosts and coding agents are [on the roadmap](https://github.com/Beakpoint-Insights/roost/milestones).
 
 roost was built at [Beakpoint](https://beakpointinsights.com), which uses it every day.
 
@@ -37,15 +45,17 @@ The config never holds secrets: it names where a secret comes from, never its va
 
 ### What's supported
 
-| Area | Config key | Supported now | Not yet |
+| Area | Config key | Supported now | Planned |
 |---|---|---|---|
-| Tracker | `tracker.kind` | Jira (Atlassian MCP) | GitHub Issues, Linear |
-| Test management | `tests.kind` | Xray (Cucumber scenarios) | Gherkin files in the repo, none |
-| Branching | `vcs.stacking` | `gh stack` on GitHub | Graphite, plain branches |
-| Repos | `repos` | Any number, each with its own Claude session, in an order you set | |
+| Tracker | `tracker.kind` | Jira (Atlassian MCP) | [GitHub Issues](https://github.com/Beakpoint-Insights/roost/issues/14), [Linear](https://github.com/Beakpoint-Insights/roost/issues/32) |
+| Test management | `tests.kind` | Xray (Cucumber scenarios) | [Gherkin files in the repo](https://github.com/Beakpoint-Insights/roost/issues/34), [eval cases](https://github.com/Beakpoint-Insights/roost/issues/17) |
+| Branching | `vcs.stacking` | `gh stack` | [Plain PRs](https://github.com/Beakpoint-Insights/roost/issues/19), [Graphite](https://github.com/Beakpoint-Insights/roost/issues/33) |
+| Git host | `vcs.host` | GitHub | [GitLab](https://github.com/Beakpoint-Insights/roost/issues/35) |
+| Coding agent | | Claude Code. Most skills also work in Cursor (see [Using roost in Cursor](#using-roost-in-cursor)) | [Cursor in full](https://github.com/Beakpoint-Insights/roost/issues/37), [Codex](https://github.com/Beakpoint-Insights/roost/issues/38), [GitHub Copilot](https://github.com/Beakpoint-Insights/roost/issues/39), [Gemini CLI](https://github.com/Beakpoint-Insights/roost/issues/40) |
+| Repos | `repos` | Any number, each with its own agent session, in an order you set | |
 | Local stack | `stack` | Anything you run locally (Aspire, Docker Compose, scripts): you give its commands and URLs | |
 
-Each supported tool has an adapter: notes in [`skills/roost-config/references/`](skills/roost-config/references/) that say how to do each operation in that tool. Adding a tracker or test tool means adding an adapter file and a row here.
+Each supported tool has an adapter: notes in [`skills/roost-config/references/`](skills/roost-config/references/) that say how to do each operation in that tool. Adding a tracker or test tool means adding an adapter file and a row here. The work to support more tools is grouped in three milestones: [Works without Jira](https://github.com/Beakpoint-Insights/roost/milestone/1), [Works without gh stack](https://github.com/Beakpoint-Insights/roost/milestone/2) and [Works outside Claude Code](https://github.com/Beakpoint-Insights/roost/milestone/3).
 
 ## From idea to release: the happy path
 
