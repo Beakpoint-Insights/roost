@@ -1,0 +1,28 @@
+skills/roost-config/references/tracker-github.md
+  s_0de49345ab4148::t_c23e1750b7e552 1-56
+skills/roost-config/references/config-schema.md
+  s_0de49345ab4148::t_4e764cf7e9c96b 23-29,32
+skills/shape-epic/references/tech-lead-prompt-template.md
+  s_0de49345ab4148::t_3440a0a9c509b4 10,23,28,33,60,64-65,77,81,83,141,147,161,202,213,225,227-228,244,260
+  s_0de49345ab4148::t_1e40efe6d4ece7 34
+skills/roost-config/SKILL.md
+  s_0de49345ab4148::t_4e764cf7e9c96b 58,71-73,82,117
+skills/shape-epic/references/phase-7-handoff.md
+  s_0de49345ab4148::t_378ad4d41c26a7 9
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "30040d681f1f0590cd6eba551b4af044865de932",
+  "prompts": {},
+  "sessions": {
+    "s_0de49345ab4148": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b1005a39-8915-42a2-974f-c030708f474d",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Alan Cox <acox@beakpointinsights.com>"
+    }
+  }
+}
