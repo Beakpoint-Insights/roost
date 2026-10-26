@@ -4,3 +4,6 @@
 .vscode/
 evals/results/
 __pycache__/
+
+# This machine's roost config for working on roost; copy .roost/config.example.yml to make yours.
+.roost/config.yml

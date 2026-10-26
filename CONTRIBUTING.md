@@ -25,6 +25,10 @@ For that session only, this replaces the installed roost; nothing else changes. 
 
 Evals already run against the checkout: `claude plugin eval .` loads the plugin from the folder it's run in.
 
+## Using roost on roost
+
+roost's own work runs through roost: its issues are the tracker, its eval cases are the tests, and it ships plain PRs. To use the roost skills here, copy [`.roost/config.example.yml`](.roost/config.example.yml) to `.roost/config.yml` and change anything that differs for you. Your copy is gitignored, and sessions inside the checkout find it before `~/.claude/roost/config.yml`.
+
 ## Making changes
 
 `main` is protected. Every change goes through a pull request:
