@@ -1,3 +1,5 @@
+<p align="center"><img src="assets/winston.png" width="160" alt="Winston, the Beakpoint bird"></p>
+
 # roost
 
 **Spec-driven development that doesn't stop at the code.**
@@ -12,7 +14,7 @@ roost takes a product idea all the way to production. It shapes the epic, builds
 
 roost is a set of skills, not an agent: it hosts nothing and runs inside your coding agent. It's opinionated about **how** the work goes: test-first, small PRs on a stack, your decisions at named checkpoints, nothing left only in a chat, and a rollout runbook you run yourself. It's open about **which tools** you use: your tracker, test tool, repos, local stack, branching and deploy rules come from one team config file, and each tool plugs in through an adapter. Today roost runs fully in Claude Code with Jira, Xray and `gh stack` on GitHub. Other trackers, test tools, git hosts and coding agents are [on the roadmap](https://github.com/Beakpoint-Insights/roost/milestones).
 
-roost was built at [Beakpoint](https://beakpointinsights.com), which uses it every day.
+**Brought to you by [Beakpoint](https://beakpointinsights.com).** Beakpoint built roost and uses it every day to build its own product. Winston, the bird at the top of this page, is Beakpoint's mascot.
 
 ![A made-up roost session: shaping an epic with recommended answers, approving the plan, progress updates and a YOUR TURN, a slice checkpoint, and the release call](demo/roost.gif)
 
