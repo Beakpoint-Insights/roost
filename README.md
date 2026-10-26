@@ -232,7 +232,8 @@ Put it in `skills/<name>/SKILL.md`, with any reference files beside it, and add 
 
 1. Branch from `main`, commit (commits must be signed), and open a PR.
 2. Give the PR a Conventional Commit title, such as `feat: add the verify-slice skill`. It becomes the commit message when the PR is squash-merged, and release-please reads it.
-3. Two checks must pass: `conventional-title` (the PR title) and `validate-plugin`. `validate-plugin` runs `claude plugin validate --strict`, which fails on warnings too, and `scripts/check-skills.sh`, which checks that every skill folder has a `SKILL.md` whose `name` matches the folder and that has a description. Run both locally before you push.
+3. Three checks must pass: `conventional-title` (the PR title), `validate-plugin` and `private-details`. `validate-plugin` runs `claude plugin validate --strict`, which fails on warnings too, and `scripts/check-skills.sh`, which checks that every skill folder has a `SKILL.md` whose `name` matches the folder and that has a description. Run both locally before you push.
+   `private-details` fails if the PR's diff, title, body or commit messages add a string from a private list (a repository secret): a team's tracker site, IDs, hostnames and the like. A team's own values belong in its config, never in roost; examples use the made-up Acme team and `PROJ-1234`. The check names the file and line and which list entry matched, never the value. It's skipped on PRs from forks, which don't get the secret, so a maintainer runs it before merging.
 4. Squash-merge. The branch is deleted automatically.
 
 ## Evals
