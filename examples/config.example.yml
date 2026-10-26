@@ -7,7 +7,7 @@ version: 1
 team:
   name: Acme
   product: Acme Cloud
-  state_dir: ~/.claude/roost/state
+  state_dir: ~/.claude/roost/state/Acme
   drafts_dir: ~/Downloads
   shell: zsh
 

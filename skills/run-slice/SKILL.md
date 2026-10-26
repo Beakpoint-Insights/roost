@@ -62,7 +62,7 @@ A story is ✅ when it's at `tracker.statuses.ready_for_release` or later (or `d
 
 Work out the slice's real state before sending anything. Reading is fine; you still change nothing in any repo.
 
-1. **Your own record.** Read the state file `<team.state_dir>/STORY.md` if it exists. It holds what only you know: the sessions found, each step's outcome, and the user's decisions at checkpoints. It's a record, not the truth: check it against steps 2 to 4. If the file isn't there (another machine, or it was cleaned up), read STORY's comments that start with `run-slice checkpoint:` instead; a checkpoint comment also means the check before it (tests and code review) ran.
+1. **Your own record.** Read the state file `<team.state_dir>/STORY.md` if it exists. If it records a different config from the one you loaded, stop ("Orchestrators record their config" in `roost-config`). It holds what only you know: the sessions found, each step's outcome, and the user's decisions at checkpoints. It's a record, not the truth: check it against steps 2 to 4. If the file isn't there (another machine, or it was cleaned up), read STORY's comments that start with `run-slice checkpoint:` instead; a checkpoint comment also means the check before it (tests and code review) ran.
 2. **The kickoff comments** on STORY name each repo's branch (for example `PROJ-2788-backend`). For each branch, in that repo's `github`:
    ```bash
    gh pr list -R <repo.github> --head <branch> --state all --json number,state,isDraft,url
@@ -96,6 +96,7 @@ When a session's report (or its branch) adds a database migration, and `deploy.m
 ## Keep the state file current
 
 After every step and every checkpoint, update `<team.state_dir>/STORY.md`:
+- the config this run uses: its path and `team.name` (see "Orchestrators record their config" in `roost-config`)
 - the roost this run uses (from step 0), and the session names and refs, and the directory each reported
 - each step: done, its outcome, PRs and commits from the session's report
 - each checkpoint: the list shown and the user's decisions, word for word

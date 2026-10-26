@@ -19,19 +19,28 @@ Use the first one that exists:
 3. `.roost/config.yml` in the current directory or the nearest parent that has one (stop at the repo root).
 4. `~/.claude/roost/config.yml` (often a link to the team's shared config in its private repo).
 
-Read the whole file. Say in one line which file you're using only when the user asks, or when it isn't the one they'd expect.
+Read the whole file. Say in one line which file you're using, and its `team.name`, when the user asks, when it isn't the one they'd expect, or when more than one of these places has a config (for example `$ROOST_CONFIG` names one team's and `~/.claude/roost/config.yml` another's), so nobody runs one team's work on another's config.
+
+**One machine, several teams.** A session outside every repo (an orchestrator) finds only `$ROOST_CONFIG` or `~/.claude/roost/config.yml`. To work for a team whose config isn't the one in `~/.claude/roost/config.yml`, start the session with `ROOST_CONFIG=<path to that team's config> claude`, or name the path in the conversation.
+
+**Orchestrators record their config.** `run-slice` and `build-epic` write the config's path and `team.name` into their state file when a run starts. On a resume, if the config you loaded isn't the recorded one, stop and say which each is: the run continues on the recorded config once the user names it, or on the new one if they say so.
 
 **If there's none,** stop: say roost has no team config yet and that `/roost:setup` makes one. Never fill a missing value in from memory, from the example config, or from another team's config.
 
 **The config you found is the config.** Use its values as they are, even when they look made up: a config the user names may be the example one (`examples/config.example.yml`, the made-up Acme team), and that's their choice. Don't stop to ask whether it's "really" theirs, and don't check it against who the user seems to be (their email, signed-in accounts, other configs on the machine). If a value is wrong, the first call that uses it fails and says so; report that then.
 
-**Then apply this machine's overrides,** if `~/.claude/roost/local.yml` exists. It holds only the values that differ on this machine (for example, a local database instead of the shared one), and its values win over the team config's:
+**Then apply this machine's overrides for this team.** They hold only the values that differ on this machine (for example, a local database instead of the shared one). Overrides belong to one team, so another team's never apply:
 
-- a mapping is merged key by key, so `stack.database.local` in `local.yml` changes only that key;
+1. `~/.claude/roost/local/<team.name>.yml`, if it exists. Use it, and ignore `local.yml`.
+2. Otherwise `~/.claude/roost/local.yml`, if it exists, but only if its `team.name` is this config's `team.name`, or it has no `team.name` (the older form). Skip one that names another team. For the older form, say once that it applies to every team's config on this machine, and that moving it to `~/.claude/roost/local/<team.name>.yml` makes it this team's only.
+
+The override's values win over the team config's:
+
+- a mapping is merged key by key, so `stack.database.local` in an override changes only that key;
 - any other value, a list included, replaces the team config's value whole;
 - `repos` entries are matched by `name`, so an override can change one repo's keys without restating the others.
 
-Use the merged result everywhere. When a value you act on came from `local.yml`, say so once ("using this machine's database, from `local.yml`"), so nobody mistakes it for the team's.
+Use the merged result everywhere. When a value you act on came from an override, say so once, naming the file ("using this machine's database, from `local/Acme.yml`"), so nobody mistakes it for the team's.
 
 ## Which roost is running
 
@@ -74,7 +83,9 @@ A skill writes a config key in backticks, for example `tracker.statuses.ready_fo
 - **Repos that change real infrastructure:** a repo with `apply_gate` (see below).
 - **A repo's review focus:** its `review_focus`, or else `planning.review_focus`.
 - **Person-owned tasks:** tickets under an epic labelled `tracker.person_task_label` (default `person-owned`). They're work no repo session can do, with a named owner and a "When" (before release, after release, or after a named slice). Never send one to a session, never move one out of its epic, and never count one as leftover work; remind its owner when its "When" arrives.
-- **The state directory:** `team.state_dir` (default `~/.claude/roost/state`), where orchestrators keep their records.
+- **The state directory:** `team.state_dir`, where orchestrators keep their records. Default `~/.claude/roost/state/<team.name>/`, so two teams on one machine never share state files. Say which folder you're using the first time you read or write one.
+  - **A run's record may be somewhere else.** When an orchestrator finds no state file for its ticket in this folder, before it treats the run as new or rebuilds it from the tracker, it looks for `<KEY>.md` in the other folders under `~/.claude/roost/state/` and in that folder itself. If one is there, stop: say where it is and which config it records, and carry on only once the user says which config the run uses.
+  - **Older records.** Before per-team folders, a config without `state_dir` kept its records directly in `~/.claude/roost/state/`. When this team's folder is the default and that folder has state files of its own (`*.md`, not in a team's folder), say how many there are and ask the user which team they belong to. Move them into that team's folder only once the user says; never assume they're this team's, and never leave them unmentioned.
 
 ### The apply gate
 

@@ -20,7 +20,7 @@ mkdir -p ~/.claude/roost
 ln -s <path to the team's config.yml> ~/.claude/roost/config.yml
 ```
 
-A link follows the clone, so `git pull` there updates everyone's config. If this machine differs from the others (its own database, other ports), put only those values in `~/.claude/roost/local.yml` rather than editing the shared file (`config-schema.md`, "Machine overrides"). Go to step 4.
+A link follows the clone, so `git pull` there updates everyone's config. If this machine differs from the others (its own database, other ports), put only those values in `~/.claude/roost/local/<team.name>.yml` rather than editing the shared file (`config-schema.md`, "Machine overrides"). Go to step 4.
 
 ## 3. Make a new one
 
