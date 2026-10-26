@@ -1,0 +1,294 @@
+<meta charset="utf-8">
+<title>Release Notes Build Guide</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a single reading column; a vertical rail of slice cards, each with the same file map of roost, then a coverage matrix. */
+:root {
+  --bg: #f6f8f7;
+  --surface: #ffffff;
+  --fg: #1d3443;
+  --muted: #5b6f78;
+  --line: #d9e2e1;
+  --accent: #d9591f;      /* Winston's orange */
+  --amber: #f0a23a;
+  --teal: #2f857c;
+  --teal-soft: #e1f0ee;
+  --orange-soft: #fbe7dc;
+  --ghost: #eef2f1;
+  --display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #10202a; --surface: #172b36; --fg: #e6eeed; --muted: #9db0b5; --line: #29424e;
+    --accent: #f07a43; --amber: #f3b25a; --teal: #6cc2b7; --teal-soft: #1b3a3c; --orange-soft: #3a2a22; --ghost: #1b313c;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #10202a; --surface: #172b36; --fg: #e6eeed; --muted: #9db0b5; --line: #29424e;
+  --accent: #f07a43; --amber: #f3b25a; --teal: #6cc2b7; --teal-soft: #1b3a3c; --orange-soft: #3a2a22; --ghost: #1b313c;
+  color-scheme: dark;
+}
+body { background: var(--bg); color: var(--fg); font: 15px/1.55 var(--body); }
+.wrap { max-width: 980px; margin: 0 auto; padding-block: 40px 64px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 40px; }
+h1, h2, h3 { font-family: var(--display); text-wrap: balance; margin: 0; line-height: 1.15; }
+h1 { font-size: clamp(28px, 4.4vw, 40px); }
+h2 { font-size: 24px; }
+h3 { font-size: 19px; }
+p { margin: 0; max-width: 68ch; }
+code, .mono { font-family: var(--mono); font-size: 0.86em; }
+a { color: var(--teal); }
+a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.eyebrow { font: 600 12px/1 var(--body); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+
+header { display: grid; gap: 14px; }
+.meta { display: flex; flex-wrap: wrap; gap: 8px 18px; color: var(--muted); font-size: 14px; }
+.meta a { font-weight: 500; }
+
+.legend { display: flex; flex-wrap: wrap; gap: 10px 18px; font-size: 13px; color: var(--muted); align-items: center; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.sw { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+.sw.new { background: var(--accent); }
+.sw.changed { background: var(--amber); }
+.sw.same { background: var(--line); }
+.sw.none { border: 1px dashed var(--muted); }
+
+/* Rail */
+.rail { display: grid; gap: 28px; position: relative; }
+.slice { display: grid; grid-template-columns: 44px 1fr; gap: 16px; }
+.dot { width: 44px; height: 44px; border-radius: 50%; background: var(--fg); color: var(--bg); display: grid; place-items: center; font: 700 18px var(--display); position: relative; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 20px; display: grid; gap: 16px; min-width: 0; }
+.card-head { display: grid; gap: 6px; }
+.card-head .key { font: 500 13px var(--mono); color: var(--muted); }
+.adds { display: grid; gap: 6px; padding-left: 18px; margin: 0; }
+.adds li { max-width: 68ch; }
+.cols { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 18px; }
+@media (max-width: 760px) { .cols { grid-template-columns: 1fr; } }
+
+/* File map */
+.map { display: grid; gap: 10px; font-family: var(--mono); font-size: 12.5px; }
+.group { display: grid; gap: 4px; }
+.group .eyebrow { font-family: var(--body); font-size: 11px; }
+.file { display: flex; align-items: center; gap: 8px; padding: 4px 8px; border-radius: 5px; min-width: 0; }
+.file .path { overflow-wrap: anywhere; min-width: 0; }
+.file .tag { margin-left: auto; font: 600 10.5px var(--body); letter-spacing: 0.06em; text-transform: uppercase; white-space: nowrap; }
+.file.new { background: var(--orange-soft); color: var(--fg); box-shadow: inset 3px 0 0 var(--accent); }
+.file.new .tag { color: var(--accent); }
+.file.changed { background: color-mix(in srgb, var(--amber) 18%, var(--surface)); box-shadow: inset 3px 0 0 var(--amber); }
+.file.changed .tag { color: var(--fg); }
+.file.same { color: var(--muted); }
+.file.none { color: var(--muted); opacity: 0.55; border: 1px dashed var(--line); }
+
+/* Tests */
+.tests { display: grid; gap: 8px; align-content: start; }
+.pills { display: flex; flex-wrap: wrap; gap: 6px; }
+.pill { font: 500 12px var(--mono); padding: 4px 9px; border-radius: 999px; background: var(--teal-soft); color: var(--fg); border: 1px solid color-mix(in srgb, var(--teal) 40%, transparent); overflow-wrap: anywhere; }
+.observe { font-size: 14px; color: var(--muted); }
+
+/* Sample note */
+.sample { border: 1px solid var(--line); border-radius: 8px; padding: 16px; display: grid; gap: 8px; background: var(--bg); }
+.sample .t { font: 700 18px var(--display); }
+.sample .d { font-size: 13px; color: var(--muted); }
+.sample ul { margin: 0; padding-left: 18px; display: grid; gap: 2px; }
+.ph { font-family: var(--mono); background: var(--orange-soft); padding: 0 4px; border-radius: 3px; }
+.evidence { border-collapse: collapse; font-size: 13px; width: 100%; font-variant-numeric: tabular-nums; }
+.evidence th, .evidence td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.evidence th { font-weight: 600; color: var(--muted); }
+.scroll { overflow-x: auto; }
+
+/* Matrix */
+.matrix { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+.matrix th, .matrix td { padding: 8px 10px; border-bottom: 1px solid var(--line); text-align: center; white-space: nowrap; }
+.matrix th:first-child, .matrix td:first-child { text-align: left; }
+.matrix td:first-child { font-family: var(--mono); font-size: 12.5px; }
+.matrix thead th { color: var(--muted); font-weight: 600; }
+.mark { display: inline-block; width: 22px; height: 22px; border-radius: 50%; background: var(--teal); color: var(--surface); font: 700 12px/22px var(--body); }
+.mark.cc { background: var(--accent); }
+.dep { color: var(--muted); }
+.note { font-size: 13.5px; color: var(--muted); }
+
+.decisions { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+.decision { border-top: 2px solid var(--fg); padding-top: 10px; display: grid; gap: 4px; }
+.decision b { font-family: var(--display); font-size: 16px; }
+.decision span { font-size: 14px; color: var(--muted); }
+
+@media (prefers-reduced-motion: no-preference) { .file { transition: background 0.2s; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <span class="eyebrow">Build guide · roost epic #56</span>
+    <h1>Release notes that match what shipped, in the team's voice</h1>
+    <p>A <code>release-notes</code> skill that drafts customer-facing notes from the evidence roost already reads: dated by when customers could use each feature, written from what shipped, held when customers can't use it yet, never announced twice, and in the team's voice.</p>
+    <div class="meta">
+      <a href="https://github.com/Beakpoint-Insights/roost/issues/56">Epic #56</a>
+      <a href="https://github.com/Beakpoint-Insights/roost/blob/main/docs/design/issue-56-release-notes.md">Design doc</a>
+      <span>One repo: roost</span>
+      <span>4 slices · 11 eval cases</span>
+    </div>
+  </header>
+
+  <section style="display:grid;gap:14px">
+    <h2>Decisions the slices build on</h2>
+    <div class="decisions">
+      <div class="decision"><b><code>repos[].production</code></b><span>Each repo says how it reaches production: a workflow, a release, or merge.</span></div>
+      <div class="decision"><b>One voice file</b><span><code>release_notes.voice</code>, relative to the config. roost's generic fallback otherwise.</span></div>
+      <div class="decision"><b>Published notes by URL</b><span><code>release_notes.published_url</code>, fetched to avoid repeats.</span></div>
+      <div class="decision"><b>Flags from the code</b><span>Found in the merged diffs. No config, no flag provider.</span></div>
+      <div class="decision"><b>Catch-up from the tracker</b><span>Done or ready-for-release since the date, then dated by deploys.</span></div>
+      <div class="decision"><b>Fallback as its own file</b><span><code>references/fallback-voice.md</code>, so teams can copy it.</span></div>
+    </div>
+  </section>
+
+  <section style="display:grid;gap:16px">
+    <h2>Slices</h2>
+    <div class="legend">
+      <span><i class="sw new"></i>New in this slice</span>
+      <span><i class="sw changed"></i>Changed in this slice</span>
+      <span><i class="sw same"></i>Done in an earlier slice</span>
+      <span><i class="sw none"></i>Not yet</span>
+    </div>
+    <div class="rail" id="rail"></div>
+  </section>
+
+  <section style="display:grid;gap:14px">
+    <h2>Test coverage</h2>
+    <p class="note">Each eval case against the slice where it can first pass. Orange marks a case that needs more than one slice: it's tagged with the last one. Cases are drafted in each story's <code>evals:</code> comment and committed first, test-first, in its PR.</p>
+    <div class="scroll"><table class="matrix" id="matrix"></table></div>
+    <p class="note">#63's "a picked candidate is drafted like an epic's note" needs a second turn, which an eval case can't take, so it's checked on the PR with evidence.</p>
+  </section>
+</div>
+
+<script>
+const FILES = [
+  ["The skill", [
+    ["skills/release-notes/SKILL.md", {60:"new",61:"changed",62:"changed",63:"changed"}],
+    ["skills/release-notes/references/fallback-voice.md", {60:"new"}],
+  ]],
+  ["Config", [
+    ["skills/roost-config/references/config-schema.md", {60:"changed",61:"changed",62:"changed"}],
+    ["examples/config.example.yml", {60:"changed",61:"changed",62:"changed"}],
+    ["examples/config.github-only.yml", {60:"changed"}],
+    ["examples/release-notes-voice.md", {62:"new"}],
+    ["scripts/check-references.py", {61:"changed"}],
+  ]],
+  ["Other skills", [
+    ["skills/close-out-epic/SKILL.md", {60:"changed"}],
+    ["skills/setup/SKILL.md", {62:"changed"}],
+  ]],
+  ["Docs and tests", [
+    ["README.md", {60:"changed"}],
+    ["CONTRIBUTING.md", {60:"changed",61:"changed",62:"changed",63:"changed"}],
+    ["evals/ (cases below)", {60:"changed",61:"changed",62:"changed",63:"changed"}],
+  ]],
+];
+const ORDER = [60, 61, 62, 63];
+const EXISTING = new Set(["skills/roost-config/references/config-schema.md","examples/config.example.yml","examples/config.github-only.yml","scripts/check-references.py","skills/close-out-epic/SKILL.md","skills/setup/SKILL.md","README.md","CONTRIBUTING.md","evals/ (cases below)"]);
+
+const SLICES = [
+  { n: 1, key: 60, title: "One epic's note, dated by when customers could use it",
+    deps: "Depends on nothing",
+    adds: [
+      "One-epic mode: reads the epic, its slices and merged PRs; writes only what shipped and lists what was cut.",
+      "Dates from <code>repos[].production</code> across every repo the feature touched, with one evidence table. Never the resolution date; \"date not found\" when a repo has no key.",
+      "Unknown facts as <code>[N]</code>; one paste-ready note, then the checks.",
+      "roost's fallback voice. <code>close-out-epic</code> step 6 confirms production with <code>production</code>, then offers the note.",
+    ],
+    observe: "Given an epic deployed two weeks before it was resolved, with a cut Slack slice, the reply is one note dated by the deploy, with Slack listed in the checks.",
+    sample: true,
+    tests: ["release-note-for-one-epic","release-note-fallback-voice","release-note-date-not-found","close-out-offers-release-note"] },
+  { n: 2, key: 61, title: "Hold what customers can't use yet, and skip what's announced",
+    deps: "Depends on #60",
+    adds: [
+      "Held notes: a flag check in the merged diffs, an unreleased slice or a pending correction to past data. Still drafted, dated <code>[date]</code>, saying what it waits for.",
+      "The optional <code>release_notes</code> section with <code>published_url</code>; anything already announced is dropped or flagged, naming the post.",
+      "No URL or an unreadable page: the report says the repeat check wasn't done.",
+    ],
+    observe: "A feature behind <code>flags.isEnabled(\"spend-by-team\")</code> comes back held with \"check the flag's rollout\"; one already on the published page is flagged.",
+    tests: ["release-note-held-behind-flag","release-note-held-until-live","release-note-already-announced"] },
+  { n: 3, key: 62, title: "The team's own voice",
+    deps: "Depends on #60",
+    adds: [
+      "<code>release_notes.voice</code>: one Markdown file of the team's rules, replacing the fallback. Without it, one line says the fallback was used.",
+      "Acme's made-up voice in <code>examples/release-notes-voice.md</code>: sentence-case titles, New / Better / Fixed, rotating sign-offs, \"— The Acme team\".",
+      "<code>setup</code> recommends each repo's <code>production</code> and asks for the voice, or offers to work it out from the published notes, shown before saving.",
+    ],
+    observe: "With Acme's voice file, the note has a sentence-case title, a sign-off from its list and its byline.",
+    tests: ["release-note-team-voice","release-note-without-release-notes-config","setup-asks-production-and-voice"] },
+  { n: 4, key: 63, title: "Catch-up since a date",
+    deps: "Depends on #60 and #61",
+    adds: [
+      "Candidates from the tracker: done or ready-for-release since the date, each dated by its deploys; anything live before the date is dropped.",
+      "Epics drafted; standalone stories, tasks and customer-visible bugs listed to pick from.",
+      "One message: every note oldest first, then candidates, then checks. Sign-offs don't repeat.",
+    ],
+    observe: "Since February 1: notes for pay by invoice (February 20) then spend alerts (March 3); invite by link dropped (live January 28); two bugs listed to pick.",
+    tests: ["release-notes-catch-up"] },
+];
+
+function stateFor(path, map, key) {
+  const idx = ORDER.indexOf(key);
+  if (map[key]) return map[key];
+  const earlier = ORDER.slice(0, idx).some(k => map[k]);
+  if (earlier || EXISTING.has(path)) return "same";
+  return "none";
+}
+const LABEL = { new: "New", changed: "Changed", same: "", none: "Not yet" };
+
+function sampleNote() {
+  return `<div class="sample" aria-label="Example output of slice 1">
+    <span class="eyebrow">What slice 1 returns, in the fallback voice</span>
+    <div class="t">Spend Alerts by Email</div>
+    <div class="d">New · March 3, 2026</div>
+    <p>You can now get an email when a project's daily spend passes a threshold you set.</p>
+    <ul><li>Set a threshold for each project in Settings › Alerts</li><li>Each plan includes <span class="ph">[N]</span> alert emails a month</li></ul>
+    <p>Turn it on for a project in Settings › Alerts.</p>
+    <div class="scroll"><table class="evidence">
+      <thead><tr><th>Repo</th><th>Last change</th><th>Reached production</th></tr></thead>
+      <tbody><tr><td>acme-api</td><td>#820, merged Mar 2</td><td>deploy-production.yml, Mar 3</td></tr>
+      <tr><td>acme-web</td><td>#461, merged Mar 2</td><td>merge deploys, Mar 2</td></tr></tbody>
+    </table></div>
+    <p class="note">Checks: Slack alerts were planned but not built, left out. Fill in <span class="ph">[N]</span>.</p>
+  </div>`;
+}
+
+document.getElementById("rail").innerHTML = SLICES.map(s => `
+  <article class="slice" id="slice-${s.n}">
+    <div class="dot" aria-hidden="true">${s.n}</div>
+    <div class="card">
+      <div class="card-head">
+        <span class="key"><a href="https://github.com/Beakpoint-Insights/roost/issues/${s.key}">#${s.key}</a> · Slice ${s.n} · ${s.deps}</span>
+        <h3>${s.title}</h3>
+      </div>
+      <ul class="adds">${s.adds.map(a => `<li>${a}</li>`).join("")}</ul>
+      <div class="cols">
+        <div class="map" aria-label="Files in roost after slice ${s.n}">
+          ${FILES.map(([g, files]) => `<div class="group"><span class="eyebrow">${g}</span>
+            ${files.map(([p, m]) => { const st = stateFor(p, m, s.key); return `<div class="file ${st}"><span class="path">${p}</span>${LABEL[st] ? `<span class="tag">${LABEL[st]}</span>` : ""}</div>`; }).join("")}
+          </div>`).join("")}
+        </div>
+        <div class="tests">
+          <span class="eyebrow">Passes after this slice</span>
+          <div class="pills">${s.tests.map(t => `<span class="pill">${t}</span>`).join("")}</div>
+          <span class="eyebrow" style="margin-top:8px">What you can observe</span>
+          <p class="observe">${s.observe}</p>
+          ${s.sample ? sampleNote() : ""}
+        </div>
+      </div>
+    </div>
+  </article>`).join("");
+
+const CC = { "release-note-without-release-notes-config": "needs #61 and #62", "release-notes-catch-up": "needs #60–#62", "close-out-offers-release-note": "close-out-epic" };
+const rows = SLICES.flatMap(s => s.tests.map(t => [t, s.key]));
+document.getElementById("matrix").innerHTML =
+  `<thead><tr><th>Eval case</th>${SLICES.map(s => `<th>#${s.key}</th>`).join("")}<th>Note</th></tr></thead><tbody>` +
+  rows.map(([t, k]) => {
+    const cc = t === "release-note-without-release-notes-config" || t === "release-notes-catch-up";
+    return `<tr><td>${t}</td>${SLICES.map(s => `<td>${s.key === k ? `<span class="mark${cc ? " cc" : ""}" aria-label="first passes">✓</span>` : ""}</td>`).join("")}<td class="dep">${CC[t] || ""}</td></tr>`;
+  }).join("") + "</tbody>";
+</script>
