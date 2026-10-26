@@ -1,0 +1,231 @@
+.claude-plugin/marketplace.json
+  s_0de49345ab4148::t_8bece660719c1f 1-17
+.claude-plugin/plugin.json
+  s_0de49345ab4148::t_636ea738ad828d 1-9
+.github/dependabot.yml
+  s_0de49345ab4148::t_fa78b727aa1f8b 1-8
+.github/workflows/pr-checks.yml
+  s_0de49345ab4148::t_2cbe0d62233bac 1-37
+.github/workflows/release-please.yml
+  s_0de49345ab4148::t_ff1bf75c6d840b 1-19
+.gitignore
+  s_0de49345ab4148::t_6968989e535c9a 1-6
+.release-please-manifest.json
+  s_0de49345ab4148::t_90b3fef5289ec0 1-3
+CHANGELOG.md
+  s_0de49345ab4148::t_b58726a6bb3457 1-5
+LICENSE
+  s_0de49345ab4148::t_b381a2c41d34fc 1-21
+README.md
+  s_0de49345ab4148::t_859be1d21956cf 1-286
+demo/replay.py
+  s_0de49345ab4148::t_74bce8fde1355a 1-195
+demo/roost.tape
+  s_0de49345ab4148::t_571c9a0def3f01 1-87
+evals/bdd-for-existing-feature/graders/doesnt-file-first.md
+  s_0de49345ab4148::t_e9b2915a579e94 1-8
+evals/bdd-for-existing-feature/graders/uses-live-verified-bdd.md
+  s_0de49345ab4148::t_23b8cc297f5646 1-6
+evals/bdd-for-existing-feature/prompt.md
+  s_0de49345ab4148::t_bb2a34bdee29ce 1-10
+evals/bug-goes-to-the-right-place/graders/epic-stack-not-main.md
+  s_0de49345ab4148::t_32c5264bf4d640 1-5
+evals/bug-goes-to-the-right-place/graders/uses-run-bug.md
+  s_0de49345ab4148::t_9b711db43c9908 1-6
+evals/bug-goes-to-the-right-place/prompt.md
+  s_0de49345ab4148::t_72fa113e352b45 1-10
+evals/close-out-sorts-first/graders/proposes-then-waits.md
+  s_0de49345ab4148::t_74190441478e66 1-5
+evals/close-out-sorts-first/graders/uses-close-out-epic.md
+  s_0de49345ab4148::t_fac5aebfa89c34 1-6
+evals/close-out-sorts-first/prompt.md
+  s_0de49345ab4148::t_3a0f48fd5062b0 1-10
+evals/design-without-ui-is-architecture/graders/architecture-not-prototype.md
+  s_0de49345ab4148::t_2bc6f2d00a0284 1-5
+evals/design-without-ui-is-architecture/graders/no-prototype-file.md
+  s_0de49345ab4148::t_d0450b65237739 1-5
+evals/design-without-ui-is-architecture/graders/reads-phase-3.md
+  s_0de49345ab4148::t_d8493bfe13bd88 1-6
+evals/design-without-ui-is-architecture/prompt.md
+  s_0de49345ab4148::t_b2e65cc29a8a24 1-10
+evals/epic-review-is-whole-stack/graders/uses-review-epic.md
+  s_0de49345ab4148::t_c5da6ba52222d7 1-6
+evals/epic-review-is-whole-stack/graders/whole-stack-by-sessions.md
+  s_0de49345ab4148::t_40bc4d8e99b91e 1-5
+evals/epic-review-is-whole-stack/prompt.md
+  s_0de49345ab4148::t_83f41f1173931b 1-10
+evals/epic-starts-without-asking/graders/blocker-not-permission.md
+  s_0de49345ab4148::t_d29bd7d48ac7a2 1-5
+evals/epic-starts-without-asking/graders/uses-build-epic.md
+  s_0de49345ab4148::t_8ba0e675180666 1-6
+evals/epic-starts-without-asking/prompt.md
+  s_0de49345ab4148::t_2f58857102f214 1-10
+evals/handoff-not-kickoff/graders/sorts-before-starting.md
+  s_0de49345ab4148::t_b2e2c013a5ee60 1-5
+evals/handoff-not-kickoff/graders/uses-slice-handoff.md
+  s_0de49345ab4148::t_0f7844c722fc75 1-6
+evals/handoff-not-kickoff/prompt.md
+  s_0de49345ab4148::t_da62995818a18c 1-10
+evals/manual-test-not-automated/graders/manual-not-automated.md
+  s_0de49345ab4148::t_0f0d7d43af3860 1-5
+evals/manual-test-not-automated/graders/no-automate-skill.md
+  s_0de49345ab4148::t_795998815e3e2f 1-8
+evals/manual-test-not-automated/prompt.md
+  s_0de49345ab4148::t_c5d20b59347d5a 1-15
+evals/pasted-stack-steps/graders/no-go-ahead.md
+  s_0de49345ab4148::t_a29bc5d3aa48f1 1-7
+evals/pasted-stack-steps/graders/uses-stacked-prs.md
+  s_0de49345ab4148::t_2fb4095ff26600 1-6
+evals/pasted-stack-steps/prompt.md
+  s_0de49345ab4148::t_c8141a0e2f8240 1-20
+evals/prototype-stops-without-design-system/graders/no-prototype-file.md
+  s_0de49345ab4148::t_6e6c3de14fcb08 1-5
+evals/prototype-stops-without-design-system/graders/reads-phase-3.md
+  s_0de49345ab4148::t_505e2d234ede3f 1-6
+evals/prototype-stops-without-design-system/graders/stops.md
+  s_0de49345ab4148::t_7a6864eff7fd29 1-7
+evals/prototype-stops-without-design-system/prompt.md
+  s_0de49345ab4148::t_6eb7d7b9e47446 1-10
+evals/question-checked-before-answer/graders/no-unchecked-answer.md
+  s_0de49345ab4148::t_933d308ba154e0 1-5
+evals/question-checked-before-answer/prompt.md
+  s_0de49345ab4148::t_657ab0c351f43f 1-10
+evals/runbook-is-paired/graders/one-step-user-runs.md
+  s_0de49345ab4148::t_9e6bef18cf714e 1-5
+evals/runbook-is-paired/graders/uses-pair-runbook.md
+  s_0de49345ab4148::t_dbc38fba3c58f0 1-6
+evals/runbook-is-paired/prompt.md
+  s_0de49345ab4148::t_8e6a02abc31538 1-10
+evals/shape-epic-starts-with-problem/graders/asks-dont-build.md
+  s_0de49345ab4148::t_523a07838f48db 1-5
+evals/shape-epic-starts-with-problem/graders/reads-phase-1.md
+  s_0de49345ab4148::t_44437d5d0491db 1-6
+evals/shape-epic-starts-with-problem/prompt.md
+  s_0de49345ab4148::t_38b0ec06ab6ee7 1-10
+evals/status-is-a-table/graders/table-not-essay.md
+  s_0de49345ab4148::t_5580383c7748dc 1-5
+evals/status-is-a-table/graders/uses-run-slice.md
+  s_0de49345ab4148::t_5286b587a9aa36 1-6
+evals/status-is-a-table/prompt.md
+  s_0de49345ab4148::t_9139eb7ab1269c 1-10
+evals/update-moving/graders/one-line.md
+  s_0de49345ab4148::t_56ddfc11ce4186 1-5
+evals/update-moving/graders/skill-used.md
+  s_0de49345ab4148::t_9235c2c7a92f92 1-6
+evals/update-moving/prompt.md
+  s_0de49345ab4148::t_d536d64c0bb84a 1-20
+evals/update-your-turn/graders/skill-used.md
+  s_0de49345ab4148::t_68b472b8426764 1-6
+evals/update-your-turn/graders/your-turn-first.md
+  s_0de49345ab4148::t_90d2e1c917515c 1-5
+evals/update-your-turn/prompt.md
+  s_0de49345ab4148::t_2cbdbfa3a3c5ac 1-20
+evals/verify-not-automate/graders/not-automate.md
+  s_0de49345ab4148::t_7f3572788721b5 1-8
+evals/verify-not-automate/graders/uses-verify.md
+  s_0de49345ab4148::t_343d820e119cb7 1-6
+evals/verify-not-automate/prompt.md
+  s_0de49345ab4148::t_989ab00623e00d 1-10
+evals/xray-refuses-without-scenarios/graders/no-invented-scenarios.md
+  s_0de49345ab4148::t_b8dac61d226a17 1-6
+evals/xray-refuses-without-scenarios/graders/skill-used.md
+  s_0de49345ab4148::t_fbc6550d341746 1-6
+evals/xray-refuses-without-scenarios/graders/stops-and-redirects.md
+  s_0de49345ab4148::t_33ac4d987f7520 1-5
+evals/xray-refuses-without-scenarios/prompt.md
+  s_0de49345ab4148::t_539d257e71aa63 1-10
+examples/config.example.yml
+  s_0de49345ab4148::t_a1d04ca2a7501c 1-122
+release-please-config.json
+  s_0de49345ab4148::t_55fceea502661e 1-32
+scripts/check-skills.sh
+  s_0de49345ab4148::t_82c5e9483e30a7 1-45
+scripts/link-skills.sh
+  s_0de49345ab4148::t_57bb8f7ce25362 1-38
+skills/automate-xray-tests/SKILL.md
+  s_0de49345ab4148::t_dcd7a123dbed5a 1-59
+skills/bug-bash/SKILL.md
+  s_0de49345ab4148::t_23c1cf11a73dcf 1-73
+skills/build-epic/SKILL.md
+  s_0de49345ab4148::t_c0bea884b6a7ed 1-97
+skills/close-out-epic/SKILL.md
+  s_0de49345ab4148::t_9369469f77a1d9 1-78
+skills/create-xray-test/SKILL.md
+  s_0de49345ab4148::t_09ad0783d9e9d1 1-175
+skills/cross-repo-handoff/SKILL.md
+  s_0de49345ab4148::t_80c95ebdcdb2e6 1-51
+skills/live-verified-bdd/SKILL.md
+  s_0de49345ab4148::t_53920444fefb3f 1-131
+skills/pair-runbook/SKILL.md
+  s_0de49345ab4148::t_05baf1f9ac5f79 1-78
+skills/release-qa/SKILL.md
+  s_0de49345ab4148::t_b7633a353a283d 1-84
+skills/review-epic/SKILL.md
+  s_0de49345ab4148::t_fff327000e60f9 1-52
+skills/roost-config/SKILL.md
+  s_0de49345ab4148::t_2383ae55d17e8e 1-92
+skills/roost-config/references/config-schema.md
+  s_0de49345ab4148::t_5937f9e50b4148 1-169
+skills/roost-config/references/tests-xray.md
+  s_0de49345ab4148::t_2362f7cec1e061 1-88
+skills/roost-config/references/tracker-jira.md
+  s_0de49345ab4148::t_9682061e82b33c 1-91
+skills/run-bug/SKILL.md
+  s_0de49345ab4148::t_bc82f3e56fa7a2 1-81
+skills/run-slice/SKILL.md
+  s_0de49345ab4148::t_cc941574649208 1-300
+skills/run-slice/references/copilot-review.md
+  s_0de49345ab4148::t_6f0d18f7db5776 1-29
+skills/setup/SKILL.md
+  s_0de49345ab4148::t_445ee2ef2a317d 1-53
+skills/shape-epic/SKILL.md
+  s_0de49345ab4148::t_d082a2aed008d3 1-120
+skills/shape-epic/references/epic-description-template.md
+  s_0de49345ab4148::t_4f87ba6326eb70 1-80
+skills/shape-epic/references/phase-1-problem.md
+  s_0de49345ab4148::t_070a868451ce42 1-29
+skills/shape-epic/references/phase-2-epic.md
+  s_0de49345ab4148::t_3d4fa9c444a1dc 1-34
+skills/shape-epic/references/phase-3-design.md
+  s_0de49345ab4148::t_b947ae34ba542a 1-74
+skills/shape-epic/references/phase-4-slices.md
+  s_0de49345ab4148::t_50ca32a9f5ea49 1-59
+skills/shape-epic/references/phase-5-tests.md
+  s_0de49345ab4148::t_d2cedcc2c4f24b 1-50
+skills/shape-epic/references/phase-6-guide.md
+  s_0de49345ab4148::t_a8c0de721147db 1-46
+skills/shape-epic/references/phase-7-handoff.md
+  s_0de49345ab4148::t_1ba9370936d8df 1-39
+skills/shape-epic/references/slice-checklist.md
+  s_0de49345ab4148::t_ebf7691b56d6b1 1-53
+skills/shape-epic/references/tech-lead-prompt-template.md
+  s_0de49345ab4148::t_e6bf2984a16751 1-259
+skills/slice-handoff/SKILL.md
+  s_0de49345ab4148::t_a13633de25959b 1-113
+skills/stacked-prs/SKILL.md
+  s_0de49345ab4148::t_1a6d6cc2e19822 1-117
+skills/triage-ticket/SKILL.md
+  s_0de49345ab4148::t_306dacd3f98cf3 1-59
+skills/verify-slice-tests/SKILL.md
+  s_0de49345ab4148::t_5961375ec13a12 1-73
+skills/write-runbook/SKILL.md
+  s_0de49345ab4148::t_6910e97f4dae70 1-63
+version.txt
+  s_0de49345ab4148::t_5cc7f69671ec44 1
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "66cdcd96bb6546e9ee466b0187cf0f0f0808a954",
+  "prompts": {},
+  "sessions": {
+    "s_0de49345ab4148": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b1005a39-8915-42a2-974f-c030708f474d",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Alan Cox <acox@beakpointinsights.com>"
+    }
+  }
+}
