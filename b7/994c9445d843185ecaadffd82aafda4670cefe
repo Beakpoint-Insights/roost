@@ -1,0 +1,19 @@
+docs/design/issue-56-tech-lead-prompt.md
+  s_ce853c534e6e9a::t_3d3658d352e2bb 1-177
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b7994c9445d843185ecaadffd82aafda4670cefe",
+  "prompts": {},
+  "sessions": {
+    "s_ce853c534e6e9a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a9d2778a-eee1-4de0-88c4-4544b6b37c64",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Alan Cox <acox@beakpointinsights.com>"
+    }
+  }
+}
