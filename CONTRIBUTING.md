@@ -27,7 +27,13 @@ Evals already run against the checkout: `claude plugin eval .` loads the plugin 
 
 ## Using roost on roost
 
-roost's own work runs through roost: its issues are the tracker, its eval cases are the tests, and it ships plain PRs. To use the roost skills here, copy [`.roost/config.example.yml`](.roost/config.example.yml) to `.roost/config.yml` and change anything that differs for you. Your copy is gitignored, and sessions inside the checkout find it before `~/.claude/roost/config.yml`.
+roost's own work runs through roost: its issues are the tracker, its eval cases are the tests, and it ships plain PRs. Using it on itself proves it works, and a feature roost needs, built with roost, improves both.
+
+- **Maintainers** shape and build roost's epics with roost (`shape-epic`, then `build-epic`). When roost gets something wrong along the way, open an issue for it.
+- **Contributors** are welcome to use roost too, but a normal pull request is fine. Its tracker steps (labels, sub-issues, assigning, statuses) need write access to this repo, which outside contributors don't have. A small fix never needs it; for anything bigger, open an issue first, and a maintainer may shape it into an epic.
+- **Either way,** every change gets the same checks, including the evals for the skills it touches.
+
+To use the roost skills here, copy [`.roost/config.example.yml`](.roost/config.example.yml) to `.roost/config.yml` and change anything that differs for you. Your copy is gitignored, and sessions inside the checkout find it before `~/.claude/roost/config.yml`. A session started outside the checkout (an orchestrator) needs `ROOST_CONFIG=<checkout>/.roost/config.yml`.
 
 ## Making changes
 
