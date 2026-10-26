@@ -22,7 +22,7 @@ Turn a product idea into a fully-defined, buildable epic with its design (a UI p
 
 ## Team config
 
-**First, load the team config with `roost-config`.** The tracker project is `tracker.jira.project`, the design system is `design`, the repos the tech lead reads are `repos`, and the roadmap question uses `roadmap`.
+**First, load the team config with `roost-config`.** The tracker and its project are in `tracker` (its adapter says how keys look), the design system is `design`, the repos the tech lead reads are `repos`, and the roadmap question uses `roadmap`.
 
 ## Rules for every phase
 
@@ -45,7 +45,7 @@ problem → epic → design → slices → tests → guide → handoff
 | 2. Epic | Epic in the tracker, with a rich description | Problem statement (or user provides context) | `references/phase-2-epic.md` |
 | 3. Design | The target state: an interactive HTML prototype for UI work, an architecture or design-doc PR for how the system is built or run, or both | Epic description with goals and scope | `references/phase-3-design.md` |
 | 4. Slices | Ordered stories under the epic | Epic + design | `references/phase-4-slices.md` |
-| 5. Tests | Xray test issues with Cucumber scenarios | Slices (+ design for testable behaviors) | `references/phase-5-tests.md` |
+| 5. Tests | The tests for every slice, in the form the team's tests take | Slices (+ design for testable behaviors) | `references/phase-5-tests.md` |
 | 6. Guide | Visual build-guide artifact | Slices + tests | `references/phase-6-guide.md` |
 | 7. Handoff | Tech lead prompt, attached to the epic with the guide and the prototype (if any) | Slices + tests + guide + design | `references/phase-7-handoff.md` |
 
@@ -116,5 +116,5 @@ Before declaring a phase complete:
 - See `references/slice-checklist.md` for the slice quality checklist
 - See `references/tech-lead-prompt-template.md` for the Phase 7 prompt template and how to fill it
 - See `references/phase-<n>-<name>.md` for each phase's steps
-- The `create-xray-test` skill handles the mechanical Xray creation in Phase 5
+- The tests adapter's "Create a test" says how Phase 5 creates tests
 - The skill named in `roadmap.skill`, if any, puts an epic on the roadmap

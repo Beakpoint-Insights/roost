@@ -55,9 +55,9 @@ Write it as one line: "roost 1.0.0, installed" or "roost 1.0.0, checkout at ~/sr
 
 | Key | Supported now | Not yet |
 |---|---|---|
-| `tracker.kind` | `jira` | `github`, `linear` |
-| `tests.kind` | `xray` | `repo-gherkin`, `none` |
-| `vcs.stacking` | `gh-stack` | `graphite`, `none` |
+| `tracker.kind` | `jira`, `github` | `linear` |
+| `tests.kind` | `xray`, `evals` | `repo-gherkin`, `none` |
+| `vcs.stacking` | `gh-stack`, `none` | `graphite` |
 
 If the config names one that isn't supported yet, stop and say which key and value, and that roost doesn't support it yet.
 
@@ -68,18 +68,22 @@ If the config names one that isn't supported yet, stop and say which key and val
 In this skill's `references/` folder:
 
 - `config-schema.md`: what every key means, and its default. Read it when a key's meaning isn't obvious from its name.
-- `tracker-jira.md`: how to do each tracker operation in Jira (create, set a parent, edit a comment in place, attach a file, transition, link, search). Read it before any tracker change.
-- `tests-xray.md`: how to read and update test scenarios in Xray, and what "automated" means. Read it before touching tests.
+- The tracker adapter for `tracker.kind`, before any tracker change: `tracker-jira.md` or `tracker-github.md`. Each says how to do every tracker operation (create, set a parent, edit a comment in place, attach a file, change a status, link, search) and how its keys are written.
+
+The skills say *what* to do in tracker-neutral words (a ticket, a comment, attach a file to the epic, move it to a status); the adapter says *how*, and how its keys are written ("Keys").
+- The tests adapter for `tests.kind`, before touching tests: `tests-xray.md` (Xray tests and their Cucumber scenarios), or `tests-evals.md` (eval cases in the repo). Each says what a test is, and its operations ("A story's tests", "Read a test's scenarios", "Run a test", "Mark a test automated", "Create a test", …) say how to do each thing the skills ask, with this team's tests.
 
 ## How skills refer to the config
 
 A skill writes a config key in backticks, for example `tracker.statuses.ready_for_release` or `stack.services`. Use the value from the config. A few names come up everywhere:
 
-- **The project:** `tracker.jira.project`. Ticket keys look like `<project>-1234`; the skills' examples use `PROJ-1234`.
+- **The project and its keys:** where the tracker's tickets live, and how a key is written, are in the tracker adapter ("Keys"). The skills' examples write keys as `PROJ-1234`.
 - **The repos:** the `repos` list. Each has a `name`, a `role`, an `order`, and a `session` name (for example "API session"). "Each repo, in order" means by `order`. A repo with `depends_on` waits for those repos' work and follows its `contract` to consume it.
 - **The lead repo:** `planning.lead_repo`, where the tech lead plans, the plan and runbooks live, and the stack's owner usually runs. Default: the repo with the lowest `order`.
 - **A repo's session:** the Claude session whose working directory ends in that repo's `name`.
 - **The local stack:** `stack`. Its `services` are what "the stack answers" means; its commands start, inspect and migrate it. `stack.never` lists commands not to use, and `stack.test_data` says how to put data into it. A repo with `local_stack: false` (an infrastructure repo, say) neither runs on it nor uses it: leave the stack's instructions, checks and browser testing out of everything sent to its session.
+- **Sections a config can leave out:** `stack`, `deploy`, `design`, `qa` and `roadmap`, and a repo's `e2e` (a plugin or a library may have none of them). A step that needs one the config doesn't have is skipped, and the skill says once what it skipped and why ("this config has no local stack, so there's nothing to start or check"). A missing key is neither true nor false: "if `deploy.migrations_run_on_deploy` is false" doesn't apply when there's no `deploy`. With no `stack`, every repo is treated as `local_stack: false`. When a skill can't do its main job without one (`write-runbook` without `deploy.runbooks`), ask the user for the value once, as for any key that isn't set.
+- **Without stacking** (`vcs.stacking: none`): there are no stacks. Wherever a skill says "the stack", "on the stack" or "the epic's stack", read: each branch starts from `main` and is its own PR against `main`, and "the epic's stack" is the epic's set of PRs. Nothing is rebased, linked or merged as a stack: `stacked-prs`' stack steps and "One deploy per stack" don't apply; its rules for commits, PR titles and the Release order comment do. A branch that needs another branch's code starts from that branch, and its PR, against `main`, says it waits for that one ("Waits for #<PR>"); once that one merges, rebase it onto `main`. Nothing waits for a merge before it can start, so a slice's later repos aren't held up by a review that comes after them. `review-epic` covers every PR the epic has, merged or open (the Release order comment lists them), not `main...<top branch>`. "Ready for release" means merged, waiting for the release: so before a story or bug moves to `tracker.statuses.ready_for_release` (the end of `run-slice`, `run-bug`, and the before-release work in `build-epic`), its PRs must have passed their reviews and checks, and the user merges them, in Release order. Ask them to, naming each PR, and check each one merged before moving the ticket.
 - **Repos that change real infrastructure:** a repo with `apply_gate` (see below).
 - **A repo's review focus:** its `review_focus`, or else `planning.review_focus`.
 - **Person-owned tasks:** tickets under an epic labelled `tracker.person_task_label` (default `person-owned`). They're work no repo session can do, with a named owner and a "When" (before release, after release, or after a named slice). Never send one to a session, never move one out of its epic, and never count one as leftover work; remind its owner when its "When" arrives.
@@ -108,7 +112,7 @@ Every roost skill stops for the user at its checkpoints. End each stop with the 
 
 ## The signed-in browser
 
-Jira steps the MCP can't do (attachments, parent changes, comment edits) use an API token when `JIRA_API_TOKEN` is set, and need no browser (see the Jira adapter notes). Only without the token, or to file Xray tests without the Xray keys, do they use the user's signed-in browser (the Playwright MCP). Every session on the machine shares that one browser, and only one session can use it at a time.
+With `tracker.kind: github`, `gh` does everything and no browser is needed for the tracker. Jira steps the MCP can't do (attachments, parent changes, comment edits) use an API token when `JIRA_API_TOKEN` is set, and need no browser (see the Jira adapter notes). Only without the token, or to file Xray tests without the Xray keys, do they use the user's signed-in browser (the Playwright MCP). Every session on the machine shares that one browser, and only one session can use it at a time.
 
 - **"Browser is already in use":** another session holds it. Never kill the browser or its processes; that ends another session's work. Tell the user which step is waiting, and ask them to free it (finish or close the other session's browser work), then retry.
 - **Checks that don't need anyone signed in** (opening a local prototype, a page on the local stack) use an isolated browser if one is set up (a second Playwright MCP server started with `--isolated`). If none is, and the shared one is busy, say plainly that the check wasn't done and why. Never present unchecked work as checked.

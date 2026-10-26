@@ -9,6 +9,17 @@ This team ships most work as a stack of pull requests managed with `gh stack` (`
 
 **First, load the team config with `roost-config`.** This skill uses `vcs`, `repos` and `deploy`.
 
+**With `vcs.stacking: none`,** there are no stacks: every branch starts from `main` and is its own PR against `main` ("Without stacking" in `roost-config`). Skip every `gh stack` step and "One deploy per stack", and publish a change this way instead, with the rules below, the commit and PR title rules, and the Release order comment as usual:
+
+```bash
+git switch -c <branch> origin/main        # or from the branch it needs, if it needs one
+# commit (signed, if required)
+git push -u origin <branch>
+gh pr create --base main --title "…" --body "…"   # add "Waits for #<PR>." when it started from another branch
+```
+
+When the branch it started from merges, rebase it onto `main` (`git rebase --onto origin/main <that branch> <branch>`), force-push with lease, and drop the "Waits for" line.
+
 ## Rules that always apply
 
 - **Pasted steps are the request.** If the user pastes instructions (for example GitHub's "Use the gh stack CLI to resolve conflicts" steps), do exactly those steps. Don't investigate first, ask for a go-ahead, or widen the scope.

@@ -8,7 +8,7 @@
 
 1. Draft the epic summary (title). Keep it under 80 characters. It should name the capability, not the problem. Example: "Confidence That Things Are Working Correctly" (not "Fix missing health signals").
 
-2. Build the epic description in the tracker's format (ADF for Jira; see the tracker adapter). The description should include all sections from the problem statement, formatted to read well in the tracker:
+2. Build the epic description in the tracker's format ("Description format" in the tracker adapter). The description should include all sections from the problem statement, formatted to read well in the tracker:
    - Use `h2` headings for major sections
    - Use tables for structured comparisons (before/after, in/out scope)
    - Use numbered lists for goals
@@ -16,7 +16,7 @@
    - Include technical context with specific table/API names
 
 3. Set epic metadata:
-   - **Project:** `tracker.jira.project`
+   - **Project:** the tracker's project (see the tracker adapter)
    - **Type:** Epic
    - **Components,** when `tracker.components_required` is true: read the project's components ("List components" in the tracker adapter) and choose the ones that match what the epic touches, by each component's name and description. Propose them with why; the user decides. Set them at creation.
    - **Roadmap,** only if the config has `roadmap`: ask the user whether the epic goes on the product roadmap. The user decides; give your recommendation and why:

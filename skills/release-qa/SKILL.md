@@ -9,6 +9,14 @@ You are QA for one epic. Find out whether "ready for release" is true, and file 
 
 **First, load the team config with `roost-config`.** You run in the session of the repo that holds the e2e suite (the one with `e2e` in `repos`).
 
+**No app to QA in a browser?** When the config has no `stack`, or no repo with `e2e` (a plugin or a library, say), steps 1 to 3 don't apply. You run in the lead repo's session (`planning.lead_repo`) instead, and QA is:
+
+1. **Every repo's own checks** on the epic's newest code (its newest branches or open PRs, merged or not; the same commits for all three checks), as each repo's `tests` says (for this plugin, for example, `claude plugin validate --strict .` and its scripts' checks).
+2. **The epic's tests,** run the way the tests adapter says (for `tests.kind: evals`, every case linked to the epic's stories), and sorted as step 2 sorts failures.
+3. **Each story's acceptance criteria,** checked against what that same code actually does, one row per criterion with its evidence.
+
+Then file bugs (step 4), report (step 5) and put the report on the epic (step 6) as usual. Here a reproduction isn't a browser session: it's the command or test run that shows the failure, with its output (for an eval case, the failing grader and its verdict), and a signed-out check doesn't apply. A bug's regression test is a test in the team's form, created as the tests adapter's "Create a test" says (for eval cases, a drafted case on the bug).
+
 ## Inputs
 
 Ask in one message for anything missing:
@@ -53,15 +61,15 @@ Write charters from the epic's flows, highest release risk first: the new-user p
 Before filing, search for duplicates: the epic's existing bugs and a text search on the symptom. If one exists, comment with the new evidence instead. If a closed bug is back, file a new one linked as "relates to" and call it a regression.
 
 Each bug:
-- **Project** `tracker.jira.project`, **type** Bug, **parent** the epic, the run's **label**, plus `qa.security_label` if it touches who's signed in, sessions, account takeover, or data leaking between users or tenants. **Components** set, when `tracker.components_required`.
+- **In the tracker's project,** **type** Bug, **parent** the epic, the run's **label**, plus `qa.security_label` if it touches who's signed in, sessions, account takeover, or data leaking between users or tenants. **Components** set, when `tracker.components_required`.
 - **Summary:** what the user experiences, in plain words, not the internal cause.
 - **Description:** what happened and what should have (cite the epic's flow table or story); numbered steps from a signed-out browser with exact URLs; environment (flags, branches, SHAs); evidence (screenshot, console errors, the failing request's method, path and status, with tokens and cookies removed); found by (scenario name, or "exploratory: charter N"); severity (blocks release / fix before release / can wait) with one sentence why.
 
 Only file what you've reproduced by hand at least once.
 
 **Give every behaviour bug a test that would catch it,** so the fix has something to automate and the bug can't quietly come back. Skip purely visual nits.
-- **The covering test isn't automated yet:** add the bug's scenario to it with `create-xray-test`'s update steps (read and save the current Gherkin first).
-- **The covering test is already labelled `tests.automated_label` and done:** don't add to it, which would make the label false. Create a new test for the bug's scenario with `create-xray-test`, linked to the story, unlabelled until it's automated.
+- **The covering test isn't marked automated yet:** add the bug's scenario to it (the tests adapter's "Update a test's scenarios", saving the current scenarios first).
+- **The covering test is already marked automated:** don't add to it, which would make that false. Create a new test for the bug's scenario ("Create a test"), linked to the story, unmarked until it's automated.
 - **No test covers it:** create one, the same way.
 
 Link each test to its bug ("relates to"), and say in the bug which test it is. Whoever fixes the bug automates that test as part of the fix.

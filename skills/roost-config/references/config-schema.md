@@ -20,13 +20,16 @@ Always `1`.
 
 | Key | Meaning |
 |---|---|
-| `kind` | `jira`. (`github` and `linear` aren't supported yet.) |
-| `jira.site` | The Jira site, for example `acme.atlassian.net`. |
-| `jira.cloud_id` | The site's cloud ID, for the Atlassian MCP tools. |
-| `jira.project` | The project key, for example `PROJ`. |
+| `kind` | `jira`, or `github` for GitHub Issues (see `tracker-github.md`). (`linear` isn't supported yet.) |
+| `github.repo` | *For `github`.* The `owner/repo` whose issues are the tracker. |
+| `github.issue_types` | *Optional, for `github`.* `true` when the organisation has issue types (Epic, Story, Task, Bug) to use; otherwise the kind is a label. Default `false`. |
+| `github.component_prefix` | *Optional, for `github`.* The prefix of the labels that stand for Components. Default `component: `. |
+| `jira.site` | *For `jira`.* The Jira site, for example `acme.atlassian.net`. |
+| `jira.cloud_id` | *For `jira`.* The site's cloud ID, for the Atlassian MCP tools. |
+| `jira.project` | *For `jira`.* The project key, for example `PROJ`. |
 | *(environment)* | Not in the config, because they're secrets: `JIRA_EMAIL` and `JIRA_API_TOKEN` let skills change parents, edit comments and upload attachments without a browser; `XRAY_CLIENT_ID` and `XRAY_CLIENT_SECRET` let them read and write Xray tests through its API. |
 | `jira.epic_issue_type_id` | *Optional.* The Epic issue type's ID, when creating epics needs it. |
-| `statuses.todo` / `in_progress` / `done` | The workflow's status names. |
+| `statuses.todo` / `in_progress` / `done` | The workflow's status names. With `github`, `todo` is an open issue, `done` a closed one, and the others are labels with these names. |
 | `statuses.ready_for_release` | *Optional.* The status for work that's merged and waiting to ship. Leave it out if merged work goes straight to `done`; skills then move tickets to `done` at that point and skip the release-time checks for it. |
 | `statuses.wont_do` | *Optional.* The status for a ticket closed without a fix. |
 | `components_required` | *Optional.* `true` if every ticket needs Components set. Default `false`. |
@@ -36,10 +39,13 @@ Always `1`.
 
 | Key | Meaning |
 |---|---|
-| `kind` | `xray`. (`repo-gherkin` and `none` aren't supported yet.) |
-| `automated_label` | The label for a test whose every scenario is automated and passing. Default `automated`. |
-| `manual_label` | *Optional.* The label for a test that's run by hand on purpose, once, against a real environment, and closes on a recorded run instead of automation (see "Manual tests" in the Xray adapter notes). Leave it out to allow no manual tests. |
-| `xray.test_link_type` | The link type between a test and its story: `name`, `id`, and the `outward`/`inward` wording. Default `Test` ("tests" / "is tested by"). |
+| `kind` | `xray`: Xray tests in Jira, with Cucumber scenarios. `evals`: eval cases in a plugin's repo, run with `claude plugin eval` (see `tests-evals.md`). (`repo-gherkin` and `none` aren't supported yet.) |
+| `automated_label` | *For `xray`.* The label for a test whose every scenario is automated and passing. Default `automated`. |
+| `manual_label` | *Optional, for `xray`.* The label for a test that's run by hand on purpose, once, against a real environment, and closes on a recorded run instead of automation (see "Manual tests" in the Xray adapter notes). Leave it out to allow no manual tests. |
+| `xray.test_link_type` | *For `xray`.* The link type between a test and its story: `name`, `id`, and the `outward`/`inward` wording. Default `Test` ("tests" / "is tested by"). |
+| `evals.repo` | *Optional, for `evals`.* The repo that holds the eval cases. Default `planning.lead_repo`. |
+| `evals.dir` | *Optional, for `evals`.* The folder of cases in that repo. Default `evals`. |
+| `evals.run` | *Optional, for `evals`.* The command that runs one case, with `{case}`. Default `claude plugin eval . --no-publish --case {case}`. |
 | `xray.panel_test_id` | *Optional.* The Xray panel's test id in the Jira issue view, for browser steps. |
 
 ## `repos`
@@ -67,7 +73,7 @@ A list, one entry per repo a story's work can touch. One entry is fine.
 
 ## `stack`
 
-The local environment the sessions run and test against.
+The local environment the sessions run and test against. *Optional.* Leave it out when there's no local environment to run (a plugin or a library, say): skills then skip starting, checking and browser-testing it, as if every repo had `local_stack: false`.
 
 | Key | Meaning |
 |---|---|
@@ -91,7 +97,7 @@ The local environment the sessions run and test against.
 | Key | Meaning |
 |---|---|
 | `host` | `github`. |
-| `stacking` | `gh-stack`: work goes on stacks of PRs managed with `gh stack` (see the `stacked-prs` skill). (`graphite` and `none` aren't supported yet.) |
+| `stacking` | `gh-stack`: work goes on stacks of PRs managed with `gh stack` (see the `stacked-prs` skill). `none`: every branch starts from `main` and is its own PR against `main` (see "Without stacking" in `roost-config`). (`graphite` isn't supported yet.) |
 | `signed_commits` | `true` if commits must be signed. Never bypass signing. |
 | `signing_blocker` | *Optional.* What to tell the user when signing fails, for example "1Password is locked". |
 | `signing_errors` | *Optional.* Error text that means signing is blocked on the user. |
@@ -111,6 +117,8 @@ The local environment the sessions run and test against.
 | `review_focus` | What `/code-review` should focus on in a slice. |
 
 ## `deploy`
+
+*Optional.* Leave it out when nothing is deployed (a plugin released as a package, say): skills then skip migration notes, deploy tickets and runbook steps that need it.
 
 | Key | Meaning |
 |---|---|
@@ -140,6 +148,8 @@ The local environment the sessions run and test against.
 | `not_ours` | *Optional.* Other design systems in the same account that must not be used. |
 
 ## `qa`
+
+*Optional.* Leave it out when there's no app to QA in a browser.
 
 | Key | Meaning |
 |---|---|

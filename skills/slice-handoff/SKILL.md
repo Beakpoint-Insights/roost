@@ -33,12 +33,12 @@ Read everything first; decide nothing yet. Don't trust that the slice recorded e
   - **A ticket already linked to DONE but missing its parent or Components:** set them now; it's DONE's ticket either way (see "Set or clear a parent" in the tracker adapter).
 
   A concern that only ever lived in a session's report can't be found from the tracker. Step 2 asks the user about anything run-slice's state file mentions that has no tracker record.
-- **Every test in the epic:** the tests linked to each story in EPIC so far, with their labels and statuses, leaving out retired tests (resolution `Won't Do`).
+- **Every test in the epic:** the tests linked to each story in EPIC so far, with their labels and statuses, leaving out retired tests (the tests adapter's "Retire a test").
 - **The stacks:** every PR for EPIC in each repo, its head, its base, and each check's newest completed result (`gh pr view <n> -R <repo.github> --json statusCheckRollup`; ignore runs a newer push cancelled).
 - **Plan changes:** commits on the plan branch since the slice started, and the decisions recorded in `<team.state_dir>/DONE.md` if it exists.
 - **NEXT's kickoff comments,** one per repo, titled with each repo's `kickoff_title`.
 
-Leave Xray Preconditions out of the open tickets (they're part of the epic's tests), and close any whose tests are all done. Leave manual tests with `When: after release` out too (see "Manual tests" in the Xray adapter notes): they wait for the release, like person-owned tasks; name them in the report. Leave person-owned tasks (labelled `tracker.person_task_label`) out of all of this: they aren't carried-over work. If one's "When" is "after" DONE, put a reminder for its owner in the report's 🙋 **Your turn** block.
+Leave the tests' shared setup out of the open tickets (the tests adapter's "Shared setup", where it's a ticket: it's part of the epic's tests), and close any whose tests are all done. Leave manual tests with `When: after release` out too ("Manual tests" in the tests adapter): they wait for the release, like person-owned tasks; name them in the report. Leave person-owned tasks (labelled `tracker.person_task_label`) out of all of this: they aren't carried-over work. If one's "When" is "after" DONE, put a reminder for its owner in the report's 🙋 **Your turn** block.
 
 ## 2. Sort the carried-over work
 
@@ -69,13 +69,13 @@ Link each "next slice" item to NEXT as "relates to".
 
 A later slice can break an earlier slice's test. Prove each one still passes, against the local stack running the newest branch of every repo's stack:
 
-- If the config has an e2e repo, ask its session to run the e2e scenarios for every automated test in the epic so far (`repos[].e2e.run_tags` with `"@PROJ-A or @PROJ-B or …"`), with tags for the stack's real flag state (`stack.flag_state`). Ask each other repo's session to run the tests in its repo that those tests name (the `repos[].e2e.backend_marker` comments), or, with no e2e repo, the tests in its repo that automate the epic's tests. Each reports pass/fail per scenario.
-- Make the tracker match the result:
-  - **Done and labelled `tests.automated_label`, but failing:** reopen it (`tracker.statuses.todo`), remove the label, file a Bug under EPIC with Components that relates to the failing test and the story that broke it, and sort the bug in step 2.
-  - **Has scenarios without automation** (often added by exploratory testing): no automated label and not done. Say in the Carry-over comment which slice automates them, normally the one that fixes the bug they came from.
-  - **Manual** (`tests.manual_label`): not run again; it's a one-off check. Done with a passing `manual run:` comment stays done. One of DONE's that isn't, and isn't `When: after release`, is carried over: sort it in step 2 like any open item, with what its description says to run.
-  - **Created by a split the user approved** (`verify-slice-tests` step 8; the checkpoint record names it): leave it as it is, done without the label. It has no automation on purpose.
-  - **All scenarios automated and passing:** labelled and done.
+- Ask the session of each repo that holds the epic's automation (the e2e repo, a backend repo, the repo with the eval cases) to run every test of the epic so far that's marked automated ("Run a test"; for a browser suite, every key in one run, `repos[].e2e.run_tags` with `"@PROJ-A or @PROJ-B or …"`, tagged for the stack's real flag state, `stack.flag_state`). Each reports pass or fail per scenario.
+- Make the tests match the result:
+  - **Marked automated, but failing:** unmark it ("Unmark a test"), file a Bug under EPIC, with Components when the tracker requires them, that relates to the failing test and the story that broke it, and sort the bug in step 2.
+  - **Has scenarios without automation** (often added by exploratory testing): not marked automated. Say in the Carry-over comment which slice automates them, normally the one that fixes the bug they came from.
+  - **Manual** ("Manual tests"): not run again; it's a one-off check. Done with a passing `manual run:` comment stays done. One of DONE's that isn't, and isn't `When: after release`, is carried over: sort it in step 2 like any open item, with what its description says to run.
+  - **Created by a split the user approved** (`verify-slice-tests` step 8; the checkpoint record names it): leave it as it is. It has no automation on purpose.
+  - **All scenarios automated and passing:** marked automated.
 - Check NEXT's tests exist, are linked to NEXT, and match what NEXT's kickoffs say to automate.
 
 ## 5. Bring NEXT's kickoff comments up to date
@@ -97,7 +97,7 @@ Rewrite each comment as one whole, current text. Don't add "Update:" notes to th
 - If `deploy.migrations_run_on_deploy` is false, every migration on the stacks is on the epic's deploy ticket: its **Migrations to apply** comment and the staging and production pre-deploy sub-tasks (`stacked-prs`). Compare the stack's migration files with the list, and add whatever is missing.
 - When any repo DONE or NEXT touches uses the local stack (isn't `local_stack: false`): the local stack runs the newest branch of each repo that uses it, its migrations are applied to `stack.database.local`, and every `stack.services` URL answers, so NEXT's kickoff starts clean.
 - Every repo with `apply_gate` that DONE touched has DONE's plan applied and recorded, and a fresh plan shows no changes. Drift, or a plan nobody applied, is an open item for step 2.
-- DONE is at `tracker.statuses.ready_for_release`.
+- DONE is at `tracker.statuses.ready_for_release` (without stacking, only once its PRs have merged; "Without stacking" in `roost-config`).
 
 ## Report
 

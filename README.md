@@ -27,10 +27,10 @@ roost is a set of skills, not an agent: it hosts nothing and runs inside your co
 roost runs fully today with:
 
 - **Claude Code**, with a session open for each repo. Most skills also work in [Cursor](#using-roost-in-cursor).
-- **Jira**, through the Atlassian MCP, with **Xray** for test cases (Cucumber scenarios).
-- **GitHub**, with the `gh` CLI and its `gh stack` extension.
-- **Playwright MCP**, for checking prototypes and testing in a real browser.
-- A **local stack** you can start with a command: Aspire, Docker Compose or your own scripts.
+- **A tracker:** Jira, through the Atlassian MCP, or GitHub Issues, through the `gh` CLI.
+- **Tests:** Xray test cases (Cucumber scenarios), or eval cases in the repo for a Claude Code plugin.
+- **GitHub,** with the `gh` CLI, and its `gh stack` extension if you stack PRs.
+- For an app: **Playwright MCP**, for checking prototypes and testing in a real browser, and a **local stack** you can start with a command (Aspire, Docker Compose or your own scripts). A plugin or a library needs neither.
 
 Each skill needs only part of this; [What each skill needs](#what-each-skill-needs) has the details. Not on Jira or GitHub? The [roadmap](https://github.com/Beakpoint-Insights/roost/milestones) shows what's coming.
 
@@ -63,13 +63,13 @@ The config never holds secrets: it names where a secret comes from, never its va
 
 | Area | Config key | Supported now | Planned |
 |---|---|---|---|
-| Tracker | `tracker.kind` | Jira (Atlassian MCP) | [GitHub Issues](https://github.com/Beakpoint-Insights/roost/issues/14), [Linear](https://github.com/Beakpoint-Insights/roost/issues/32) |
-| Test management | `tests.kind` | Xray (Cucumber scenarios) | [Gherkin files in the repo](https://github.com/Beakpoint-Insights/roost/issues/34), [eval cases](https://github.com/Beakpoint-Insights/roost/issues/17) |
-| Branching | `vcs.stacking` | `gh stack` | [Plain PRs](https://github.com/Beakpoint-Insights/roost/issues/19), [Graphite](https://github.com/Beakpoint-Insights/roost/issues/33) |
+| Tracker | `tracker.kind` | Jira (Atlassian MCP), GitHub Issues (`gh`) | [Linear](https://github.com/Beakpoint-Insights/roost/issues/32) |
+| Test management | `tests.kind` | Xray (Cucumber scenarios), eval cases in the repo | [Gherkin files in the repo](https://github.com/Beakpoint-Insights/roost/issues/34) |
+| Branching | `vcs.stacking` | `gh stack`, plain PRs | [Graphite](https://github.com/Beakpoint-Insights/roost/issues/33) |
 | Git host | `vcs.host` | GitHub | [GitLab](https://github.com/Beakpoint-Insights/roost/issues/35) |
 | Coding agent | | Claude Code. Most skills also work in Cursor (see [Using roost in Cursor](#using-roost-in-cursor)) | [Cursor in full](https://github.com/Beakpoint-Insights/roost/issues/37), [Codex](https://github.com/Beakpoint-Insights/roost/issues/38), [GitHub Copilot](https://github.com/Beakpoint-Insights/roost/issues/39), [Gemini CLI](https://github.com/Beakpoint-Insights/roost/issues/40) |
 | Repos | `repos` | Any number, each with its own agent session, in an order you set | |
-| Local stack | `stack` | Anything you run locally (Aspire, Docker Compose, scripts): you give its commands and URLs | |
+| Local stack | `stack` | Anything you run locally (Aspire, Docker Compose, scripts): you give its commands and URLs. Optional, like `deploy`, `design` and `qa`: leave out what you don't have | |
 
 Each supported tool has an adapter: notes in [`skills/roost-config/references/`](skills/roost-config/references/) that say how to do each operation in that tool. Adding a tracker or test tool means adding an adapter file and a row here. The work to support more tools is grouped in three milestones: [Works without Jira](https://github.com/Beakpoint-Insights/roost/milestone/1), [Works without gh stack](https://github.com/Beakpoint-Insights/roost/milestone/2) and [Works outside Claude Code](https://github.com/Beakpoint-Insights/roost/milestone/3).
 
@@ -94,7 +94,7 @@ In any session:
 - a description with the problem, goals and scope;
 - a prototype built from your design system;
 - ordered stories, one per slice, each small enough to ship on its own;
-- Xray tests with Cucumber scenarios for each story;
+- the tests for each story, in your test tool;
 - a build guide and a tech lead prompt, attached to the epic.
 
 ### 2. Plan the build
@@ -161,14 +161,14 @@ The skills are grouped by where they fit in the development cycle, in order.
 
 | Skill | What it does |
 |---|---|
-| `shape-epic` | Shapes an idea into a buildable epic: problem statement, design (a UI prototype, an architecture PR, or both), slices, Xray tests, build guide, and a tech lead prompt attached to the epic |
+| `shape-epic` | Shapes an idea into a buildable epic: problem statement, design (a UI prototype, an architecture PR, or both), slices, tests, build guide, and a tech lead prompt attached to the epic |
 
 ### 2. Test design
 
 | Skill | What it does |
 |---|---|
 | `live-verified-bdd` | Writes Cucumber scenarios and checks them against the running app with Playwright before they're finalized |
-| `create-xray-test` | Files Cucumber scenarios into new or existing Xray Test issues, with the parent epic, Components and story link. `shape-epic` and `live-verified-bdd` hand off to it |
+| `create-xray-test` | For teams on Xray: files Cucumber scenarios into new or existing Xray Test issues, with the parent epic, Components and story link. `shape-epic` and `live-verified-bdd` hand off to it |
 
 ### 3. Engineering
 
@@ -189,8 +189,8 @@ The skills are grouped by where they fit in the development cycle, in order.
 
 | Skill | What it does |
 |---|---|
-| `automate-xray-tests` | Writes the missing automation for a story's Xray tests, then labels and closes the fully passing ones |
-| `verify-slice-tests` | After a slice is pushed, proves which Xray tests are automated and passing, closes those, and proposes splits |
+| `automate-tests` | Writes the missing automation for a story's tests, then marks the fully passing ones automated (`automate-xray-tests` still works as its old name) |
+| `verify-slice-tests` | After a slice is pushed, proves which of its story's tests are automated and passing, marks those, and proposes splits |
 
 ### 5. Release and operations
 
@@ -202,24 +202,27 @@ The skills are grouped by where they fit in the development cycle, in order.
 
 ## What each skill needs
 
-Every skill needs the team config. Install fails quietly if a skill's tools aren't there, so check this first.
+Every skill needs the team config. Install fails quietly if a skill's tools aren't there, so check this first. Two terms in the table:
+
+- **Tracker access:** for Jira, the Atlassian MCP and a Jira API token (`JIRA_EMAIL`, `JIRA_API_TOKEN`), or else Playwright MCP with a signed-in Jira session; for GitHub Issues, the `gh` CLI, signed in.
+- **Test access:** for Xray, `XRAY_CLIENT_ID` and `XRAY_CLIENT_SECRET`, or else Playwright MCP with a signed-in Jira session; for eval cases, `claude plugin eval`.
 
 | Skill | Needs |
 |---|---|
-| `shape-epic` | The Atlassian MCP, a Jira API token (`JIRA_EMAIL`, `JIRA_API_TOKEN`) or else Playwright MCP with a signed-in Jira session, Playwright MCP to check the prototype, the tools that read your design system (for Claude Design, its Design tools), and the plan skill your config names (for example the `superpowers` plugin). Publishing the build guide needs claude.ai artifacts, so run it in Claude Code |
+| `shape-epic` | Tracker access, test access, Playwright MCP to check a prototype, the tools that read your design system (for Claude Design, its Design tools), and the plan skill your config names (for example the `superpowers` plugin). Publishing the build guide needs claude.ai artifacts, so run it in Claude Code |
 | `live-verified-bdd` | Playwright MCP and the app running locally |
-| `create-xray-test` | The Atlassian MCP, and `XRAY_CLIENT_ID` and `XRAY_CLIENT_SECRET`, or else Playwright MCP with a signed-in Jira session |
-| `run-slice` | Claude Code, run from a separate orchestrator session, with a session open for each repo on the same machine; the Atlassian MCP; roost in every session |
+| `create-xray-test` | Tracker and test access, for Jira and Xray |
+| `run-slice` | Claude Code, run from a separate orchestrator session, with a session open for each repo on the same machine; tracker access; roost in every session |
 | `build-epic`, `run-bug`, `review-epic` | Everything `run-slice` needs; `build-epic` also needs what `slice-handoff` and `release-qa` need |
-| `slice-handoff` | The Atlassian MCP and a Jira API token (to edit comments; else Playwright MCP with a signed-in Jira session), the `gh` CLI, and the repo sessions open for the epic test run |
-| `close-out-epic` | The Atlassian MCP and a Jira API token (to change parents and edit comments; else Playwright MCP with a signed-in Jira session) |
+| `slice-handoff` | Tracker access, the `gh` CLI, and the repo sessions open for the epic test run |
+| `close-out-epic` | Tracker access |
 | `stacked-prs` | The `gh` CLI with the `gh stack` extension, and commit signing if your config requires it |
-| `cross-repo-handoff` | The Atlassian MCP to post the prompt; works without it by returning the text |
-| `triage-ticket` | The Atlassian MCP |
-| `bug-bash` | The Atlassian MCP, `gh stack`, and the local stack |
-| `automate-xray-tests`, `verify-slice-tests` | The Atlassian MCP, `XRAY_CLIENT_ID` and `XRAY_CLIENT_SECRET` in the environment, and the local stack |
-| `release-qa` | The Atlassian MCP, Playwright MCP, and the local stack already running |
-| `write-runbook`, `pair-runbook` | A checkout of the repo your runbooks live in, and the Atlassian MCP for the sub-tasks |
+| `cross-repo-handoff` | Tracker access to post the prompt; works without it by returning the text |
+| `triage-ticket` | Tracker access |
+| `bug-bash` | Tracker access, the `gh` CLI (`gh stack` if you stack PRs), and the local stack if there is one |
+| `automate-tests`, `verify-slice-tests` | Tracker access, test access, and the local stack if there is one |
+| `release-qa` | Tracker access; for an app, Playwright MCP and the local stack already running; otherwise test access |
+| `write-runbook`, `pair-runbook` | A checkout of the repo your runbooks live in, and tracker access for the sub-tasks |
 
 ## Your own skills
 
@@ -236,14 +239,14 @@ git clone https://github.com/Beakpoint-Insights/roost.git ~/src/roost
 
 The links point at your clone, so `git pull` in it updates the skills. To use another tool's folder, pass it: `scripts/link-skills.sh ~/.agents/skills`. To undo, run `scripts/link-skills.sh --remove`. Put your config at `~/.claude/roost/config.yml` or set `ROOST_CONFIG`.
 
-The skills were written for Claude Code. In Cursor, set up the same MCP servers (Atlassian and Playwright) so their tool names match, then expect this:
+The skills were written for Claude Code. In Cursor, set up the same MCP servers (Atlassian for Jira, and Playwright) so their tool names match, then expect this:
 
 | Skill | In Cursor |
 |---|---|
 | `setup`, `create-xray-test` | Work |
-| `live-verified-bdd` | Works. Its hand-off to `create-xray-test` is by name, so ask for that skill if Cursor doesn't pick it up. |
+| `live-verified-bdd` | Works. Its hand-off for filing goes through your tests adapter; on Xray that's `create-xray-test` by name, so ask for that skill if Cursor doesn't pick it up. |
 | `stacked-prs`, `bug-bash`, `cross-repo-handoff`, `triage-ticket`, `write-runbook`, `pair-runbook`, `close-out-epic` | Work |
-| `release-qa`, `automate-xray-tests`, `verify-slice-tests` | Work, with the Playwright MCP set up |
+| `release-qa`, `automate-tests`, `verify-slice-tests` | Work, with the Playwright MCP set up for an app |
 | `run-slice`, `build-epic`, `run-bug`, `review-epic` | Don't work. They message other Claude Code sessions, which Cursor can't do. |
 | `slice-handoff` | Partly. Sorting, tracker updates and stack checks work; the epic test run needs the repo sessions, so run that step in each repo by hand. |
 | `shape-epic` | Partly. The problem statement, slices and tests work. The prototype may need your design system's tools, the build guide is published as a claude.ai artifact, and the tech lead handoff uses your plan skill. Run those phases in Claude Code. |

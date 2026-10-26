@@ -45,7 +45,7 @@ Evals already run against the checkout: `claude plugin eval .` loads the plugin 
 | `bdd-for-existing-feature` | Writing scenarios for a feature that already runs goes to `live-verified-bdd`, not straight to filing |
 | `shape-epic-starts-with-problem` | A bare idea starts at Phase 1, reads that phase's steps file, and asks questions before building anything |
 | `prototype-stops-without-design-system` | The prototype phase stops when it can't reach the config's design system, instead of guessing the look |
-| `verify-not-automate` | "Which tests are automated?" after a push goes to `verify-slice-tests`, not `automate-xray-tests` |
+| `verify-not-automate` | "Which tests are automated?" after a push goes to `verify-slice-tests`, not `automate-tests` |
 | `design-without-ui-is-architecture` | The design phase, for an epic with no UI change, proposes an architecture or design-doc PR and builds no prototype |
 | `manual-test-not-automated` | `verify-slice-tests` reports a test labelled manual by its recorded runs, and never proposes automating or splitting it |
 | `pasted-stack-steps` | Pasted GitHub stack-conflict steps go to `stacked-prs`, which follows them without asking for a go-ahead |
@@ -58,6 +58,7 @@ Evals already run against the checkout: `claude plugin eval .` loads the plugin 
 | `status-is-a-table` | "Where are we on PROJ-X?" gets `run-slice`'s status table, first and on its own, and doesn't offer to start or resume work |
 | `question-checked-before-answer` | A question about how the code works, asked mid-slice, gets checked in the code or by the owning session before it's answered, with no guess sent in the meantime |
 | `update-your-turn` | A progress update while a session is blocked on the user starts with `## 🙋 YOUR TURN` and the action first |
+| `verify-with-eval-cases` | With the GitHub-only example config, `verify-slice-tests` treats a story's tests as eval cases tagged with its key, not Xray tests, and closes nothing |
 | `which-roost-is-running` | "Which roost is running?" gets the version from the plugin's own manifest, not a guess |
 | `update-moving` | A progress update when nothing needs the user is a `#### 🟢` heading and one plain line |
 

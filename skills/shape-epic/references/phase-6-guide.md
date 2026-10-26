@@ -9,7 +9,7 @@
 1. Gather all the pieces:
    - Epic description (from the tracker)
    - All stories/slices (from the tracker, ordered)
-   - All test issues (from the tracker, with their Gherkin scenarios if helpful)
+   - All the epic's tests (the tests adapter's "A story's tests", for each story), with their scenarios if helpful
    - The design: the prototype (for UI reference), the design doc (for where things run), or both
 
 2. Build the guide as a single HTML artifact. Structure:

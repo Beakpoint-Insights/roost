@@ -16,6 +16,8 @@ If there are no scenarios yet, stop and use one of those first. Don't make scena
 
 **First, load the team config with `roost-config`.** This skill is the browser half of the Xray adapter (`tests.kind: xray`); the adapter's notes are in `roost-config`'s `references/tests-xray.md`.
 
+**This skill is only for Xray.** With another `tests.kind`, don't use it: create and update tests as that tests adapter's "Create a test" and "Update a test's scenarios" say (for eval cases, `roost-config`'s `references/tests-evals.md`).
+
 ## Prerequisites
 
 - **With `XRAY_CLIENT_ID` and `XRAY_CLIENT_SECRET` set:** nothing else. Use the API ("Creating tests through the API" below); no browser is needed.
