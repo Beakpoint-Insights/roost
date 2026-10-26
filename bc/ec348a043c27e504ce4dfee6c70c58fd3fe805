@@ -1,0 +1,21 @@
+evals/update-moving/graders/one-line.md
+  s_0de49345ab4148::t_2e304ba08051ed 5
+evals/pasted-stack-steps/graders/no-go-ahead.md
+  s_0de49345ab4148::t_b1f1e4fe0d8ae3 7-12
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "bcec348a043c27e504ce4dfee6c70c58fd3fe805",
+  "prompts": {},
+  "sessions": {
+    "s_0de49345ab4148": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b1005a39-8915-42a2-974f-c030708f474d",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Alan Cox <acox@beakpointinsights.com>"
+    }
+  }
+}
