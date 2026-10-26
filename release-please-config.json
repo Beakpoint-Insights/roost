@@ -4,6 +4,7 @@
       "release-type": "simple",
       "component": "roost",
       "changelog-path": "CHANGELOG.md",
+      "exclude-paths": ["docs"],
       "bump-minor-pre-major": true,
       "bump-patch-for-minor-pre-major": false,
       "extra-files": [
