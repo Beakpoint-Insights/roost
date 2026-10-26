@@ -1,0 +1,26 @@
+scripts/check-references.py
+  s_0de49345ab4148::t_5c73d1ced66805 57-59
+  s_0de49345ab4148::t_aea48707231b3d 1-56,60-118
+.github/workflows/pr-checks.yml
+  s_0de49345ab4148::t_5247e37c7083c3 40-43
+CONTRIBUTING.md
+  s_0de49345ab4148::t_97781ddaa210d1 34
+scripts/check-references.test.sh
+  s_0de49345ab4148::t_f6e9e3a4211db7 1-41
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "33d1b6742486c401d122eb3cc0d21020eca67f6a",
+  "prompts": {},
+  "sessions": {
+    "s_0de49345ab4148": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b1005a39-8915-42a2-974f-c030708f474d",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Alan Cox <acox@beakpointinsights.com>"
+    }
+  }
+}
