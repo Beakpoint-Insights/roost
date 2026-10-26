@@ -1,0 +1,19 @@
+CODE_OF_CONDUCT.md
+  s_a6812e70353be9::t_b3ddb7627bd339 39
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2671bec42021cc2020d39c862cee3d29bc1d28f8",
+  "prompts": {},
+  "sessions": {
+    "s_a6812e70353be9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "158939b5-0aa4-448a-8285-6125865eb2ae",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Alan Cox <acox@beakpointinsights.com>"
+    }
+  }
+}
