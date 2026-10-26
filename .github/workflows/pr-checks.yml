@@ -37,6 +37,10 @@ jobs:
         run: scripts/check-skills.sh
       - name: Test the private-details check
         run: scripts/check-private-details.test.sh
+      - name: Check what the skills and docs refer to exists
+        run: scripts/check-references.py
+      - name: Test the reference check
+        run: scripts/check-references.test.sh
 
   private-details:
     runs-on: ubuntu-latest
