@@ -1,0 +1,23 @@
+README.md
+  s_0de49345ab4148::t_ae674895164938 32
+skills/roost-config/SKILL.md
+  s_0de49345ab4148::t_59d97936fff4f2 22-26
+skills/run-slice/SKILL.md
+  s_0de49345ab4148::t_49063746ec5b97 65,99
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2f3b97fd24f9f9422adfd05e9cb7dd69ab91e8bb",
+  "prompts": {},
+  "sessions": {
+    "s_0de49345ab4148": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b1005a39-8915-42a2-974f-c030708f474d",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Alan Cox <acox@beakpointinsights.com>"
+    }
+  }
+}
