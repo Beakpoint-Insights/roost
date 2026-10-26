@@ -1,0 +1,31 @@
+skills/run-bug/SKILL.md
+  s_0de49345ab4148::t_eba36856cf10ab 73
+skills/create-xray-test/SKILL.md
+  s_0de49345ab4148::t_eba36856cf10ab 19
+evals/verify-with-eval-cases/graders/eval-cases-not-xray.md
+  s_0de49345ab4148::t_6cb0448c7e4cd3 5,7-11,13-15
+skills/slice-handoff/SKILL.md
+  s_0de49345ab4148::t_eba36856cf10ab 100
+skills/roost-config/SKILL.md
+  s_0de49345ab4148::t_eba36856cf10ab 86
+skills/stacked-prs/SKILL.md
+  s_0de49345ab4148::t_eba36856cf10ab 12-21
+skills/run-slice/SKILL.md
+  s_0de49345ab4148::t_fcaad39e4e1fa6 210
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "50fe5884c8c65f87cd59a8eb9eca4e88ae024724",
+  "prompts": {},
+  "sessions": {
+    "s_0de49345ab4148": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b1005a39-8915-42a2-974f-c030708f474d",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Alan Cox <acox@beakpointinsights.com>"
+    }
+  }
+}
