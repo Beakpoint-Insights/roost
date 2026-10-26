@@ -1,0 +1,42 @@
+name: Bug report
+description: A skill did something wrong, or didn't do what the README says.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Don't paste secrets or your team's private details (tracker site, IDs, hostnames). Use made-up ones, like the Acme team and `PROJ-1234`.
+  - type: input
+    id: skill
+    attributes:
+      label: Skill
+      description: Which skill, for example `run-slice`.
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What the skill did, and what you expected it to do.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: What you asked for, and anything about your config that matters.
+    validations:
+      required: true
+  - type: input
+    id: roost-version
+    attributes:
+      label: roost version
+      description: From `version.txt`, or the release you installed.
+    validations:
+      required: true
+  - type: input
+    id: agent
+    attributes:
+      label: Coding agent and version
+      description: For example Claude Code 2.1.296.
+    validations:
+      required: true

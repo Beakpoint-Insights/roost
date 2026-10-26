@@ -1,0 +1,32 @@
+name: Support another tool
+description: Ask roost to work with another tracker, test tool, git host, stacking tool or coding agent.
+labels: [enhancement, tool-support]
+body:
+  - type: markdown
+    attributes:
+      value: Check the [milestones](https://github.com/Beakpoint-Insights/roost/milestones) first. Your tool may already be planned, and a 👍 on its issue helps us decide what comes next.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Tracker (like Jira)
+        - Test tool (like Xray)
+        - Git host (like GitHub)
+        - Stacking (like gh stack)
+        - Coding agent (like Claude Code)
+        - Something else
+    validations:
+      required: true
+  - type: input
+    id: tool
+    attributes:
+      label: Tool
+      description: Its name and a link.
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: How your team uses it
+      description: What roost would need to do in it, and anything unusual about it.

@@ -2,6 +2,8 @@
 
 # roost
 
+[![Latest release](https://img.shields.io/github/v/release/Beakpoint-Insights/roost)](https://github.com/Beakpoint-Insights/roost/releases) [![License: MIT](https://img.shields.io/github/license/Beakpoint-Insights/roost)](LICENSE) [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-orange)](#install)
+
 **Spec-driven development that doesn't stop at the code.**
 
 roost takes a product idea all the way to production. It shapes the epic, builds it slice by slice with one coding-agent session per repo, reviews the whole epic, QAs it in a real browser, and walks you through the rollout one command at a time.
@@ -10,7 +12,7 @@ roost takes a product idea all the way to production. It shapes the epic, builds
 - **You make the calls.** Agents do the work and stop at named checkpoints: the plan, each slice's findings, what's deferred, and each rollout gate. You run every rollout command yourself.
 - **Nothing lives only in a chat.** Plans, kickoffs, carry-over and test results go in your tracker, so any run can be picked up where it left off.
 - **One agent per repo.** An orchestrator session drives a worker session in each repo, in order, against your real local stack.
-- **Its behavior is tested.** [Eval cases](#evals) check what the skills do, run with and without roost.
+- **Its behavior is tested.** [Eval cases](CONTRIBUTING.md#evals) check what the skills do, run with and without roost.
 
 roost is a set of skills, not an agent: it hosts nothing and runs inside your coding agent. It's opinionated about **how** the work goes: test-first, small PRs on a stack, your decisions at named checkpoints, nothing left only in a chat, and a rollout runbook you run yourself. It's open about **which tools** you use: your tracker, test tool, repos, local stack, branching and deploy rules come from one team config file, and each tool plugs in through an adapter. Today roost runs fully in Claude Code with Jira, Xray and `gh stack` on GitHub. Other trackers, test tools, git hosts and coding agents are [on the roadmap](https://github.com/Beakpoint-Insights/roost/milestones).
 
@@ -19,6 +21,18 @@ roost is a set of skills, not an agent: it hosts nothing and runs inside your co
 ![A made-up roost session: shaping an epic with recommended answers, approving the plan, progress updates and a YOUR TURN, a slice checkpoint, and the release call](demo/roost.gif)
 
 *A made-up session, sped up. Re-record it with [VHS](https://github.com/charmbracelet/vhs) and [gifsicle](https://www.lcdf.org/gifsicle/): `vhs demo/roost.tape && gifsicle -b -O3 --colors 64 --lossy=30 demo/roost.gif`.*
+
+## What you need
+
+roost runs fully today with:
+
+- **Claude Code**, with a session open for each repo. Most skills also work in [Cursor](#using-roost-in-cursor).
+- **Jira**, through the Atlassian MCP, with **Xray** for test cases (Cucumber scenarios).
+- **GitHub**, with the `gh` CLI and its `gh stack` extension.
+- **Playwright MCP**, for checking prototypes and testing in a real browser.
+- A **local stack** you can start with a command: Aspire, Docker Compose or your own scripts.
+
+Each skill needs only part of this; [What each skill needs](#what-each-skill-needs) has the details. Not on Jira or GitHub? The [roadmap](https://github.com/Beakpoint-Insights/roost/milestones) shows what's coming.
 
 ## Install
 
@@ -234,80 +248,9 @@ The skills were written for Claude Code. In Cursor, set up the same MCP servers 
 | `slice-handoff` | Partly. Sorting, tracker updates and stack checks work; the epic test run needs the repo sessions, so run that step in each repo by hand. |
 | `shape-epic` | Partly. The problem statement, slices and tests work. The prototype may need your design system's tools, the build guide is published as a claude.ai artifact, and the tech lead handoff uses your plan skill. Run those phases in Claude Code. |
 
-## Adding a skill
+## Contributing
 
-Put it in `skills/<name>/SKILL.md`, with any reference files beside it, and add a row to the tables above. Start it by loading the team config with `roost-config`, and use config keys (in backticks, like `tracker.statuses.done`) for anything that differs between teams: names, commands, URLs, statuses. Examples use `PROJ-1234` and the example config's repos.
-
-## Trying changes before they're released
-
-A session runs the installed roost unless it's told otherwise, so a change in your checkout does nothing until it's released and installed. To try it first, start **every** session the work uses (the orchestrator and each repo session) with your checkout:
-
-```
-claude --plugin-dir ~/src/roost
-```
-
-For that session only, this replaces the installed roost; nothing else changes. To check, ask a session "which roost is running?": it answers with the version, and for a checkout its branch and commit. `run-slice` and `build-epic` ask every session the same question when they start, record the answers, and stop if the sessions don't all run the same roost.
-
-Evals already run against the checkout: `claude plugin eval .` loads the plugin from the folder it's run in.
-
-## Making changes
-
-`main` is protected. Every change goes through a pull request:
-
-1. Branch from `main`, commit (commits must be signed), and open a PR.
-2. Give the PR a Conventional Commit title, such as `feat: add the verify-slice skill`. It becomes the commit message when the PR is squash-merged, and release-please reads it.
-3. Three checks must pass: `conventional-title` (the PR title), `validate-plugin` and `private-details`. `validate-plugin` runs `claude plugin validate --strict`, which fails on warnings too, and `scripts/check-skills.sh`, which checks that every skill folder has a `SKILL.md` whose `name` matches the folder and that has a description. Run both locally before you push.
-   `private-details` fails if the PR's diff, title, body or commit messages add a string from a private list (a repository secret): a team's tracker site, IDs, hostnames and the like. A team's own values belong in its config, never in roost; examples use the made-up Acme team and `PROJ-1234`. The check names the file and line and which list entry matched, never the value. It's skipped on PRs from forks, which don't get the secret, so a maintainer runs it before merging.
-4. Squash-merge. The branch is deleted automatically.
-
-## Evals
-
-`evals/` holds test cases that check how the skills behave, not just that their files are well-formed. Each case is a prompt plus graders (`evals/<case>/prompt.md` and `evals/<case>/graders/*.md`). Every prompt names [`examples/config.example.yml`](examples/config.example.yml) as its team config, so the cases run the same anywhere. The current cases:
-
-| Case | Checks that |
-|---|---|
-| `xray-refuses-without-scenarios` | `create-xray-test` stops and points elsewhere when it has no scenarios, instead of writing its own |
-| `bdd-for-existing-feature` | Writing scenarios for a feature that already runs goes to `live-verified-bdd`, not straight to filing |
-| `shape-epic-starts-with-problem` | A bare idea starts at Phase 1, reads that phase's steps file, and asks questions before building anything |
-| `prototype-stops-without-design-system` | The prototype phase stops when it can't reach the config's design system, instead of guessing the look |
-| `verify-not-automate` | "Which tests are automated?" after a push goes to `verify-slice-tests`, not `automate-xray-tests` |
-| `design-without-ui-is-architecture` | The design phase, for an epic with no UI change, proposes an architecture or design-doc PR and builds no prototype |
-| `manual-test-not-automated` | `verify-slice-tests` reports a test labelled manual by its recorded runs, and never proposes automating or splitting it |
-| `pasted-stack-steps` | Pasted GitHub stack-conflict steps go to `stacked-prs`, which follows them without asking for a go-ahead |
-| `handoff-not-kickoff` | "Slice 3 is done, get ready for the next one" goes to `slice-handoff`, which gathers and sorts first and doesn't start the next slice |
-| `epic-starts-without-asking` | "Run the rest of PROJ-X" goes to `build-epic`, which drives the repo sessions instead of building the slices itself, stops only on the real blocker (no sessions to drive), and never asks whether to start |
-| `bug-goes-to-the-right-place` | "Fix PROJ-X" goes to `run-bug`, which works out from the bug's parent whether the fix joins an epic's stack or gets its own PR from `main`, and doesn't edit code itself |
-| `close-out-sorts-first` | "Close out PROJ-X" goes to `close-out-epic`, which proposes a place for each open ticket and waits, instead of moving anything straight away |
-| `epic-review-is-whole-stack` | "Has this epic been reviewed?" goes to `review-epic`, which checks what was and wasn't reviewed and asks for a whole-stack review against `main`, instead of reviewing code itself |
-| `runbook-is-paired` | "Let's run the runbook together" goes to `pair-runbook`, which gives one step at a time for you to run, and never runs a rollout command itself |
-| `status-is-a-table` | "Where are we on PROJ-X?" gets `run-slice`'s status table, first and on its own, and doesn't offer to start or resume work |
-| `question-checked-before-answer` | A question about how the code works, asked mid-slice, gets checked in the code or by the owning session before it's answered, with no guess sent in the meantime |
-| `update-your-turn` | A progress update while a session is blocked on the user starts with `## 🙋 YOUR TURN` and the action first |
-| `which-roost-is-running` | "Which roost is running?" gets the version from the plugin's own manifest, not a guess |
-| `update-moving` | A progress update when nothing needs the user is a `#### 🟢` heading and one plain line |
-
-Run them before merging a change to a skill:
-
-```
-claude plugin eval . --no-publish
-```
-
-Don't give an eval `SendMessage` or `ListAgents` (with `--allow-tools`). The eval runs on your machine, so a run could message your real repo sessions. A grader can't check a tool the run wasn't given, so write "doesn't message a session" into an `llm` grader's rubric instead of a `tool_used` count.
-
-Each case runs 3 times with roost and 3 times without it, so you can see what the skill changes. A full run costs about $3 on your own Claude account. To check one case quickly: `claude plugin eval . --case <name> --runs 1 --ablation none`. Results go to `evals/results/`, which git ignores.
-
-They also run in CI (`.github/workflows/evals.yml`), on every PR: `scripts/eval-cases.sh` picks the cases the PR's changes can affect. A change to `skills/<name>/` runs the cases tagged `<name>`, a change to a case runs that case, and a change to `roost-config`, the example config or the plugin manifest runs them all. A release PR, or a run started by hand (`gh workflow run Evals`), runs every case: release-please starts that run on its release branch whenever it opens or updates the release PR, since a PR it opens can't start workflows itself. Check that run before merging the release. Every run of a case must pass. The judges that grade the replies get a few verdicts wrong, so a case that fails is run once more, and fails the check only if it fails again. The results are posted on the PR. CI needs a Claude credential in a repository secret, `CLAUDE_CODE_OAUTH_TOKEN` (from `claude setup-token`) or `ANTHROPIC_API_KEY`; without one, and on PRs from forks, the job skips with a warning.
-
-When you change a skill's behaviour, add or update a case for it, and tag it with the skill's name so CI runs it.
-
-## Versions
-
-Don't edit version numbers by hand. Write commit messages in the Conventional Commits style, and release-please does the rest:
-
-- `feat:` for a new skill or a new capability in one. Bumps the minor version.
-- `fix:` for a correction to a skill. Bumps the patch version.
-- `docs:` for wording changes in the README or other docs. Bumps the patch version. A change to a skill's instructions changes how the skill behaves, so use `fix:` or `feat:` for those.
-- `chore:`, `ci:` and `test:` don't appear in the changelog.
+Contributions are welcome. [CONTRIBUTING.md](CONTRIBUTING.md) explains how to add a skill, open a PR, run the evals and write commit messages. Please follow the [code of conduct](CODE_OF_CONDUCT.md), and report security issues privately, as [SECURITY.md](SECURITY.md) describes. Questions and ideas go in [Discussions](https://github.com/Beakpoint-Insights/roost/discussions).
 
 ## License
 
