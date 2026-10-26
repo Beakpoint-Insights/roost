@@ -102,6 +102,6 @@ Don't edit version numbers by hand. Write commit messages in the Conventional Co
 
 - `feat:` for a new skill or a new capability in one. Bumps the minor version.
 - `fix:` for a correction to a skill. Bumps the patch version.
-- `docs:` for wording changes in the README or other docs. Bumps the patch version. A change to a skill's instructions changes how the skill behaves, so use `fix:` or `feat:` for those.
-- `chore:`, `ci:` and `test:` don't appear in the changelog.
+- `docs:` for wording changes in the README or other docs. It never releases on its own: documentation doesn't change the plugin, so it waits for the next `feat:` or `fix:`. A change to a skill's instructions changes how the skill behaves, so use `fix:` or `feat:` for those.
+- `docs:`, `chore:`, `ci:` and `test:` don't appear in the changelog.
 - A change only to `docs/` (design docs and plans) isn't released, whatever its type: it doesn't change the plugin.
