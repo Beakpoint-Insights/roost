@@ -4,8 +4,10 @@ name: Evals
 # session paid for by the credential below:
 # - a PR labelled run-evals: the cases its changes can affect (scripts/eval-cases.sh),
 #   once each, when the label is added and on each push while it stays on;
-# - the release PR, when it's reopened to start its checks: every case, three times;
-# - a run started by hand (gh workflow run Evals): every case, three times.
+# - the release PR, when it's reopened to start its checks: the cases whose skills
+#   changed since the last release, once each;
+# - a run started by hand (gh workflow run Evals): the same by default; name cases
+#   with -f cases="a b", or run every case with -f all=true (and -f runs=3).
 # Needs ANTHROPIC_API_KEY (an API key from the Claude Console), or
 # CLAUDE_CODE_OAUTH_TOKEN (from `claude setup-token`, which uses a subscription).
 
@@ -13,6 +15,20 @@ on:
   pull_request:
     types: [labeled, synchronize, reopened]
   workflow_dispatch:
+    inputs:
+      cases:
+        description: "Cases to run, space-separated (blank: the cases whose skills changed since the last release)"
+        required: false
+        default: ""
+      all:
+        description: "Run every case"
+        type: boolean
+        default: false
+      runs:
+        description: "Runs per case"
+        type: choice
+        options: ["1", "3"]
+        default: "1"
 
 permissions:
   contents: read
@@ -42,14 +58,33 @@ jobs:
           EVENT: ${{ github.event_name }}
           HEAD_REF: ${{ github.head_ref }}
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          INPUT_CASES: ${{ inputs.cases }}
+          INPUT_ALL: ${{ inputs.all }}
+          INPUT_RUNS: ${{ inputs.runs }}
         run: |
-          if [ "$EVENT" = workflow_dispatch ] || [[ "$HEAD_REF" == release-please--* ]]; then
-            cases=$(scripts/eval-cases.sh --all)
-            runs=3
+          # Every run is paid for, so by default only what changed runs, once (with
+          # one retry). Every case, three times, only when asked for by hand.
+          last_release=$(git describe --tags --abbrev=0 --match 'roost-v*' "$HEAD_SHA" 2>/dev/null || true)
+          runs=1
+          if [ "$EVENT" = workflow_dispatch ]; then
+            runs=${INPUT_RUNS:-1}
+            if [ -n "$INPUT_CASES" ]; then
+              cases=$INPUT_CASES
+            elif [ "$INPUT_ALL" = true ] || [ -z "$last_release" ]; then
+              cases=$(scripts/eval-cases.sh --all)
+            else
+              cases=$(scripts/eval-cases.sh "$last_release" "$HEAD_SHA")
+            fi
+          elif [[ "$HEAD_REF" == release-please--* ]]; then
+            # A release: the cases whose skills changed since the last release.
+            if [ -n "$last_release" ]; then
+              cases=$(scripts/eval-cases.sh "$last_release" "$HEAD_SHA")
+            else
+              cases=$(scripts/eval-cases.sh --all)
+            fi
           else
             cases=$(scripts/eval-cases.sh "$BASE_SHA" "$HEAD_SHA")
-            runs=1
           fi
           echo "cases=$(echo $cases)" >> "$GITHUB_OUTPUT"
           echo "runs=$runs" >> "$GITHUB_OUTPUT"

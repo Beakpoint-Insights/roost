@@ -76,8 +76,8 @@ Each case runs 3 times with roost and 3 times without it, so you can see what th
 They also run in CI (`.github/workflows/evals.yml`), but only when someone asks, because every run is a real Claude session paid for by the repository's credential:
 
 - **On a PR, add the `run-evals` label** when it changes how a skill behaves. `scripts/eval-cases.sh` picks the cases the PR's changes can affect: a change to `skills/<name>/` runs the cases tagged `<name>`, a change to a case runs that case, and a change to `roost-config`, the example config or the plugin manifest runs them all. Each runs once. They run again on each push while the label stays on; remove it to stop.
-- **Before a release,** reopen the release PR (it needs reopening anyway, so its required checks start): every case runs three times. Check that run before merging the release.
-- **By hand,** `gh workflow run Evals` runs every case three times.
+- **Before a release,** reopen the release PR (it needs reopening anyway, so its required checks start): the cases whose skills changed since the last release run once each. Check that run before merging the release.
+- **By hand,** `gh workflow run Evals` does the same as a release. Name cases with `-f cases="update-moving status-is-a-table"`, or run every case with `-f all=true`, adding `-f runs=3` for three runs each, when you want a full baseline.
 
 Cases run on Opus, four at a time, through `scripts/run-evals.sh`, which you can run locally too: `scripts/run-evals.sh 1 <case>…`. Every run of a case must pass. The judges that grade the replies get a few verdicts wrong, so a case that fails is run once more, and fails the check only if it fails again. Each attempt has a cost ceiling, so a runaway case stops. The results are posted on the PR and printed in the run's log, and every run keeps an `eval-results` artifact for 30 days: each case's prompt, reply, grader verdicts and output, plus the first try of a retried case. Download it with `gh run download <run id> -n eval-results` to read why a case failed.
 
