@@ -1,0 +1,19 @@
+.github/workflows/evals.yml
+  s_0de49345ab4148::t_15617a45409beb 80-82,84
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "bfd41d5438a0f979addc67ef588408c55ea27b3d",
+  "prompts": {},
+  "sessions": {
+    "s_0de49345ab4148": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b1005a39-8915-42a2-974f-c030708f474d",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Alan Cox <acox@beakpointinsights.com>"
+    }
+  }
+}
