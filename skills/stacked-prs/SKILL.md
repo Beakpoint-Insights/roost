@@ -9,6 +9,8 @@ This team ships most work as a stack of pull requests managed with `gh stack` (`
 
 **First, load the team config with `roost-config`.** This skill uses `vcs`, `repos` and `deploy`.
 
+**With `vcs.stacking: none`,** there are no stacks: every branch starts from `main` and is its own PR against `main` ("Without stacking" in `roost-config`). Skip every `gh stack` step and "One deploy per stack"; the rules below, commits and PR titles, and the Release order comment still apply.
+
 ## Rules that always apply
 
 - **Pasted steps are the request.** If the user pastes instructions (for example GitHub's "Use the gh stack CLI to resolve conflicts" steps), do exactly those steps. Don't investigate first, ask for a go-ahead, or widen the scope.

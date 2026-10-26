@@ -91,7 +91,7 @@ The local environment the sessions run and test against. *Optional.* Leave it ou
 | Key | Meaning |
 |---|---|
 | `host` | `github`. |
-| `stacking` | `gh-stack`: work goes on stacks of PRs managed with `gh stack` (see the `stacked-prs` skill). (`graphite` and `none` aren't supported yet.) |
+| `stacking` | `gh-stack`: work goes on stacks of PRs managed with `gh stack` (see the `stacked-prs` skill). `none`: every branch starts from `main` and is its own PR against `main` (see "Without stacking" in `roost-config`). (`graphite` isn't supported yet.) |
 | `signed_commits` | `true` if commits must be signed. Never bypass signing. |
 | `signing_blocker` | *Optional.* What to tell the user when signing fails, for example "1Password is locked". |
 | `signing_errors` | *Optional.* Error text that means signing is blocked on the user. |

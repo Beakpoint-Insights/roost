@@ -13,6 +13,7 @@ Phase 7 fills in this template for one epic. The result is a prompt a tech lead 
 - **Values from the team config** (`roost-config`) are filled in literally, so the prompt stands alone: the tech lead agent doesn't need to read the config. The `CONFIG` rows in the table below say which keys.
 - **Only the repos the epic touches.** Values filled "per repo" come from the repos named in the stories' `Repos:` lines (phase 7 step 2), in `repos` order, not from every repo in the config. A repo with no work in the epic isn't named anywhere in the prompt, not even as "no work expected". The lead repo plans either way.
 - **Epics with no UI.** Text between `<!-- IF UI -->` and `<!-- END IF UI -->` is fixed text for an epic with a prototype: keep it word for word (and delete the two markers), or, when the epic has no prototype, delete it with its markers. Text between `<!-- IF NO UI -->` and `<!-- END IF NO UI -->` is the reverse. Don't replace the UI text with "None" rows or "this epic has no UI changes".
+- **Stacked or not.** Text between `<!-- IF STACKED -->` and `<!-- END IF STACKED -->` is for `vcs.stacking: gh-stack`; text between `<!-- IF NOT STACKED -->` and `<!-- END IF NOT STACKED -->` is for `vcs.stacking: none`, where every branch is its own PR against `main`. Keep the one that applies (deleting its markers) and delete the other.
 - **Except values that can differ by machine.** The prompt and the kickoffs it produces live in the tracker, and the epic may be built on a different machine from the one shaping it (one with its own database, in its machine overrides, `~/.claude/roost/local/<team.name>.yml`). So never write `stack.database` values (which database, its address) into the prompt: point at `stack.database.local` in the roost config instead, which every session loads for its own machine. Commands that are the same everywhere (`stack.how`, `stack.never`) are still filled in literally.
 
 The sources for each value:
@@ -109,14 +110,20 @@ Prototype screens for each story:
 
 ---
 
-## 2. Set up the stack
+## 2. Set up the plan's branch
 
+<!-- IF STACKED -->
 1. From `{{LEAD_REPO}}`, create a new stack named after the epic:
    ```
    gh stack init {{STACK_NAME}}
    ```
-   <!-- FILL: STACK_NAME is the epic key plus a short kebab-case version of the title, for example PROJ-2306-be-ready-to-send-spans. -->
 2. Commit the plan (section 3) to the base branch of that stack.
+<!-- END IF STACKED -->
+<!-- IF NOT STACKED -->
+1. From `{{LEAD_REPO}}`, create a branch from `main` named `{{STACK_NAME}}`.
+2. Commit the plan (section 3) to it and open a PR against `main`, so the plan is reviewed and merged before the work it describes. Each branch of the work is then its own PR against `main`.
+<!-- END IF NOT STACKED -->
+<!-- FILL: STACK_NAME is the epic key plus a short kebab-case version of the title, for example PROJ-2306-be-ready-to-send-spans. -->
 
 ---
 
@@ -151,7 +158,7 @@ Use the **{{PLAN_SKILL}}** skill. Invoke it; don't imitate it.
 3. **Name blockers outside the epic.** List each dependency on another epic, team or service, its current status, and how the plan proceeds: build a stand-in, sequence around it, or mark it blocked.
    *In this epic:* {{CL_BLOCKERS}}
    <!-- FILL: each dependency with its Jira key and current status, checked in Jira now, and the choice the tech lead must make. -->
-4. **Plan the rollout.** Say how each branch merges without breaking production: feature flags, migrations, backfills, and what existing customers or data see. Include a **release order** table: every branch in deploy order across every repo, the **deploy** that ships it (Deploy 1, Deploy 2, …), and what each waits for. Branches of one deploy form one stack; a later deploy's branches form their own stack. A repo's stack usually merges and deploys before the stacks of repos that depend on it. End the section with one line, **Rollout needed: yes** or **no**, and why. It's yes when merging and deploying isn't enough on its own: a migration, a backfill or other data change, a feature flag to turn on, setup in {{SERVICES_NEEDING_SETUP}}, or deploys that must happen in a set order.
+4. **Plan the rollout.** Say how each branch merges without breaking production: feature flags, migrations, backfills, and what existing customers or data see. Include a **release order** table: every branch in deploy order across every repo, the **deploy** that ships it (Deploy 1, Deploy 2, …), and what each waits for. <!-- IF STACKED -->Branches of one deploy form one stack; a later deploy's branches form their own stack. A repo's stack usually merges and deploys before the stacks of repos that depend on it.<!-- END IF STACKED --><!-- IF NOT STACKED -->Each branch is its own PR against `main`; one that needs another's code waits for it to merge, then starts from the new `main`.<!-- END IF NOT STACKED --> End the section with one line, **Rollout needed: yes** or **no**, and why. It's yes when merging and deploying isn't enough on its own: a migration, a backfill or other data change, a feature flag to turn on, setup in {{SERVICES_NEEDING_SETUP}}, or deploys that must happen in a set order.
    *In this epic:* {{CL_ROLLOUT}}
    <!-- FILL: the feature flags involved (search each repo the epic touches), any backfill, and any existing customer or data that must not change. -->
 5. **Enforce the rules on the server.** List every security, billing or data-integrity rule and where the backend enforces it. The UI hiding something doesn't count.
@@ -181,7 +188,7 @@ Use the **{{PLAN_SKILL}}** skill. Invoke it; don't imitate it.
 ## 4. Stop for approval
 
 When the plan is committed, stop. Reply to {{REVIEWER}} with:
-- the plan's path and the stack name
+- the plan's path and the stack name (or, unstacked, the plan's branch and PR)
 - a summary of the plan: for each story, the tasks in each repo and their order
 - the "Current state" findings, the blockers and the open questions
 - anything in the code that contradicts the decisions in section 1, quoted with its file and line
@@ -209,8 +216,8 @@ For each of {{STORY_KEYS}}, add one Jira comment per repo that has work in the s
 
 Each comment is a self-contained prompt for a separate coding agent. Write it so the agent needs nothing else. It must include:
 
-1. **Order:** where this repo comes in the story's order. If it depends on another repo that has work in the story, say: "Do not start until the branch `<name>` in `<that repo>` is merged into the stack. It provides `<endpoint/field>`."
-2. **Branch:** "Create a new branch for this work and add it to the stack for its deploy (see `gh stack --help`)." Name that stack: `{{STACK_NAME}}` for the first deploy, and for a later deploy the stack its first branch started (record each deploy's stack in the Release order comment). Give the branch name, `<story key>-<the repo's branch_suffix>`, and the branch it stacks on. If this branch is in the **same deploy** as the branch below it, say "stacked on `<branch>`". If it's the **first branch of a new deploy**, say "start a new stack for Deploy <N>: base it on `<earlier deploy's top branch>` but don't link it into that stack" (see `stacked-prs`, One deploy per stack). Add: "{{PR_TITLE_RULE}} Don't write cross-repo dependency notes into the PR; add this branch to the epic's Release order comment instead."
+1. **Order:** where this repo comes in the story's order. If it depends on another repo that has work in the story, say: "Do not start until the branch `<name>` in `<that repo>` is merged (into the stack, when stacked). It provides `<endpoint/field>`."
+2. **Branch:** <!-- IF NOT STACKED -->"Create a new branch from `main` for this work, and open its PR against `main`." Give the branch name, `<story key>-<the repo's branch_suffix>`, and, if it needs another branch's code, say "start once `<branch>` has merged". Add: "{{PR_TITLE_RULE}} Don't write cross-repo dependency notes into the PR; add this branch to the epic's Release order comment instead."<!-- END IF NOT STACKED --><!-- IF STACKED -->"Create a new branch for this work and add it to the stack for its deploy (see `gh stack --help`)." Name that stack: `{{STACK_NAME}}` for the first deploy, and for a later deploy the stack its first branch started (record each deploy's stack in the Release order comment). Give the branch name, `<story key>-<the repo's branch_suffix>`, and the branch it stacks on. If this branch is in the **same deploy** as the branch below it, say "stacked on `<branch>`". If it's the **first branch of a new deploy**, say "start a new stack for Deploy <N>: base it on `<earlier deploy's top branch>` but don't link it into that stack" (see `stacked-prs`, One deploy per stack). Add: "{{PR_TITLE_RULE}} Don't write cross-repo dependency notes into the PR; add this branch to the epic's Release order comment instead."<!-- END IF STACKED -->
 3. **Plan section:** the path to the plan, and which section to execute with the {{EXECUTE_SKILL}} skill.
 4. **Scope fence. Copy this word for word:**
    > You are the **[repo name]** agent. Change only **[repo name]**. Do not edit any other repo, even for a "quick" fix. If you find you need a change on the other side, stop, write down exactly what you need, and leave it for the other agent.

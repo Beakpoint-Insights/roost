@@ -57,7 +57,7 @@ Write it as one line: "roost 1.0.0, installed" or "roost 1.0.0, checkout at ~/sr
 |---|---|---|
 | `tracker.kind` | `jira` | `github`, `linear` |
 | `tests.kind` | `xray` | `repo-gherkin`, `none` |
-| `vcs.stacking` | `gh-stack` | `graphite`, `none` |
+| `vcs.stacking` | `gh-stack`, `none` | `graphite` |
 
 If the config names one that isn't supported yet, stop and say which key and value, and that roost doesn't support it yet.
 
@@ -81,6 +81,7 @@ A skill writes a config key in backticks, for example `tracker.statuses.ready_fo
 - **A repo's session:** the Claude session whose working directory ends in that repo's `name`.
 - **The local stack:** `stack`. Its `services` are what "the stack answers" means; its commands start, inspect and migrate it. `stack.never` lists commands not to use, and `stack.test_data` says how to put data into it. A repo with `local_stack: false` (an infrastructure repo, say) neither runs on it nor uses it: leave the stack's instructions, checks and browser testing out of everything sent to its session.
 - **Sections a config can leave out:** `stack`, `deploy`, `design`, `qa` and `roadmap`, and a repo's `e2e` (a plugin or a library may have none of them). A step that needs one the config doesn't have is skipped, and the skill says once what it skipped and why ("this config has no local stack, so there's nothing to start or check"). A missing key is neither true nor false: "if `deploy.migrations_run_on_deploy` is false" doesn't apply when there's no `deploy`. With no `stack`, every repo is treated as `local_stack: false`. When a skill can't do its main job without one (`write-runbook` without `deploy.runbooks`), ask the user for the value once, as for any key that isn't set.
+- **Without stacking** (`vcs.stacking: none`): there are no stacks. Wherever a skill says "the stack", "on the stack" or "the epic's stack", read: each branch starts from `main` and is its own PR against `main`, and "the epic's stack" is the epic's set of PRs. Nothing is rebased, linked or merged as a stack: `stacked-prs`' stack steps and "One deploy per stack" don't apply; its rules for commits, PR titles and the Release order comment do. A branch that needs another branch's code waits for that one to merge, then starts from (or rebases onto) the new `main`. "Ready for release" means merged, waiting for the release.
 - **Repos that change real infrastructure:** a repo with `apply_gate` (see below).
 - **A repo's review focus:** its `review_focus`, or else `planning.review_focus`.
 - **Person-owned tasks:** tickets under an epic labelled `tracker.person_task_label` (default `person-owned`). They're work no repo session can do, with a named owner and a "When" (before release, after release, or after a named slice). Never send one to a session, never move one out of its epic, and never count one as leftover work; remind its owner when its "When" arrives.
