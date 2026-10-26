@@ -1,12 +1,17 @@
 name: Evals
 
-# Runs the eval cases a PR's changes can affect (see scripts/eval-cases.sh), and
-# every case on a release PR or when started by hand. Needs a Claude credential:
-# the CLAUDE_CODE_OAUTH_TOKEN secret (from `claude setup-token`) or ANTHROPIC_API_KEY.
+# Runs the eval cases only when someone asks, since every run is a real Claude
+# session paid for by the credential below:
+# - a PR labelled run-evals: the cases its changes can affect (scripts/eval-cases.sh),
+#   once each, when the label is added and on each push while it stays on;
+# - the release PR, when it's reopened to start its checks: every case, three times;
+# - a run started by hand (gh workflow run Evals): every case, three times.
+# Needs ANTHROPIC_API_KEY (an API key from the Claude Console), or
+# CLAUDE_CODE_OAUTH_TOKEN (from `claude setup-token`, which uses a subscription).
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
+    types: [labeled, synchronize, reopened]
   workflow_dispatch:
 
 permissions:
@@ -19,8 +24,13 @@ concurrency:
 
 jobs:
   evals:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (startsWith(github.head_ref, 'release-please--') && github.event.action == 'reopened') ||
+      (contains(github.event.pull_request.labels.*.name, 'run-evals') &&
+       (github.event.action != 'labeled' || github.event.label.name == 'run-evals'))
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -33,13 +43,15 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
-          # Release Please starts this by hand on its release branch (see release-please.yml).
           if [ "$EVENT" = workflow_dispatch ] || [[ "$HEAD_REF" == release-please--* ]]; then
             cases=$(scripts/eval-cases.sh --all)
+            runs=3
           else
             cases=$(scripts/eval-cases.sh "$BASE_SHA" "$HEAD_SHA")
+            runs=1
           fi
           echo "cases=$(echo $cases)" >> "$GITHUB_OUTPUT"
+          echo "runs=$runs" >> "$GITHUB_OUTPUT"
           echo "Cases to run: ${cases:-none}"
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         if: steps.cases.outputs.cases != ''
@@ -55,26 +67,17 @@ jobs:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           CASES: ${{ steps.cases.outputs.cases }}
+          RUNS: ${{ steps.cases.outputs.runs }}
+          # A ceiling on each attempt of each case, so a runaway case stops.
+          MAX_COST_USD: "5"
         run: |
           if [ -z "$CLAUDE_CODE_OAUTH_TOKEN" ] && [ -z "$ANTHROPIC_API_KEY" ]; then
             echo "::warning::Skipped: no Claude credential (CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY). PRs from forks don't get secrets; a maintainer runs the evals before merging."
             echo "skipped=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          mkdir -p eval-json/first-try
           failed=0
-          for c in $CASES; do
-            # Every run of a case must pass (the default threshold, 1.0). LLM judges
-            # get a few verdicts wrong, so a case that fails gets one more try, and
-            # fails the check only if it fails again. The summary shows each case's
-            # last try; the first try of a retried case is kept in eval-json/first-try/.
-            if ! claude plugin eval . --no-publish --trust-plugin --model opus --case "$c" --ablation none --json "eval-json/$c.json"; then
-              echo "::notice::$c failed; running it once more"
-              # A run that failed before writing results (at sign-in, say) has none to keep.
-              if [ -f "eval-json/$c.json" ]; then mv "eval-json/$c.json" "eval-json/first-try/$c.json"; fi
-              claude plugin eval . --no-publish --trust-plugin --model opus --case "$c" --ablation none --json "eval-json/$c.json" || failed=1
-            fi
-          done
+          scripts/run-evals.sh "$RUNS" $CASES || failed=1
           scripts/eval-summary.py eval-json > eval-summary.md
           cat eval-summary.md
           cat eval-summary.md >> "$GITHUB_STEP_SUMMARY"
@@ -87,6 +90,7 @@ jobs:
           name: eval-results
           path: |
             eval-json/
+            eval-logs/
             evals/results/
           retention-days: 30
       - name: Post the results on the PR
