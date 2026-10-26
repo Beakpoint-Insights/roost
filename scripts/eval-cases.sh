@@ -43,6 +43,7 @@ git diff --name-only "$base...$head" | while IFS= read -r path; do
     evals/*/*)
       case_dir=${path#evals/}
       case_dir=${case_dir%%/*}
-      [[ -f "evals/$case_dir/prompt.md" ]] && echo "$case_dir" ;;
+      # A deleted case has nothing to run.
+      if [[ -f "evals/$case_dir/prompt.md" ]]; then echo "$case_dir"; fi ;;
   esac
 done | sort -u

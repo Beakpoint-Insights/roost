@@ -33,6 +33,7 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
+          # Release Please starts this by hand on its release branch (see release-please.yml).
           if [ "$EVENT" = workflow_dispatch ] || [[ "$HEAD_REF" == release-please--* ]]; then
             cases=$(scripts/eval-cases.sh --all)
           else
