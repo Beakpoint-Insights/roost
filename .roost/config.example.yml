@@ -1,0 +1,63 @@
+# roost's config for working on roost itself: its issues are the tracker, its tests are
+# the eval cases in evals/, and it ships plain PRs (no stacks). It's a Claude Code
+# plugin, so there's no local stack, nothing deployed, no design system and no app to
+# QA in a browser; those sections are left out.
+#
+# Copy it to .roost/config.yml (gitignored, so yours stays yours) and change anything
+# that differs for you, or put just those values in ~/.claude/roost/local/roost.yml.
+# skills/roost-config/references/config-schema.md says what each key means.
+version: 1
+
+team:
+  name: roost
+  product: roost
+  shell: zsh
+
+tracker:
+  kind: github
+  github:
+    repo: Beakpoint-Insights/roost
+    # The organisation's issue types are Task, Bug and Feature, with no Epic or Story,
+    # so a ticket's kind is a label (epic, story, task, bug).
+    issue_types: false
+  statuses:
+    todo: To Do
+    in_progress: In Progress
+    # Merged, waiting for the release-please release PR.
+    ready_for_release: Ready for Release
+    done: Done
+    wont_do: Won't Do
+  components_required: false
+
+tests:
+  kind: evals
+  evals:
+    dir: evals
+    run: claude plugin eval . --no-publish --trust-plugin --model opus --judge-model sonnet --ablation none --case {case}
+
+repos:
+  - name: roost
+    github: Beakpoint-Insights/roost
+    role: plugin
+    session: roost session
+    order: 1
+    kickoff_title: Kickoff (roost)
+    branch_suffix: roost
+    owns: the plugin's skills and their references, the example configs, its eval cases and its scripts
+    tests: eval cases in evals/ (scripts/eval-cases.sh picks the ones a change affects), and claude plugin validate --strict .
+    local_stack: false
+
+vcs:
+  host: github
+  stacking: none
+  signed_commits: true
+  pr_title: conventional
+  merge_method: squash
+  branch_name: "{key}-short-description"
+
+planning:
+  lead_repo: roost
+  plan_skill: superpowers writing-plans
+  execute_skill: superpowers executing-plans
+  plans_dir: docs/plans
+  review_focus: whether each skill does what its description promises, its wording, and the eval cases that cover it
