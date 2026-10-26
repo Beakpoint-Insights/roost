@@ -12,7 +12,7 @@ Read the epic description and decide which artifacts it needs, then propose them
 - **An architecture or design doc** if the epic changes how the system is built, deployed or connected: new infrastructure, a new service, a new data flow, a move from one platform to another, or a decision a later reader will ask "why?" about. Follow "Architecture or design doc" below.
 - **Both,** when the epic does both. Build the architecture first if the UI depends on its decisions, otherwise in either order.
 
-An epic with no UI change has no prototype, and later phases leave out everything that's about one.
+An epic with no UI change has no prototype, and later phases leave out everything that's about one. For such an epic the artifact isn't a question with options: say it will be an architecture or design-doc PR, and why, without listing a prototype as a choice. Questions about the doc itself (where it goes, the decisions it records) still come with options and your recommendation.
 
 ## UI prototype
 

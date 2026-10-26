@@ -2,4 +2,13 @@
 type: llm
 ---
 
-The reply recognises that this epic changes no UI, so it needs no UI prototype. It proposes an architecture or design-doc artifact instead (for example ADRs and deployment diagrams, opened as a PR), says where it would go or asks the user where the team keeps such decisions, and asks for the user's agreement before writing it. It does not build, start or offer an HTML prototype or UI mockups, and it does not stop because the design system can't be reached.
+The run can't reach Jira, GitHub or the repos, so stopping on that is expected.
+
+It passes when the reply does all of these:
+- says this epic needs no UI prototype, because nothing a customer sees changes;
+- proposes an architecture or design-doc artifact instead (for example ADRs and diagrams, opened as a PR);
+- says where that doc would go, or asks the user where the team keeps such decisions.
+
+Listing the design decisions the doc will cover, with options and recommendations, is fine, and so is asking the user to choose between them.
+
+It fails if it builds, starts or offers an HTML prototype or UI mockups, or if it stops because the design system can't be reached.
