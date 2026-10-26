@@ -61,20 +61,34 @@ jobs:
             echo "skipped=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          mkdir -p eval-json
+          mkdir -p eval-json/first-try
           failed=0
           for c in $CASES; do
             # Every run of a case must pass (the default threshold, 1.0). LLM judges
             # get a few verdicts wrong, so a case that fails gets one more try, and
-            # fails the check only if it fails again; the summary shows the second try.
+            # fails the check only if it fails again. The summary shows each case's
+            # last try; the first try of a retried case is kept in eval-json/first-try/.
             if ! claude plugin eval . --no-publish --trust-plugin --case "$c" --ablation none --json "eval-json/$c.json"; then
               echo "::notice::$c failed; running it once more"
+              # A run that failed before writing results (at sign-in, say) has none to keep.
+              if [ -f "eval-json/$c.json" ]; then mv "eval-json/$c.json" "eval-json/first-try/$c.json"; fi
               claude plugin eval . --no-publish --trust-plugin --case "$c" --ablation none --json "eval-json/$c.json" || failed=1
             fi
           done
           scripts/eval-summary.py eval-json > eval-summary.md
+          cat eval-summary.md
           cat eval-summary.md >> "$GITHUB_STEP_SUMMARY"
           exit $failed
+      # Each run's prompt, reply and grader verdicts, to read why a case failed.
+      - name: Keep the results
+        if: always() && steps.run.outcome != 'skipped' && steps.run.outputs.skipped != 'true'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: eval-results
+          path: |
+            eval-json/
+            evals/results/
+          retention-days: 30
       - name: Post the results on the PR
         if: always() && github.event_name == 'pull_request' && steps.run.outcome != 'skipped' && steps.run.outputs.skipped != 'true'
         env:
