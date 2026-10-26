@@ -70,16 +70,14 @@ In this skill's `references/` folder:
 - `config-schema.md`: what every key means, and its default. Read it when a key's meaning isn't obvious from its name.
 - The tracker adapter for `tracker.kind`, before any tracker change: `tracker-jira.md` or `tracker-github.md`. Each says how to do every tracker operation (create, set a parent, edit a comment in place, attach a file, change a status, link, search) and how its keys are written.
 
-**Skills written for Jira.** Many steps name Jira: a Jira comment, the Jira attachment, ADF, the Atlassian MCP, `tracker.jira.project`. With another `tracker.kind`, read those as the adapter's equivalents (its "Words" table), and write keys as the adapter says ("Keys").
-- The tests adapter for `tests.kind`, before touching tests: `tests-xray.md` (Xray tests and their Cucumber scenarios), or `tests-evals.md` (eval cases in the repo). Each says what a test is, how one is linked to its story and run, and what "automated" means.
-
-**Skills written for Xray.** Many steps name Xray: Xray tests, "the Xray adapter notes", `create-xray-test`, `automate-xray-tests`. With another `tests.kind`, follow that adapter's "In each skill" table wherever it covers the step, and read "the Xray adapter notes" as that adapter.
+The skills say *what* to do in tracker-neutral words (a ticket, a comment, attach a file to the epic, move it to a status); the adapter says *how*, and how its keys are written ("Keys").
+- The tests adapter for `tests.kind`, before touching tests: `tests-xray.md` (Xray tests and their Cucumber scenarios), or `tests-evals.md` (eval cases in the repo). Each says what a test is, and its operations ("A story's tests", "Read a test's scenarios", "Run a test", "Mark a test automated", "Create a test", …) say how to do each thing the skills ask, with this team's tests.
 
 ## How skills refer to the config
 
 A skill writes a config key in backticks, for example `tracker.statuses.ready_for_release` or `stack.services`. Use the value from the config. A few names come up everywhere:
 
-- **The project:** for Jira, `tracker.jira.project`, with keys like `<project>-1234`; for GitHub Issues, `tracker.github.repo`, with keys like `#1234`. The skills' examples use `PROJ-1234` either way.
+- **The project and its keys:** where the tracker's tickets live, and how a key is written, are in the tracker adapter ("Keys"). The skills' examples write keys as `PROJ-1234`.
 - **The repos:** the `repos` list. Each has a `name`, a `role`, an `order`, and a `session` name (for example "API session"). "Each repo, in order" means by `order`. A repo with `depends_on` waits for those repos' work and follows its `contract` to consume it.
 - **The lead repo:** `planning.lead_repo`, where the tech lead plans, the plan and runbooks live, and the stack's owner usually runs. Default: the repo with the lowest `order`.
 - **A repo's session:** the Claude session whose working directory ends in that repo's `name`.

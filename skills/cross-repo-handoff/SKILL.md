@@ -26,7 +26,7 @@ Write it as plain instructions to another engineer. Use this order and leave out
 3. **Goal:** one or two sentences on the behaviour that changes, from the user's point of view.
 4. **Changes:** by file, with paths and approximate line numbers, and the exact names of types, fields, routes and messages. Quote current code when that's clearer than describing it. Give literal values (URIs, error types, copy text), not "add an appropriate message".
 5. **Contract:** for an API change, the exact request and response shapes, status codes and Problem Details types. For a UI change, which generated client methods to call and what each response means on screen.
-6. **Tests, written first:** the failing tests to write and what each asserts, including the e2e scenario and its Xray tag where one exists.
+6. **Tests, written first:** the failing tests to write and what each asserts, including the e2e scenario and the test it belongs to, tagged as the tests adapter says, where one exists.
 7. **Run:** the exact commands to run before pushing (unit tests, lint, the e2e feature file with its flags).
 8. **Report back:** what the other agent should hand back: commit SHA, branch, whether the local stack (`stack.services`) is running the new build, and anything in the contract that changed from this prompt.
 

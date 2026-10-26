@@ -4,6 +4,14 @@ How to do each tracker operation when `tracker.kind` is `jira`. The skills say *
 
 Most operations go through the Atlassian MCP tools. A few can't: they go through Jira's REST API, with the user's API token when `JIRA_EMAIL` and `JIRA_API_TOKEN` are set (see "REST with an API token"), and otherwise from the user's signed-in Jira session in the Playwright browser (see "Fallback: REST from the browser").
 
+## In a prompt
+
+A prompt that must stand alone (the tech lead prompt) introduces the tracker as: "Its tracker is Jira: site `<tracker.jira.site>`, cloud ID `<tracker.jira.cloud_id>`."
+
+## Keys
+
+A key is `<tracker.jira.project>-1234`, written the same way in text, branch names, tags and state file names.
+
 ## Words
 
 | Skills say | In Jira |

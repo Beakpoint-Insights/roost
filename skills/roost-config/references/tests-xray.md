@@ -1,6 +1,28 @@
 # Test adapter: Xray
 
-How tests work when `tests.kind` is `xray`. The tracker is Jira (see `tracker-jira.md`).
+How tests work when `tests.kind` is `xray`. The tracker is Jira (see `tracker-jira.md`). The skills say *what* to do with a story's tests ("read its scenarios", "mark it automated"); the operations below say *how*, with Xray.
+
+## In a prompt
+
+A prompt that must stand alone (the tech lead prompt) introduces the tests as: "The Xray tests linked to each story. Their Cucumber scenarios are in the Xray “Test details” panel. If you can't read that panel, use the test summaries in the build guide."
+
+## Operations
+
+| Operation | With Xray |
+|---|---|
+| **A story's tests** | The Test issues linked to the story with `tests.xray.test_link_type` (the test inward, the story outward), except retired ones ("Retiring a test"). |
+| **Read a test's scenarios** | Through the Xray API ("Reading and updating scenarios"): its Gherkin, one unit per `Scenario:`, with its Preconditions. |
+| **Find a scenario's automation** | A Cucumber feature file in the e2e repo's `e2e.scenarios_dir`, tagged with the test's key (`e2e.tag_style`), with a scenario of the same name; or a scenario marked `e2e.backend_marker` whose comment names a test that exists in another repo and whose assertions match. |
+| **Run a test** | Each e2e feature by tag (`e2e.run_tags`), each backend test by its fully qualified name, on the commit under test. |
+| **Mark a test automated** | Add `tests.automated_label` (keeping its other labels) and move it to `tracker.statuses.done`. Never add scenarios to a test that's already marked. |
+| **Write scenarios** | Cucumber scenarios, in the Gherkin style guide in the `live-verified-bdd` skill, with Xray's rules ("Gherkin for Xray"): no `Feature:` line, no `Background:`. |
+| **Unmark a test** | A test marked automated that fails now: remove `tests.automated_label` and move it back to `tracker.statuses.todo`. |
+| **Create a test** | The `create-xray-test` skill ("Creating tests"). |
+| **Update a test's scenarios** | Save the current Gherkin to a local file first, then `updateGherkinTestDefinition`, then update the feature file so its scenario text matches word for word ("Reading and updating scenarios"). |
+| **Split a test** | The existing test keeps the automated scenarios (a partly automated one becomes the part the automation checks); a new test, created with `create-xray-test`, with the same Components and story link, gets the rest, and is moved to done without the automated label. |
+| **Retire a test** | "Retiring a test". |
+| **Shared setup** | A Precondition ("Shared setup: Preconditions, not `Background:`"). It's part of the tests, not work: never an open ticket. |
+| **Manual tests** | "Manual tests", when the config has `tests.manual_label`. |
 
 ## What a test is
 

@@ -44,7 +44,7 @@ Several bugs of one epic stack on each other in the order the user gave.
 2. Send it to the owning session: "Use the `bug-bash` skill for PROJ-X." Then give the branch and base from step 2, for example: "Branch `PROJ-X` stacked on `PROJ-2790-backend`" or "Branch `PROJ-X` from `main`, its own PR". Add:
    - a PR title that follows `vcs.pr_title`, for example `fix(PROJ-X): …`;
    - a test that fails first, then the fix;
-   - if the bug has a test in the tracker, automate its scenario (`automate-xray-tests`); if it has none and the behaviour could regress, add or update one first (`create-xray-test`);
+   - if the bug has a test, automate its scenario (`automate-xray-tests`); if it has none and the behaviour could regress, add or update one first (the tests adapter's "Create a test" or "Update a test's scenarios");
    - for a repo others depend on: after the fix, `stack.restart_after_api_change` and check the fix on the running stack;
    - judge CI by each check's newest completed result, and don't re-run cancelled runs;
    - send the report as the last thing it does, with no promise of a later report.
@@ -64,7 +64,7 @@ Send one session several bugs in one message only when they're in the same repo 
 A bug is done when all of these are true:
 
 - the fix's test failed before the fix and passes after;
-- its test scenario, if any, is automated and passing, and the test is labelled `tests.automated_label` and done;
+- its test scenario, if any, is automated and passing, and the test is marked automated (the tests adapter's "Mark a test automated");
 - its PR is where step 2 says, and every check's newest completed result passes;
 - for an epic bug, its PR is in the epic's Release order comment;
 - if it added a database migration and `deploy.migrations_run_on_deploy` is false, a deploy note covers it: the **Migrations to apply** comment and the staging and production pre-deploy sub-tasks, on the epic's deploy ticket or, for a standalone bug, on the bug itself (see `stacked-prs`). Add or update them if they're missing.

@@ -61,15 +61,15 @@ Write charters from the epic's flows, highest release risk first: the new-user p
 Before filing, search for duplicates: the epic's existing bugs and a text search on the symptom. If one exists, comment with the new evidence instead. If a closed bug is back, file a new one linked as "relates to" and call it a regression.
 
 Each bug:
-- **Project** `tracker.jira.project`, **type** Bug, **parent** the epic, the run's **label**, plus `qa.security_label` if it touches who's signed in, sessions, account takeover, or data leaking between users or tenants. **Components** set, when `tracker.components_required`.
+- **In the tracker's project,** **type** Bug, **parent** the epic, the run's **label**, plus `qa.security_label` if it touches who's signed in, sessions, account takeover, or data leaking between users or tenants. **Components** set, when `tracker.components_required`.
 - **Summary:** what the user experiences, in plain words, not the internal cause.
 - **Description:** what happened and what should have (cite the epic's flow table or story); numbered steps from a signed-out browser with exact URLs; environment (flags, branches, SHAs); evidence (screenshot, console errors, the failing request's method, path and status, with tokens and cookies removed); found by (scenario name, or "exploratory: charter N"); severity (blocks release / fix before release / can wait) with one sentence why.
 
 Only file what you've reproduced by hand at least once.
 
 **Give every behaviour bug a test that would catch it,** so the fix has something to automate and the bug can't quietly come back. Skip purely visual nits.
-- **The covering test isn't automated yet:** add the bug's scenario to it with `create-xray-test`'s update steps (read and save the current Gherkin first).
-- **The covering test is already labelled `tests.automated_label` and done:** don't add to it, which would make the label false. Create a new test for the bug's scenario with `create-xray-test`, linked to the story, unlabelled until it's automated.
+- **The covering test isn't marked automated yet:** add the bug's scenario to it (the tests adapter's "Update a test's scenarios", saving the current scenarios first).
+- **The covering test is already marked automated:** don't add to it, which would make that false. Create a new test for the bug's scenario ("Create a test"), linked to the story, unmarked until it's automated.
 - **No test covers it:** create one, the same way.
 
 Link each test to its bug ("relates to"), and say in the bug which test it is. Whoever fixes the bug automates that test as part of the fix.

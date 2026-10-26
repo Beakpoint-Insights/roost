@@ -1,11 +1,15 @@
 # Tracker adapter: GitHub Issues
 
-How to do each tracker operation when `tracker.kind` is `github`. The skills say *what* to do ("set the parent", "edit the Carry-over comment in place"); this file says *how*, with the `gh` CLI. Issues live in `tracker.github.repo` (`owner/repo`). Many steps were written for Jira and name it ("a Jira comment", "the Jira attachment", ADF): read those as the equivalents below.
+How to do each tracker operation when `tracker.kind` is `github`. The skills say *what* to do ("set the parent", "edit the Carry-over comment in place"); this file says *how*, with the `gh` CLI. Issues live in `tracker.github.repo` (`owner/repo`).
 
 ## Keys
 
 - **A key** is the issue number, written `#123` in text, comments and commit messages (GitHub links it), and `owner/repo#123` when it's in another repo. The skills' `PROJ-1234` examples stand for it.
 - **A key in a name** (a branch, a tag on an eval case, a state file) is written `issue-123`, since `#` isn't safe there: branch `issue-123-short-description` (`vcs.branch_name`'s `{key}`), state file `issue-123.md`.
+
+## In a prompt
+
+A prompt that must stand alone (the tech lead prompt) introduces the tracker as: "Its tracker is GitHub Issues in `<tracker.github.repo>`. A file attached to an issue is a gist linked from one of its comments."
 
 ## Words
 
@@ -40,7 +44,7 @@ How to do each tracker operation when `tracker.kind` is `github`. The skills say
 | **Comment** | `gh issue comment <n> -R R --body-file <file>`. |
 | **Edit a comment in place** | Find its id: `gh api repos/R/issues/<n>/comments --paginate --jq '.[] \| {id, body: .body[0:80]}'` (keep it in your state file), then `gh api -X PATCH repos/R/issues/comments/<id> -F body=@<file>`. Read it back. |
 | **Link two tickets** | A comment on one that mentions the other: `gh issue comment <n> -R R --body "Relates to #<m>"`. |
-| **Attach a file** | `gh gist create --desc "<KEY> <file name>" <file>` (secret by default), then a comment on the issue: "Attached: [<file name>](<gist URL>)". Never put a secret in a gist: anyone with its link can read it. |
+| **Attach a file** | `gh gist create --desc "<KEY> <file name>" <file>` (secret by default), then a comment on the issue: "Attached: [<file name>](<gist URL>)". Never put a secret in a gist: anyone with its link can read it. It needs `gh` signed in with the `gist` scope (`gh auth status`; add it with `gh auth refresh -s gist`). |
 | **Read an attachment** | Find the gist link in the issue's comments, then `gh gist view <id> --filename "<file name>" --raw > <file>`. |
 | **Fix version** | `gh issue edit <n> -R R --milestone "<name>"`, using a milestone that already exists. |
 | **List components** | `gh label list -R R --search "<tracker.github.component_prefix>" --json name,description`. |

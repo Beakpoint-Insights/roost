@@ -40,7 +40,7 @@ Once the user agrees with the verdict, post it as a comment on the ticket, so th
 - the `file:line` evidence for each item
 - the decision, and who made it: "<name of the person who decided>: fix A and B, skip C"
 
-If the decision is not to fix anything, offer to close the ticket as `tracker.statuses.wont_do` (or the project's equivalent). Only transition it once the user says yes.
+If the decision is not to fix anything, offer to close the ticket as `tracker.statuses.wont_do` (or the project's equivalent). Only move it once the user says yes.
 
 ## 5. If the user says fix
 

@@ -1,11 +1,33 @@
 # Test adapter: evals
 
-How tests work when `tests.kind` is `evals`: the repo's tests are eval cases for a Claude Code plugin, run with `claude plugin eval` (roost's own tests work this way). The tracker can be any kind; the tests live in the repo.
+How tests work when `tests.kind` is `evals`: the repo's tests are eval cases for a Claude Code plugin, run with `claude plugin eval` (roost's own tests work this way). The tracker can be any kind; the tests live in the repo. The skills say *what* to do with a story's tests ("read its scenarios", "mark it automated"); the operations below say *how*, with eval cases.
+
+## In a prompt
+
+A prompt that must stand alone (the tech lead prompt) introduces the tests as: "The eval cases for each story: those already in `<tests.evals.dir>/` tagged with its key, and the drafts in its `evals:` comment, which you commit first, test-first."
+
+## Operations
+
+| Operation | With eval cases |
+|---|---|
+| **A story's tests** | The cases tagged with the story's key, in `tests.evals.repo`, plus any drafted in the story's `evals:` comment and not committed yet ("What a test is"). |
+| **Read a test's scenarios** | Its graders: each `graders/*.md` is one scenario, read with the case's `prompt.md`. |
+| **Find a scenario's automation** | The case itself: it's automated when its folder is committed on the branch under test. A case drafted on the story but not committed has none ("Not written"). |
+| **Run a test** | `tests.evals.run` with the case's name, in `tests.evals.repo`, on the commit under test ("Running a case"). |
+| **Mark a test automated** | No label or status: post (or update) the story's `evals:` comment with each case, its result ("3 of 3") and the commit it ran on. |
+| **Write scenarios** | An eval case: a `prompt.md` (front matter with `description`, `tags`, `max_turns`, `allowed_tools`, then the prompt) and one `graders/*.md` per check, following the repo's own guide to its evals (for roost, `CONTRIBUTING.md`). |
+| **Unmark a test** | A case that passed before and fails now: say so in the story's `evals:` comment, with the failing grader and the commit. |
+| **Create a test** | Before the code exists, draft it in full on the story ("Writing cases before the code"); the building session commits it first, test-first. `create-xray-test` isn't used. |
+| **Update a test's scenarios** | Edit its graders in the PR. Never edit a grader to make a case pass; only when the behaviour deliberately changed, and say why. |
+| **Split a test** | Two cases: the existing one keeps the graders that pass, a new one gets the rest, tagged the same. |
+| **Retire a test** | "Retiring a case". |
+| **Shared setup** | None: each case's setup is in its own prompt. |
+| **Manual tests** | Don't exist here ("Automated, passing, done"). |
 
 ## What a test is
 
 - **A test is an eval case:** a folder `<tests.evals.dir>/<case>/` (default `evals/<case>/`) in the repo `tests.evals.repo` (default the lead repo, `planning.lead_repo`). It holds `prompt.md`, with front matter and the prompt, and `graders/*.md`. There's no test ticket in the tracker.
-- **Its checks are its graders.** Each grader is one check; a run passes when every scored grader passes. Where a skill says "scenario", read "grader".
+- **Its scenarios are its graders.** Each grader is one check; a run passes when every scored grader passes.
 - **Its story is in its tags.** A case's `tags` include the key of the story it tests, written as the tracker adapter writes a key in a tag (see "Keys" in the tracker adapter), plus the skill it exercises, so a PR that changes that skill runs it. A story's tests are the cases tagged with its key: `grep -l "<key tag>" <tests.evals.dir>/*/prompt.md`.
 - **Cross-cutting:** a case that needs several stories is tagged with the last story it depends on.
 
@@ -27,15 +49,3 @@ When an epic is shaped (`shape-epic` phase 5), the code doesn't exist yet, so ca
 ## Retiring a case
 
 Delete its folder in a PR that says why, and say so on the story. Retired cases leave every count.
-
-## In each skill
-
-| Skill or step | With `tests.kind: evals` |
-|---|---|
-| `shape-epic` phase 5 | Plan cases, not Xray tests, and post each story's cases on it as an `evals:` comment ("Writing cases before the code"). `create-xray-test` isn't used. |
-| `create-xray-test` | Doesn't apply. Say the team's tests are eval cases in the repo, and use `shape-epic` phase 5 or write the case in a PR. |
-| `verify-slice-tests` | Its tests are the cases tagged with STORY's key, in `tests.evals.repo`, on the pushed commit. Run each with `tests.evals.run`. Report each as **Passing** (every run passed), **Failing** (name the grader and why, from the results) or **Not written** (drafted on STORY, not committed). Instead of labelling and closing, post the `evals:` comment. A case with a check that can't pass for a reason the user should decide (it needs a real outside service, say) gets a proposed split into two cases, the same way, and waits for the answer. |
-| `automate-xray-tests` | Commit the cases drafted in STORY's `evals:` comment, then make the change until each passes every run. Never edit a grader to make a case pass; only when the behaviour deliberately changed, edit it and say why. |
-| `run-slice` step 2 | Send `verify-slice-tests` to the session of `tests.evals.repo`. |
-| `slice-handoff` step 4 | Run every case tagged with a story of the epic so far. A case that passed before and fails now gets a Bug, sorted in step 2. |
-| `release-qa` | Its no-browser QA runs every case tagged with the epic's stories. |

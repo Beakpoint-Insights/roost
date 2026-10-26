@@ -15,7 +15,7 @@ Write Cucumber/Gherkin scenarios and check each one in the running app before ca
 
 ## When Not to Use
 
-- **Filing scenarios in the tracker:** use `create-xray-test`. This skill hands off to it at the end.
+- **Filing scenarios as the team's tests:** the tests adapter's "Create a test" does that. This skill hands off to it at the end.
 - **A new epic that isn't built yet:** there's no app to check against. `shape-epic` writes those scenarios from the prototype.
 
 This file holds the Gherkin style guide that the other skills follow.
@@ -42,7 +42,7 @@ Read the relevant code to understand:
 ### Phase 2: Draft Gherkin from Code
 
 Write declarative Gherkin scenarios organized by feature:
-- **Background** for shared preconditions (signed in, tenant context). When the scenarios go to Xray, which doesn't accept `Background:` in a test, that setup becomes an Xray Precondition instead (see the Xray adapter notes)
+- **Background** for shared preconditions (signed in, tenant context). When the team's tests can't hold a `Background:`, the setup goes where the tests adapter's "Shared setup" says
 - **Given-When-Then** with business language — no CSS selectors, no API paths
 - **Data tables** for field listings (`| field | required |`)
 - **Tags**: `@smoke` for critical paths, `@authorization` for auth tests
@@ -88,10 +88,10 @@ Explain what changed from the draft and why.
 
 ### Phase 6: Hand Off for Filing
 
-When the user approves the scenarios, ask whether to file them. If yes, use `create-xray-test` and pass it:
+When the user approves the scenarios, ask whether to file them. If yes, file them as the tests adapter's "Create a test" says, following its "Write scenarios" rules, with:
 - the epic key, and the story key for each test
-- each test's title and its scenarios, without a `Feature:` line (Xray adds its own)
-- for scenarios that replace an existing test's, that test's key, so it updates the test instead of creating a new one
+- each test's title and its scenarios
+- for scenarios that replace an existing test's, that test's key, so it's updated ("Update a test's scenarios") instead of a new one created
 
 Leave out scenarios marked NOT TESTABLE unless the user says to file them.
 

@@ -30,8 +30,8 @@ The sources for each value:
 | `{{REVIEWER}}` | The person running `shape-epic`: their first name, from "Who am I" in the tracker adapter. They approve the plan. |
 | `{{LEAD_REPO}}` | CONFIG `planning.lead_repo` |
 | `{{OTHER_REPOS}}` | CONFIG every other repo the epic touches, by `name`, as sibling folders (`../<name>`). If there are none, delete the sentence that names them. |
-| `{{TRACKER_LINE}}` | CONFIG the tracker, as one sentence: for `jira`, "Its tracker is Jira: site `<tracker.jira.site>`, cloud ID `<tracker.jira.cloud_id>`."; for `github`, "Its tracker is GitHub Issues in `<tracker.github.repo>`. A file attached to an issue is a gist linked from one of its comments." |
-| `{{TESTS_LINE}}` | CONFIG the tests, as one sentence: for `xray`, "The Xray tests linked to each story. Their Cucumber scenarios are in the Xray “Test details” panel. If you can't read that panel, use the test summaries in the build guide."; for `evals`, "The eval cases for each story: those already in `<tests.evals.dir>/` tagged with its key, and the drafts in its `evals:` comment, which you commit first, test-first." |
+| `{{TRACKER_LINE}}` | The tracker adapter's "In a prompt" sentence, with its values filled in |
+| `{{TESTS_LINE}}` | The tests adapter's "In a prompt" sentence, with its values filled in |
 | `{{PLAN_SKILL}}`, `{{EXECUTE_SKILL}}`, `{{PLANS_DIR}}` | CONFIG `planning.plan_skill`, `planning.execute_skill`, `planning.plans_dir` |
 | `{{REPO_SPLIT}}`, `{{REPO_TESTS}}` | CONFIG one bullet per repo the epic touches, in `repos` order, from its `name`, `owns` and `tests` |
 | `{{DESIGN_ROW}}` | CONFIG `design`: its name, `url` and `source_of_truth`. With no `design`, or no UI in the epic, delete the row |

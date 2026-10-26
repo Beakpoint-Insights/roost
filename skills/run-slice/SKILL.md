@@ -41,7 +41,7 @@ The steps are always these, in this order: the kickoffs, then the same five. Nam
 **Always show the table, even when you can't read everything.** If a step's state can't be told (a source couldn't be read, or nothing records it), mark that row ❔ Unknown rather than guess.
 
 Under the table, **at most two lines**, no bullet lists:
-- one line naming everything that couldn't be read, together: "Couldn't read Jira, GitHub or the state file from this session."
+- one line naming everything that couldn't be read, together: "Couldn't read the tracker, GitHub or the state file from this session."
 - one line starting **Next:** with the single next action, in one sentence.
 
 **The table is the first thing in the reply.** Nothing above it: no greeting, no summary, no apology.
@@ -167,7 +167,7 @@ If a story has no kickoff for a repo, skip that repo. If a session reports **blo
 Send these, then wait for every report:
 
 - **The session of the repo that holds the e2e suite** (the one with `e2e` in the config), or, when the config has none, the session of the repo that owns STORY's work: "Use the verify-slice-tests skill for STORY. Don't carry out any split until the orchestrator tells you the decision." Skip this when STORY has no linked tests (retired ones don't count) because no suite can prove its work before release (a docs slice, for example). Instead, ask that repo's session to check each of STORY's acceptance criteria against its PR (the build and the preview), one row per criterion with its evidence.
-- **Manual tests** linked to STORY (`tests.manual_label`), once the work they check is in place: send each to the session of the repo that owns that work, with the test's description, to run what it can read-only and record the run as the Xray adapter notes say ("Manual tests"). It runs nothing that changes a shared or production resource, and nothing in `deploy.runbooks.never_run_against`: those steps go to the user as 🙋 **Your turn** actions, and the session records the run from the user's answer. Skip tests with `When: after release`.
+- **Manual tests** of STORY's ("Manual tests" in the tests adapter), once the work they check is in place: send each to the session of the repo that owns that work, with the test's description, to run what it can read-only and record the run as the tests adapter says. It runs nothing that changes a shared or production resource, and nothing in `deploy.runbooks.never_run_against`: those steps go to the user as 🙋 **Your turn** actions, and the session records the run from the user's answer. Skip tests with `When: after release`.
 - **Every session the slice touched:** "Run /code-review on every change in this stack compared with `main`, with a focus on `<the repo's review_focus, or planning.review_focus>`. Report the findings; don't fix anything yet." To the session of a repo with `apply_gate`, add: "Review the posted plan too, not only the code: anything destroyed or replaced, public exposure, and permissions wider than the change needs."
 
 ## 3. Checkpoint: the user decides
@@ -202,7 +202,7 @@ New bugs go back to step 3 for the user's decision, then to `bug-bash` in the se
 ## 6. Done for this slice?
 
 Loop through steps 2 to 5 until all of these are true:
-- `verify-slice-tests` shows every test automated, passing and done, or split with the user's approval, and every manual test (`tests.manual_label`) done on a passing `manual run:` comment, except those whose description says `When: after release` (see "Manual tests" in the Xray adapter notes). For a slice with no tests because no suite can prove its work before release, every acceptance criterion is checked on its PR, with evidence.
+- `verify-slice-tests` shows every test automated, passing and done, or split with the user's approval, and every manual test done on a passing `manual run:` comment, except those whose description says `When: after release` ("Manual tests" in the tests adapter). For a slice with no tests because no suite can prove its work before release, every acceptance criterion is checked on its PR, with evidence.
 - A test created for an exploratory bug the user deferred may stay open and unlabelled: it's automated with that bug's fix, not in this slice. List it in the slice-done comment's **Left open** table with the bug and where the bug went.
 - Every review finding is fixed, ticketed or skipped by the user.
 - Every exploratory bug is fixed or deferred by the user.
@@ -213,7 +213,7 @@ Loop through steps 2 to 5 until all of these are true:
 
 Before calling it done, **reconcile the record**:
 - every checkpoint row has its Outcome;
-- a wide search finds no ticket from this slice that isn't linked to STORY: everything created since the slice's start time whose parent is the epic or whose text mentions STORY, except person-owned tasks (see `roost-config`) and Xray Preconditions (see the Xray adapter notes). The start time is the one in the state file; when there isn't one (a resumed run on another machine), use the earlier of STORY's first kickoff comment and its first move to In Progress, and record it. Link any that belong, with the epic as parent and Components set.
+- a wide search finds no ticket from this slice that isn't linked to STORY: everything created since the slice's start time whose parent is the epic or whose text mentions STORY, except person-owned tasks (see `roost-config`) and the tests' shared setup where it's a ticket (the tests adapter's "Shared setup"). The start time is the one in the state file; when there isn't one (a resumed run on another machine), use the earlier of STORY's first kickoff comment and its first move to In Progress, and record it. Link any that belong, with the epic as parent and Components set.
 
 Then:
 1. Comment on STORY with the final state: the PRs, the tests and their status, tickets created for later, and bugs filed. End the comment with a **Left open** table (key, summary, where it goes: next slice, before release, or later), which `slice-handoff` reads and checks. Mark the state file's run as finished.
