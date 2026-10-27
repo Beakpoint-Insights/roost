@@ -1,0 +1,22 @@
+scripts/production-date.test.py
+  s_5c34957c951ed4::t_bb347a2bf07486 237-247,272-283,418-420
+  s_5c34957c951ed4::t_fadf36377e5ae5 421-423
+skills/release-notes/scripts/production_date.py
+  s_5c34957c951ed4::t_09c938262d2bab 14-15,99-128,175-177,216-217,349-353
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b0b30bbc70fa5a1a05d008eec0427ace88c6fe57",
+  "prompts": {},
+  "sessions": {
+    "s_5c34957c951ed4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c41c75a1-94dc-432e-b46a-87c67b176f0b",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Alan Cox <acox@beakpointinsights.com>"
+    }
+  }
+}

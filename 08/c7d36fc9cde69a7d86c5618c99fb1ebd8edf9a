@@ -1,0 +1,22 @@
+skills/release-notes/scripts/production_date.py
+  s_5c34957c951ed4::t_f079efef5b9e24 1-56,63-188
+  s_5c34957c951ed4::t_257c351a5855f6 57-62
+.github/workflows/pr-checks.yml
+  s_5c34957c951ed4::t_52e3a51e5da533 46-47
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "08c7d36fc9cde69a7d86c5618c99fb1ebd8edf9a",
+  "prompts": {},
+  "sessions": {
+    "s_5c34957c951ed4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c41c75a1-94dc-432e-b46a-87c67b176f0b",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Alan Cox <acox@beakpointinsights.com>"
+    }
+  }
+}
