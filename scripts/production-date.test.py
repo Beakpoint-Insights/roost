@@ -502,6 +502,16 @@ class Workflow(unittest.TestCase):
         self.assertEqual((result["deploy"]["run_id"], result["deploy"]["attempt"], result["time"]),
                          (3003, 1, "2026-03-03T10:12:40Z"))
 
+    def test_a_deploy_being_rerun_still_dates_it(self):
+        # 3003 deployed on attempt 1; a re-run is in progress, so the run isn't completed.
+        r, attempts = run(3003, "a821", "2026-03-03T10:00:15Z", attempts=[
+            {"conclusion": "success", "updated_at": "2026-03-03T10:12:40Z"},
+            {"conclusion": None, "updated_at": "2026-03-05T09:00:00Z"}])
+        r.update(status="in_progress", conclusion=None)
+        result, _ = find(with_runs(load("one-epic"), (r, attempts), replace=True), DEPLOY, [820])
+        self.assertEqual((result["status"], result["deploy"]["run_id"], result["time"]),
+                         ("dated", 3003, "2026-03-03T10:12:40Z"))
+
     def test_a_rerun_that_finished_after_a_later_run_doesnt_date_it(self):
         # 3010 started first but succeeded only on a re-run, the next day; 3011 finished first.
         fx = with_runs(load("one-epic"),

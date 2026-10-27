@@ -299,11 +299,12 @@ def by_workflow(repo, default, workflow, last, today, gh):
 
 
 def list_runs(repo, workflow, created, gh):
-    """(runs, capped): a workflow's completed runs, every page; capped when GitHub has
-    more than one search returns (it reports the true total_count). Completed, not only
-    successful: a run that deployed and was then re-run and failed is listed as failed."""
+    """(runs, capped): a workflow's runs, every page; capped when GitHub has more than one
+    search returns (it reports the true total_count). All of them, not only successful
+    ones: GitHub gives a run its latest attempt's status, so a run that deployed and was
+    then re-run is listed as failed, or as queued or in progress while the re-run goes."""
     runs = []
-    for body in pages(gh, f"repos/{repo}/actions/workflows/{workflow}/runs?status=completed{created}",
+    for body in pages(gh, f"repos/{repo}/actions/workflows/{workflow}/runs?{created.lstrip('&')}",
                       f"`{workflow}`'s runs"):
         if body["total_count"] > SEARCH_LIMIT:
             return runs, True
