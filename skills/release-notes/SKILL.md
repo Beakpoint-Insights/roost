@@ -88,7 +88,7 @@ When you have neither the page's text from the user nor a readable `release_note
 - `release_notes.voice` isn't set: "Used roost's fallback voice: the config has no `release_notes.voice`."
 - The file can't be read: "Couldn't read the voice file `<path>`: used roost's fallback voice."
 
-Before you send the note, check it against every rule in the voice you're using, one by one, and add none of your own. With roost's fallback voice, the ones most often missed: keep the title well inside the voice's word limit, aiming for its lower half, and count every word, numbers and short words included (a title like "Invoices searchable up to 90 days back" is 7 words; "Search older invoices" is 3); put the practical number or timing the evidence gives (how soon, how many) in the closing line, not only in the body; and say what the customer doesn't have to do when the evidence says it.
+Before you send the note, check it against every rule in the voice you're using, one by one, and add none of your own. With roost's fallback voice, the ones most often missed: keep the title well inside the voice's word limit, aiming for 3 to 5 words, and count every word, numbers and short words included ("Invoices Searchable Up to 90 Days Back" is 7 words; "Search Older Invoices" is 3); put the practical number or timing the evidence gives (how soon, how many) in the closing line, not only in the body; and say what the customer doesn't have to do when the evidence says it.
 
 ## 7. Write the reply
 
