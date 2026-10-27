@@ -76,6 +76,9 @@ To use the roost skills here, copy [`.roost/config.example.yml`](.roost/config.e
 | `release-note-date-not-found` | When a repo's config doesn't say how it reaches production, the note says the date wasn't found and shows the evidence, instead of guessing one |
 | `release-note-stacked-slice` | A slice merged into another slice's branch is dated by the commit that brought it onto `main`, not its own merge, and a PR whose key only contains the slice's key is left out |
 | `release-note-one-per-feature` | An epic that shipped two separate features gets one note for each, each dated by the last change that feature needed |
+| `release-note-held-behind-flag` | A feature that shipped behind a feature flag is drafted but held, waiting on the flag's rollout, with no date yet |
+| `release-note-held-until-live` | An epic with a slice not yet deployed and a correction to past data that hasn't run gets a held note naming both waits |
+| `release-note-already-announced` | A feature the team's published notes already announce isn't announced again; the draft is dropped or flagged, naming the published post |
 | `close-out-offers-release-note` | After an epic ships, `close-out-epic` confirms production from each repo's `production` key, then offers to draft the release note instead of writing one unasked |
 
 Run them before merging a change to a skill:
