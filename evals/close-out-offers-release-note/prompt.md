@@ -11,6 +11,6 @@ PROJ-2400 has shipped. Finish the close-out. You can't reach Jira or GitHub from
 
 - release-please released acme-api 3.21.0 on March 3, 2026, and its release workflow run succeeded, including the Jira sync job.
 - acme-api's `deploy-production.yml` succeeded on March 3 for the 3.21.0 tag.
-- acme-web's last PR for the epic, acme/acme-web#461, merged on March 2. acme-web has no release; merging to `main` deploys it.
+- acme-web's last PR for the epic, acme/acme-web#461, merged into `main` on March 2. acme-web has no release; merging to `main` deploys it.
 - Every ticket under PROJ-2400 is Done, except PROJ-2403, which is still Ready for Release; its fix is in acme-api 3.21.0.
 - There are no person-owned tasks or manual tests in the epic.
