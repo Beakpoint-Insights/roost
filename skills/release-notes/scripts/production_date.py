@@ -121,15 +121,18 @@ def carriers(repo, owner, default, pr, gh, branches, carried, depth):
     elif depth >= MAX_STACK:
         trouble = [f"its stack is {DEEP} {MAX_STACK} branches"]
     else:
-        # On a stack: it lands with a PR from its base branch that was open when it merged into
-        # that branch, and merged after it. Matched by dates, not commits: a rebase rewrites the
-        # branch's commits, and a PR opened later from a reused branch name doesn't count. Every
-        # such PR is followed: one may have gone to another branch (staging) instead.
+        # On a stack: it lands with a PR from its base branch that merged after it and either
+        # was open when it merged into that branch (a rebase rewrites the branch's commits) or
+        # has a head that holds it (the branch was kept and a PR opened from it later). A PR
+        # from a reused branch name passes neither. Every such PR is followed: one may have
+        # gone to another branch (staging) instead.
         if base not in branches:
             branches[base] = pulls_from(repo, owner, base, gh)
         merged = pr["merged_at"]
         for p in branches[base]:
-            if p.get("merged_at") and p["created_at"] <= merged <= p["merged_at"]:
+            if not p.get("merged_at") or p["merged_at"] < merged:
+                continue
+            if p["created_at"] <= merged or contains(repo, pr["merge_commit_sha"], p["head"]["sha"], gh):
                 more, why = carriers(repo, owner, default, p, gh, branches, carried, depth + 1)
                 landed += more
                 trouble += why

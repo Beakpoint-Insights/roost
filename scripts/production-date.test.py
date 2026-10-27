@@ -227,12 +227,11 @@ class LandingCommits(unittest.TestCase):
         self.assertEqual(result["status"], "dated")
         self.assertEqual((result["prs"][0]["landing_pr"], result["date"]), (80, "2026-03-04"))
 
-    def test_a_pr_opened_from_the_branch_after_the_merge_doesnt_carry_it(self):
-        # #60 reuses slice-2 and merges into main, but was opened after #46 merged into slice-2.
-        fx = load("stacked")
-        next(p for p in fx["pulls"] if p["number"] == 60)["head"]["sha"] = "w046h"
-        result, _ = find(fx, "merge", [46])
-        self.assertIs(result["prs"][0]["landed"], False)
+    def test_a_continued_branchs_later_pr_carries_it(self):
+        # #491 was opened after #486 merged into the kept branch, and its head holds #486.
+        result, _ = find(load("continued-branch"), "merge", [486])
+        self.assertEqual(result["status"], "dated")
+        self.assertEqual((result["prs"][0]["landing_pr"], result["date"]), (491, "2026-03-19"))
 
     def test_every_pr_open_from_the_branch_is_tried_not_only_the_first_to_merge(self):
         # slice-1 had two PRs open when #81 merged into it: #91 into staging, which merged
