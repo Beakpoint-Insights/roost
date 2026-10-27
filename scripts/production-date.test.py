@@ -5,14 +5,16 @@ scripts/fixtures/production-date/, paging and filtering the way GitHub does.
 
 Run: python3 scripts/production-date.test.py
 """
+import contextlib
 import copy
+import io
 import datetime
 import json
 import os
 import subprocess
 import sys
 import unittest
-from urllib.parse import parse_qs, urlsplit
+from urllib.parse import parse_qs, unquote, urlsplit
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SCRIPT = os.path.join(ROOT, "skills", "release-notes", "scripts", "production_date.py")
@@ -57,7 +59,7 @@ class FakeGitHub:
                 raise GhError(message)
         url = urlsplit(path)
         query = {k: v[0] for k, v in parse_qs(url.query).items()}
-        parts = url.path.split("/")
+        parts = [unquote(part) for part in url.path.split("/")]
         repo = "/".join(parts[1:3])
         if parts[0] != "repos" or repo != self.fx["repo"]:
             raise GhError("gh: Not Found (HTTP 404)")
@@ -80,7 +82,15 @@ class FakeGitHub:
             name = "/".join(rest[3:])
             if name not in self.fx["tags"]:
                 raise GhError("gh: Not Found (HTTP 404)")
-            return {"ref": "refs/tags/" + name}
+            annotated = self.fx.get("annotated_tags", {})
+            if name in annotated:
+                return {"ref": "refs/tags/" + name, "object": {"sha": "tagobj-" + name, "type": "tag"}}
+            return {"ref": "refs/tags/" + name, "object": {"sha": self.fx["tag_commits"][name], "type": "commit"}}
+        if rest[:2] == ["git", "tags"]:
+            for name, sha in self.fx.get("annotated_tags", {}).items():
+                if rest[2] == "tagobj-" + name:
+                    return {"tag": name, "object": {"sha": sha, "type": "commit"}}
+            raise GhError("gh: Not Found (HTTP 404)")
         if rest[0] == "compare":
             base, head = "/".join(rest[1:]).split("...")
             return {"status": self._compare(base, head)}
@@ -190,7 +200,7 @@ class LandingCommits(unittest.TestCase):
         not_landed = [p for p in result["prs"] if p.get("landed") is False]
         self.assertEqual([p["pr"] for p in not_landed], [46])
         self.assertIn("slice-2", not_landed[0]["reason"])
-        self.assertIn("#46", result["reason"])
+        self.assertEqual(result["reason"], "#46 merged into `slice-2`, and no PR has brought it onto `main`")
 
     def test_an_unmerged_pr_hasnt_landed(self):
         result, _ = find(load("stacked"), "merge", [43, 49])
@@ -218,12 +228,29 @@ class LandingCommits(unittest.TestCase):
         self.assertIn("#50", result["reason"])
         self.assertIn("without a PR", result["reason"])
 
-    def test_an_unexpected_answer_from_gh_is_reported_not_raised(self):
+    def test_a_crash_isnt_hidden_as_date_not_found(self):
         fx = load("one-epic")
         del fx["pulls"][0]["base"]
-        result, _ = find(fx, "merge", [812])
+        with self.assertRaises(KeyError):
+            find(fx, "merge", [812])
+
+    def test_a_crash_still_prints_json_and_fails(self):
+        fx = load("one-epic")
+        del fx["pulls"][0]["base"]
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            code = production_date.main(["--repo", "acme/acme-api", "--merge", "812"], gh=FakeGitHub(fx))
+        self.assertEqual(code, 1)
+        result = json.loads(out.getvalue())
         self.assertEqual(result["status"], "not_found")
-        self.assertIn("unexpected", result["reason"])
+        self.assertIn("KeyError", result["reason"])
+        self.assertIn("production_date.py failed", result["reason"])
+
+    def test_squash_merged_stack_more_than_one_branch_deep_lands(self):
+        # #70 into slice-2, #71 slice-2 into slice-1, #72 slice-1 into main, all squashed.
+        result, _ = find(load("squash-stack"), "merge", [70])
+        self.assertEqual(result["status"], "dated")
+        self.assertEqual((result["prs"][0]["landing_pr"], result["prs"][0]["landing_sha"]), (72, "w072"))
 
     def test_a_pr_gh_cant_read_means_date_not_found(self):
         result, _ = find(load("one-epic"), "merge", [812], fail={"repos/acme/acme-api/pulls/812": "gh: HTTP 502"})
@@ -328,10 +355,50 @@ class Workflow(unittest.TestCase):
 
     def test_a_deploy_from_a_tag_counts(self):
         fx = with_runs(load("one-epic"), run(3010, "a821", "2026-03-02T20:00:00Z", branch="v3.21.0"))
-        fx["tags"] = ["v3.21.0"]
+        fx["tags"], fx["tag_commits"] = ["v3.21.0"], {"v3.21.0": "a821"}
         result, _ = find(fx, DEPLOY, [820])
         self.assertEqual(result["deploy"]["run_id"], 3010)
         self.assertEqual(result["deploy"]["head_branch"], "v3.21.0")
+
+    def test_a_deploy_from_an_annotated_tag_counts(self):
+        fx = with_runs(load("one-epic"), run(3010, "a821", "2026-03-02T20:00:00Z", branch="v3.21.0"))
+        fx["tags"], fx["annotated_tags"] = ["v3.21.0"], {"v3.21.0": "a821"}
+        result, _ = find(fx, DEPLOY, [820])
+        self.assertEqual(result["deploy"]["run_id"], 3010)
+
+    def test_a_branch_named_like_a_tag_isnt_a_tag_deploy(self):
+        # A branch v3.21.0 at a821, beside a tag v3.21.0 at an older commit.
+        fx = with_runs(load("one-epic"), run(3010, "a821", "2026-03-02T20:00:00Z", branch="v3.21.0"))
+        fx["tags"], fx["tag_commits"] = ["v3.21.0"], {"v3.21.0": "a812"}
+        result, _ = find(fx, DEPLOY, [820])
+        self.assertEqual(result["deploy"]["run_id"], 3003)
+
+    def test_a_branch_name_with_url_characters_isnt_read_as_another_tag(self):
+        # Unencoded, `hotfix?x` would ask about the tag `hotfix`.
+        fx = with_runs(load("one-epic"), run(3010, "a821", "2026-03-02T20:00:00Z", branch="hotfix?x"))
+        fx["tags"], fx["tag_commits"] = ["hotfix"], {"hotfix": "a821"}
+        result, _ = find(fx, DEPLOY, [820])
+        self.assertEqual(result["deploy"]["run_id"], 3003)
+
+    def test_a_rerun_that_finished_after_a_later_run_doesnt_date_it(self):
+        # 3010 started first but succeeded only on a re-run, the next day; 3011 finished first.
+        fx = with_runs(load("one-epic"),
+                       run(3010, "a821", "2026-03-02T17:00:00Z", attempts=[
+                           {"conclusion": "failure", "updated_at": "2026-03-02T17:10:00Z"},
+                           {"conclusion": "success", "updated_at": "2026-03-04T08:15:00Z"}]),
+                       run(3011, "a821", "2026-03-02T19:00:00Z", attempts=[
+                           {"conclusion": "success", "updated_at": "2026-03-02T19:10:00Z"}]))
+        result, _ = find(fx, DEPLOY, [820])
+        self.assertEqual((result["deploy"]["run_id"], result["time"]), (3011, "2026-03-02T19:10:00Z"))
+
+    def test_exactly_a_searchs_worth_of_runs_is_read_not_a_page_limit(self):
+        t0 = datetime.datetime(2026, 3, 3, tzinfo=datetime.timezone.utc)
+        runs = [run(20000 + i, "a821", (t0 + datetime.timedelta(seconds=60 * i)).strftime("%Y-%m-%dT%H:%M:%SZ"))
+                for i in range(1000)]
+        fx = with_runs(load("one-epic"), *runs, replace=True)
+        fx["pulls"][1]["merged_at"] = "2026-03-04T00:00:00Z"
+        result, _ = find(fx, DEPLOY, [820], today="2026-03-03")
+        self.assertEqual((result["status"], result["deploy"]["run_id"]), ("dated", 20000))
 
     def test_a_deploy_that_succeeded_on_a_rerun_is_dated_by_that_attempt(self):
         fx = with_runs(load("one-epic"), run(3003, "a821", "2026-03-03T23:50:00Z", attempts=[
@@ -439,6 +506,15 @@ class Release(unittest.TestCase):
         result, gh = find(fx, "release", [820])
         self.assertEqual((result["deploy"]["tag"], result["time"]), ("v3.21.1", "2026-03-03T20:00:00Z"))
         self.assertTrue(any("releases?" in c and "page=2" in c for c in gh.calls))
+
+    def test_a_tag_name_with_url_characters_is_compared_whole(self):
+        fx = load("release")
+        for r in fx["releases"]:
+            if r["tag_name"] == "v3.21.0":
+                r["tag_name"] = "v3.21.0#2"
+        fx["tag_commits"]["v3.21.0#2"] = fx["tag_commits"].pop("v3.21.0")
+        result, _ = find(fx, "release", [820])
+        self.assertEqual(result["deploy"]["tag"], "v3.21.0#2")
 
     def test_not_released_yet_holds_the_note(self):
         fx = load("release")

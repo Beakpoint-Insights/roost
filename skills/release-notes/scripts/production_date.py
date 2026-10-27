@@ -70,6 +70,19 @@ def read(gh, path, what):
         raise NotFound(f"gh couldn't read {what}: {e}")
 
 
+def pages(gh, path, what):
+    """Each page of a paged list, from the first until a short one. A page is a list,
+    or for workflow runs an object with `workflow_runs` and `total_count`."""
+    sep = "&" if "?" in path else "?"
+    page = 1
+    while True:
+        body = read(gh, f"{path}{sep}per_page={PER_PAGE}&page={page}", what)
+        yield body
+        if len(body["workflow_runs"] if isinstance(body, dict) else body) < PER_PAGE:
+            return
+        page += 1
+
+
 def utc_day(timestamp):
     return datetime.date.fromisoformat(timestamp[:10])
 
@@ -90,14 +103,16 @@ def landing(repo, owner, default, number, gh, branches):
             return dict(entry, landing_pr=current["number"], landing_sha=current["merge_commit_sha"],
                         landed_at=current["merged_at"])
         # On a stack: it lands with the first PR from its base branch that merged after it and
-        # whose head holds it (a branch name can be reused). Not by its merge commit, which a
-        # squash merge leaves out of the default branch's history.
+        # whose head holds this hop's merge commit (a branch name can be reused).
         if base not in branches:
             branches[base] = pulls_from(repo, owner, base, gh)
         later = sorted((p for p in branches[base] if p.get("merged_at") and p["merged_at"] >= current["merged_at"]),
                        key=lambda p: p["merged_at"])
         current = next((p for p in later if contains(repo, sha, p["head"]["sha"], gh)), None)
-        if current is None:
+        if current is not None:
+            # A squash merge into the next branch doesn't hold `sha` either: follow its own commit.
+            sha = current["merge_commit_sha"]
+        else:
             if contains(repo, sha, default, gh):
                 raise NotFound(f"#{number} reached `{default}` from `{base}` without a PR, "
                                f"so when it landed isn't known")
@@ -108,14 +123,8 @@ def landing(repo, owner, default, number, gh, branches):
 
 def pulls_from(repo, owner, branch, gh):
     head = quote(f"{owner}:{branch}", safe=":")
-    found, page = [], 1
-    while True:
-        batch = read(gh, f"repos/{repo}/pulls?state=closed&head={head}&per_page={PER_PAGE}&page={page}",
-                     f"the PRs from `{branch}`")
-        found += batch
-        if len(batch) < PER_PAGE:
-            return found
-        page += 1
+    return [p for body in pages(gh, f"repos/{repo}/pulls?state=closed&head={head}", f"the PRs from `{branch}`")
+            for p in body]
 
 
 # The three ways to production.
@@ -140,7 +149,7 @@ def find(repo, production, prs, today, gh=gh_api):
             result["last_change"] = {k: last[k] for k in ("pr", "landing_pr", "landing_sha", "landed_at")}
         if production is None:
             raise NotFound("; ".join([f"{repo} has no `production` in the config"]
-                                     + [p["reason"] + ": not on the default branch yet" for p in waiting]))
+                                     + [p["reason"] for p in waiting]))
         if landed:
             deploy, time = deploy_for(repo, default, production, result["last_change"], today, gh)
             result["deploy"] = deploy
@@ -148,7 +157,7 @@ def find(repo, production, prs, today, gh=gh_api):
             time = None
         if waiting:
             result["status"] = "held"
-            result["reason"] = "; ".join(p["reason"] for p in waiting) + ": not on the default branch yet"
+            result["reason"] = "; ".join(p["reason"] for p in waiting)
         elif time is None:
             result["status"] = "held"
             result["reason"] = held_reason(production, result["last_change"], today)
@@ -156,15 +165,13 @@ def find(repo, production, prs, today, gh=gh_api):
             result.update(status="dated", date=time[:10], time=time)
     except NotFound as e:
         result.update(status="not_found", date=None, time=None, reason=str(e))
-    except (KeyError, TypeError, ValueError, AttributeError) as e:
-        result.update(status="not_found", date=None, time=None,
-                      reason=f"unexpected answer from gh ({type(e).__name__}: {e}); run it again, or check by hand")
     return result
 
 
 def contains(repo, sha, head, gh):
     """`compare`'s status if `head` contains `sha` (ahead or identical), else None."""
-    status = read(gh, f"repos/{repo}/compare/{sha}...{head}", f"whether {head} contains {sha}")["status"]
+    status = read(gh, f"repos/{repo}/compare/{quote(sha, safe='/')}...{quote(head, safe='/')}",
+                  f"whether {head} contains {sha}")["status"]
     return status if status in ("ahead", "identical") else None
 
 
@@ -177,26 +184,32 @@ def by_workflow(repo, default, workflow, last, today, gh):
         raise NotFound(f"gh couldn't read the workflow `{workflow}` ({e}); check `production`'s workflow")
     tags = {}
 
+    def tag_commit(name):
+        """The commit tag `name` points to, or None when there's no such tag."""
+        if name not in tags:
+            try:
+                obj = gh(f"repos/{repo}/git/ref/tags/{quote(name, safe='/')}")["object"]
+            except GhError as e:
+                if "404" not in str(e):
+                    raise NotFound(f"gh couldn't read whether `{name}` is a tag: {e}")
+                obj = None
+            if obj and obj["type"] == "tag":
+                obj = read(gh, f"repos/{repo}/git/tags/{obj['sha']}", f"the tag `{name}`")["object"]
+            tags[name] = obj["sha"] if obj else None
+        return tags[name]
+
     def deploys(run):
         if run["conclusion"] != "success" or run["event"] in ("pull_request", "pull_request_target"):
             return False
-        branch = run["head_branch"]
-        if branch == default:
-            return True
-        if branch not in tags:
-            try:
-                gh(f"repos/{repo}/git/ref/tags/{branch}")
-                tags[branch] = True
-            except GhError as e:
-                if "404" not in str(e):
-                    raise NotFound(f"gh couldn't read whether `{branch}` is a tag: {e}")
-                tags[branch] = False
-        return tags[branch]
+        # A run on a tag has the tag as its branch; a branch can share a tag's name, so the
+        # run must be of the tag's own commit.
+        return run["head_branch"] == default or tag_commit(run["head_branch"]) == run["head_sha"]
 
     one_day = datetime.timedelta(days=1)
     start = utc_day(last["landed_at"]) - one_day
     deployed_before = False
-    while start <= today:
+    best = None  # (finished at, deploy) of the earliest-finishing run that contains it
+    while start <= today and not (best and best[0][:10] < start.isoformat()):
         end = today
         while True:
             runs, capped = list_runs(repo, workflow, f"&created={start}..{end}", gh)
@@ -208,15 +221,23 @@ def by_workflow(repo, default, workflow, last, today, gh):
             end = start + (end - start) // 2
         for run in sorted(filter(deploys, runs), key=lambda r: r["created_at"]):
             deployed_before = True
+            # A run that started after the best one finished can't have finished first.
+            if best and run["created_at"] > best[0]:
+                break
             status = contains(repo, last["landing_sha"], run["head_sha"], gh)
-            if status:
-                attempt, finished = first_success(repo, run, gh)
-                return ({"kind": "workflow", "workflow": workflow, "run_id": run["id"], "url": run["html_url"],
-                         "head_sha": run["head_sha"], "head_branch": run["head_branch"], "event": run["event"],
-                         "attempt": attempt,
-                         "matched": f"compare {last['landing_sha']}...{run['head_sha']}: {status}"},
-                        finished)
+            if not status:
+                continue
+            # Dated by its first successful attempt: a run can succeed only on a re-run, after a
+            # later run, so the scan goes on until no later run could have finished sooner.
+            attempt, finished = first_success(repo, run, gh)
+            if not best or finished < best[0]:
+                best = (finished, {"kind": "workflow", "workflow": workflow, "run_id": run["id"],
+                                   "url": run["html_url"], "head_sha": run["head_sha"],
+                                   "head_branch": run["head_branch"], "event": run["event"], "attempt": attempt,
+                                   "matched": f"compare {last['landing_sha']}...{run['head_sha']}: {status}"})
         start = end + one_day
+    if best:
+        return best[1], best[0]
     if deployed_before or ever_deployed(repo, workflow, deploys, gh):
         return None, None
     raise NotFound(f"no successful `{workflow}` runs on the default branch or a tag; check `production`'s workflow")
@@ -224,30 +245,27 @@ def by_workflow(repo, default, workflow, last, today, gh):
 
 def list_runs(repo, workflow, created, gh):
     """(runs, capped): a workflow's successful runs, every page; capped when GitHub
-    has more than one search returns."""
-    runs, page = [], 1
-    while True:
-        body = read(gh, f"repos/{repo}/actions/workflows/{workflow}/runs?status=success{created}"
-                        f"&per_page={PER_PAGE}&page={page}", f"`{workflow}`'s runs")
-        if body["total_count"] >= SEARCH_LIMIT:
+    has more than one search returns (it reports the true total_count)."""
+    runs = []
+    for body in pages(gh, f"repos/{repo}/actions/workflows/{workflow}/runs?status=success{created}",
+                      f"`{workflow}`'s runs"):
+        if body["total_count"] > SEARCH_LIMIT:
             return runs, True
         runs += body["workflow_runs"]
-        if len(body["workflow_runs"]) < PER_PAGE:
-            return runs, False
-        page += 1
+    return runs, False
 
 
 def ever_deployed(repo, workflow, deploys, gh):
     """Whether any successful run, ever, ran on the default branch or a tag."""
-    for page in range(1, SEARCH_LIMIT // PER_PAGE + 1):
-        body = read(gh, f"repos/{repo}/actions/workflows/{workflow}/runs?status=success"
-                        f"&per_page={PER_PAGE}&page={page}", f"`{workflow}`'s runs")
+    total = 0
+    for body in pages(gh, f"repos/{repo}/actions/workflows/{workflow}/runs?status=success", f"`{workflow}`'s runs"):
+        total = body["total_count"]
         if any(map(deploys, body["workflow_runs"])):
             return True
-        if len(body["workflow_runs"]) < PER_PAGE:
-            return False
-    raise NotFound(f"page limit: none of `{workflow}`'s newest {SEARCH_LIMIT} successful runs ran on the "
-                   f"default branch or a tag, and GitHub lists no more")
+    if total > SEARCH_LIMIT:
+        raise NotFound(f"page limit: none of `{workflow}`'s newest {SEARCH_LIMIT} successful runs ran on the "
+                       f"default branch or a tag, and GitHub lists no more")
+    return False
 
 
 def first_success(repo, run, gh):
@@ -264,13 +282,7 @@ def by_release(repo, last, today, gh):
     """The first published release, by publish date, whose tag contains the landing commit.
     The API lists releases by when each was created, so every page is read and sorted here."""
     since = (utc_day(last["landed_at"]) - datetime.timedelta(days=1)).isoformat()
-    releases, page = [], 1
-    while True:
-        batch = read(gh, f"repos/{repo}/releases?per_page={PER_PAGE}&page={page}", "the releases")
-        releases += batch
-        if len(batch) < PER_PAGE:
-            break
-        page += 1
+    releases = [r for body in pages(gh, f"repos/{repo}/releases", "the releases") for r in body]
     published = [r for r in releases if not r["draft"] and not r["prerelease"] and r["published_at"]
                  and since <= r["published_at"][:10] <= today.isoformat()]
     for r in sorted(published, key=lambda r: r["published_at"]):
@@ -315,13 +327,22 @@ def parse(argv):
     return args
 
 
-def main(argv=None):
+def main(argv=None, gh=gh_api):
     args = parse(sys.argv[1:] if argv is None else argv)
     production = ({"workflow": args.workflow} if args.workflow else
                   "release" if args.release else "merge" if args.merge else None)
     today = args.today or datetime.datetime.now(datetime.timezone.utc).date()
-    print(json.dumps(find(args.repo, production, args.prs, today), indent=2))
+    try:
+        result, code = find(args.repo, production, args.prs, today, gh), 0
+    except Exception as e:  # a bug, or an answer from gh it doesn't understand: say so, never a date
+        result = {"repo": args.repo, "production": production, "status": "not_found", "date": None, "time": None,
+                  "reason": f"production_date.py failed ({type(e).__name__}: {e}); "
+                            f"date not found until it's fixed, so report it",
+                  "last_change": None, "deploy": None, "prs": []}
+        code = 1
+    print(json.dumps(result, indent=2))
+    return code
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
