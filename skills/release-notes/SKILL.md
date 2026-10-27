@@ -29,7 +29,7 @@ Keep only merged PRs. For each, find the commit that brought its change onto the
 
 ## 2. What shipped
 
-The note describes what the merged PRs built, read from the children and their PRs, not from EPIC's plan or description. A child closed as `tracker.statuses.wont_do`, or one whose work never started, is left out of the note entirely (not "coming soon", not "planned"), and listed in the checks as planned but not built, for the user to confirm. A child the feature needs that's still being built (an open PR, or a status between the first and done) isn't left out: the feature isn't finished, so its note is held (step 4).
+The note describes what the merged PRs built, read from the children and their PRs, not from EPIC's plan or description. A child closed as `tracker.statuses.wont_do`, or one whose work never started, is left out of the note entirely (not "coming soon", not "planned"), and listed in the checks as planned but not built, for the user to confirm. A child the feature needs that's still being built (an open PR, or its work started and it's at neither `tracker.statuses.done` nor `tracker.statuses.ready_for_release`) isn't left out: the feature isn't finished, so its note is held (step 4).
 
 ## 3. When customers could use it
 
