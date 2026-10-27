@@ -24,12 +24,15 @@ Read EPIC and its children (stories, tasks, bugs) through the tracker adapter, w
 
 - PRs on its timeline (`cross-referenced` and `connected` events, with `tracker.kind: github`).
 
+For every other child that isn't `tracker.statuses.wont_do`, note its status and whether its work has started (an open PR, or a status past the first one): step 2 needs it.
+
+
 Keep only merged PRs. For each, find the commit that brought its change onto the repo's default branch, and that commit's date: step 3 dates the PR by it, never by the PR's own merge into another branch. For a PR merged into the default branch, it's the PR's merge commit. A PR merged into another branch (on a stack, into the PR below it) lands when that branch does: find the first PR whose head is that base branch and that merged after it (`gh pr list -R <repo> --state merged --head <base branch> --limit 1000 --json number,mergedAt,mergeCommit`)
 , follow base branches the same way until one merged into the default branch, and use that PR's merge commit and date. Call it the PR's **landing commit**. A PR whose change hasn't reached the default branch yet hasn't shipped: list it in the checks. Such a child with no merged PR found goes in the checks ("no merged PR found for PROJ-1234"); don't treat it as not built.
 
 ## 2. What shipped
 
-The note describes what the merged PRs built, read from the children and their PRs, not from EPIC's plan or description. A child closed as `tracker.statuses.wont_do`, or one with no merged work, is left out of the note entirely (not "coming soon", not "planned"), and listed in the checks as planned but not built, for the user to confirm.
+The note describes what the merged PRs built, read from the children and their PRs, not from EPIC's plan or description. A child closed as `tracker.statuses.wont_do`, or one whose work never started, is left out of the note entirely (not "coming soon", not "planned"), and listed in the checks as planned but not built, for the user to confirm. A child the feature needs that's still being built (an open PR, or a status between the first and done) isn't left out: the feature isn't finished, so its note is held (step 4).
 
 ## 3. When customers could use it
 
@@ -69,7 +72,8 @@ Code in production isn't always something customers can use. For each feature, h
 
 - **A feature flag.** Read each merged PR's diff and, on the default branch, the code that renders or routes to what it adds (the page, the menu entry, the route, the handler), for a check that turns it on or off. It can come from any library or the team's own helper: `flags.isEnabled("spend-by-team")`, `useFeature("bulk-export")`, `if (featureFlags.newBilling)`, `variation("usage-alerts", false)`. Never read a flag provider: you can't know who has the flag on, so say "check the flag's rollout", and never say the rollout was checked. If the user tells you the flag is on for everyone, that counts: don't hold the note for it, and date it by the later of when the flag went on for everyone and step 3's date, or `[date]` if they didn't say when.
 
-- **A slice that isn't live yet.** A child the feature needs whose PR hasn't landed on the default branch yet (step 1: merged into a stacked branch that hasn't merged), or whose landing commit no production deploy has carried yet, by step 3's rule: for example one at `tracker.statuses.ready_for_release` whose PR landed after the last deploy.
+- **A slice that isn't live yet.** A child the feature needs that's still being built (step 2), named by its key and status; or one whose PR
+ hasn't landed on the default branch yet (step 1: merged into a stacked branch that hasn't merged), or whose landing commit no production deploy has carried yet, by step 3's rule: for example one at `tracker.statuses.ready_for_release` whose PR landed after the last deploy.
 - **A correction to past data that hasn't run.** A job, backfill, script or data migration a merged PR adds for someone to run by hand, with no record that it ran in production (a comment, a run, a runbook record), when the note's promise depends on it ("past costs are corrected"). Once it has run, the note's date is the later of step 3's date and the recorded run.
 
 
