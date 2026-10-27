@@ -71,6 +71,10 @@ To use the roost skills here, copy [`.roost/config.example.yml`](.roost/config.e
 | `verify-with-eval-cases` | With the GitHub-only example config, `verify-slice-tests` treats a story's tests as eval cases tagged with its key, not Xray tests, and closes nothing |
 | `which-roost-is-running` | "Which roost is running?" gets the version from the plugin's own manifest, not a guess |
 | `update-moving` | A progress update when nothing needs the user is a `#### 🟢` heading and one plain line |
+| `release-note-for-one-epic` | One epic's release note is dated by its production deploy, not the resolution date, with an evidence table; it leaves out a slice that was cut and leaves an unknown number as `[N]`, all in one paste-ready reply |
+| `release-note-fallback-voice` | Without the team's own voice, a note follows roost's fallback: a feature title, a category and date line, "Previously… Now…", and no ticket keys, hype or sign-off |
+| `release-note-date-not-found` | When a repo's config doesn't say how it reaches production, the note says the date wasn't found and shows the evidence, instead of guessing one |
+| `close-out-offers-release-note` | After an epic ships, `close-out-epic` confirms production from each repo's `production` key, then offers to draft the release note instead of writing one unasked |
 
 Run them before merging a change to a skill:
 
