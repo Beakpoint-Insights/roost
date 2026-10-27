@@ -41,6 +41,8 @@ jobs:
         run: scripts/check-references.py
       - name: Test the reference check
         run: scripts/check-references.test.sh
+      - name: Test which eval cases a change runs
+        run: scripts/eval-cases.test.sh
 
   private-details:
     runs-on: ubuntu-latest

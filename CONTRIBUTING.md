@@ -71,6 +71,12 @@ To use the roost skills here, copy [`.roost/config.example.yml`](.roost/config.e
 | `verify-with-eval-cases` | With the GitHub-only example config, `verify-slice-tests` treats a story's tests as eval cases tagged with its key, not Xray tests, and closes nothing |
 | `which-roost-is-running` | "Which roost is running?" gets the version from the plugin's own manifest, not a guess |
 | `update-moving` | A progress update when nothing needs the user is a `#### 🟢` heading and one plain line |
+| `release-note-for-one-epic` | One epic's release note is dated by its production deploy, not the resolution date, with an evidence table; it leaves out a slice that was cut and leaves an unknown number as `[N]`, all in one paste-ready reply |
+| `release-note-fallback-voice` | Without the team's own voice, a note follows roost's fallback: a feature title, a category and date line, "Previously… Now…", and no ticket keys, hype or sign-off |
+| `release-note-date-not-found` | When a repo's config doesn't say how it reaches production, the note says the date wasn't found and shows the evidence, instead of guessing one |
+| `release-note-stacked-slice` | A slice merged into another slice's branch is dated by the commit that brought it onto `main`, not its own merge, and a PR whose key only contains the slice's key is left out |
+| `release-note-one-per-feature` | An epic that shipped two separate features gets one note for each, each dated by the last change that feature needed |
+| `close-out-offers-release-note` | After an epic ships, `close-out-epic` confirms production from each repo's `production` key, then offers to draft the release note instead of writing one unasked |
 
 Run them before merging a change to a skill:
 
@@ -86,7 +92,7 @@ Each case runs 3 times with roost and 3 times without it, so you can see what th
 
 They also run in CI (`.github/workflows/evals.yml`), but only when someone asks, because every run is a real Claude session paid for by the repository's credential:
 
-- **On a PR, add the `run-evals` label** when it changes how a skill behaves. `scripts/eval-cases.sh` picks the cases the PR's changes can affect: a change to `skills/<name>/` runs the cases tagged `<name>`, a change to a case runs that case, and a change to `roost-config`, the example config or the plugin manifest runs them all. Each runs once. They run again on each push while the label stays on; remove it to stop.
+- **On a PR, add the `run-evals` label** when it changes how a skill behaves. `scripts/eval-cases.sh` picks the cases the PR's changes can affect: a change to `skills/<name>/` runs the cases tagged `<name>`, a change to a case runs that case, a change to another file in `examples/` runs the cases whose prompt names it, and a change to `roost-config`, `examples/config.example.yml` or the plugin manifest runs them all. Each runs once. They run again on each push while the label stays on; remove it to stop.
 - **Before a release,** reopen the release PR (it needs reopening anyway, so its required checks start): the cases whose skills changed since the last release run once each. Check that run before merging the release.
 - **By hand,** `gh workflow run Evals` does the same as a release. Name cases with `-f cases="update-moving status-is-a-table"`, or run every case with `-f all=true`, adding `-f runs=3` for three runs each, when you want a full baseline.
 

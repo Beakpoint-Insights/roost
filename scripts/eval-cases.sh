@@ -4,15 +4,23 @@
 # Usage: scripts/eval-cases.sh --all
 #        scripts/eval-cases.sh <base-sha> <head-sha>
 #
-# A change to roost-config, the example config or the plugin manifest can change
-# every skill's behaviour, so it runs every case. A change to skills/<name>/ runs
-# the cases tagged <name>. A change to evals/<case>/ runs that case.
+# A change to roost-config, examples/config.example.yml or the plugin manifest can
+# change every skill's behaviour, so it runs every case. A change to another file
+# in examples/ runs the cases whose prompt names it. A change to skills/<name>/
+# runs the cases tagged <name>. A change to evals/<case>/ runs that case.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
 all_cases() {
   for f in evals/*/prompt.md; do basename "$(dirname "$f")"; done
+}
+
+# The cases whose prompt names the file $1.
+cases_naming() {
+  for f in evals/*/prompt.md; do
+    if grep -q -F "$1" "$f"; then basename "$(dirname "$f")"; fi
+  done
 }
 
 # The cases whose front-matter tags include $1.
@@ -36,6 +44,8 @@ git diff --name-only "$base...$head" | while IFS= read -r path; do
   case "$path" in
     skills/roost-config/*|examples/config.example.yml|.claude-plugin/*)
       all_cases ;;
+    examples/*)
+      cases_naming "$path" ;;
     skills/*/*)
       skill=${path#skills/}
       cases_tagged "${skill%%/*}" ;;

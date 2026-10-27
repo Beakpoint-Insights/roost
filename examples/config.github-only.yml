@@ -42,6 +42,7 @@ repos:
     owns: the plugin's skills, their eval cases and its scripts
     tests: eval cases in evals/, claude plugin validate --strict ., and the scripts' own tests
     local_stack: false
+    production: release
 
 vcs:
   host: github

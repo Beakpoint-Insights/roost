@@ -42,6 +42,7 @@ repos:
     branch_suffix: backend
     owns: the API, domain, database, migrations and third-party integrations
     tests: unit tests next to the code, and integration tests in tests/integration
+    production: { workflow: deploy-production.yml }
   - name: acme-web
     github: acme/acme-web
     role: frontend
@@ -52,6 +53,7 @@ repos:
     branch_suffix: frontend
     owns: the web app and its e2e suite
     tests: component tests next to the components, and Cucumber e2e scenarios
+    production: merge
     contract: >-
       Regenerate the API client (src/api/generated) against the API running on :8080,
       once it runs the backend branch. Don't check out acme-api, and don't hand-write API types.
