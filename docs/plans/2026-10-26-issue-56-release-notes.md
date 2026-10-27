@@ -45,7 +45,7 @@ Checked on `main` at `fcb4a34`.
 | Question | Finding |
 |---|---|
 | A tracker search for "moved to a status since a date"? | **None in either adapter.** Jira's Common searches are `skills/roost-config/references/tracker-jira.md:49-53` (children of an epic, not waiting to ship, linked, created during a window, roadmap epics). GitHub's are `tracker-github.md:52-60` (the same five). |
-| The exact Jira query | `project = <project> AND status CHANGED TO ("<done>", "<ready_for_release>") AFTER "<date>"` (JQL `CHANGED TO … AFTER`). **Not run**: roost's tracker is GitHub and Acme is made up; see data assumption D5. |
+| The exact Jira query | `project = <project> AND status CHANGED TO ("<done>", "<ready_for_release>") AFTER "<date>" ORDER BY updated ASC`. Run on a real Jira site (D5): it works, includes Tests and sub-tasks, pages at 100, and returns tickets that have since moved back to To Do. |
 | The exact GitHub query | Done: `gh issue list -R R --state closed --limit 1000 --search "closed:>=<date> reason:completed" --json number,title,closedAt,labels`. Ready for release: `--search 'label:"<ready_for_release>"'`, then each one's timeline for when the label was added: `gh api repos/R/issues/<n>/timeline --paginate --jq '.[] \| select(.event=="labeled" and .label.name=="<ready_for_release>") \| .created_at'`. Checked: `closed:>=2026-10-26` returned 16 issues; #60's timeline returns `labeled story 2026-10-26T20:39:00Z`, so `labeled` events carry `created_at`. |
 | How `close-out-epic` step 6 decides production runs the release | `skills/close-out-epic/SKILL.md:68`: "the rollout's deploy step passed, or, for an epic with no rollout, the production deploy that carries its release has run (merging deploys nothing on its own)". It says where to look only for the release workflow (`:70`, `gh run list --workflow <its workflow file>`), not for the production deploy. Nothing reads `production` today. |
 | Does any skill date anything from deploy history? | No. `grep -rn production skills/*/SKILL.md` finds only checks that a deploy happened (`close-out-epic:68`), migration notes and runbook rules. |
@@ -173,7 +173,8 @@ Each branch has one concern (its story) and stays inside the plugin's docs and s
 3. **A team's notes repeated an announcement** because `published_url` couldn't be fetched and the skill said nothing. *Rule:* repeat check not done is always said. *Test:* `release-note-without-release-notes-config` / `says-what-it-skipped`. Owner: `issue-61-roost`.
 4. **roost shipped one team's voice to every team.** *Rule:* the fallback is #60's text only. *Test:* Task 1.4's grep, and `private-details` on the PR. Owner: `issue-60-roost`.
 5. **Upgrading roost broke close-out for teams without `production`.** *Rule:* without `production`, step 6 confirms production as it does today and still offers the note. *Test:* `close-out-sorts-first` still passes (all cases run on `issue-60-roost`), and Task 1.6's review reads step 6 for a config with no `production`. Owner: `issue-60-roost`.
-6. **Catch-up missed an epic** because a search returned exactly its limit. *Rule:* a search that returns its limit is split by date, and if it can't be, the checks say so. *Test:* reviewed in Task 4.2 against `tracker-github.md:38`'s rule. Owner: `issue-63-roost`.
+6. **Catch-up missed an epic** because a search returned exactly its limit, or stopped at Jira's first page of 100 (D5 had 320). *Rule:* page through every result; a GitHub search that returns its limit is split by date, and if it can't be, the checks say so. *Test:* reviewed in Task 4.2 against `tracker-github.md:38`'s rule; `release-notes-catch-up-filters` gives a two-page result. Owner: `issue-63-roost`.
+7. **Catch-up announced a reverted fix, or a Test,** because the Jira search returns tickets that later moved back to To Do, and Tests and sub-tasks (D5). *Rule:* keep only tickets whose current status is still done or ready-for-release; drop Tests and sub-tasks. *Test:* `release-notes-catch-up-filters` / `right-tickets`. Owner: `issue-63-roost`.
 
 ## Data assumptions (checklist 11)
 
@@ -183,7 +184,7 @@ Each branch has one concern (its story) and stays inside the plugin's docs and s
 | D2 | `gh run list --workflow <file>` reaches far enough back | `gh run list -R Beakpoint-Insights/roost --workflow release-please.yml --limit 50 --json headSha,createdAt,conclusion` and the same without `--limit` | 22 runs, all on 2026-10-26, 3 `failure`; without `--limit`, 20 | **False at the default.** Pass `--limit` and `--created`; filter `conclusion == success`. Also: `release-please.yml` runs on every push to `main`, so it's not a deploy workflow; roost's own `production` would be `release`. |
 | D3 | A GitHub release's date is when users could get it | `gh release list -R Beakpoint-Insights/roost --json tagName,publishedAt,createdAt`; `git merge-base --is-ancestor <#52 merge sha> roost-v1.2.0` and `… roost-v1.1.1` | 4 releases; v1.1.0 `createdAt` 15:00:37Z, `publishedAt` 15:01:29Z. #52's merge `505a1da` is in `roost-v1.2.0`, not in `roost-v1.1.1` | **True, using `publishedAt`** (a draft has none). Matching by ancestry finds v1.2.0, published 2026-10-26T20:06:55Z. For a plugin, "could use" means "could update to". |
 | D4 | GitHub can tell when a ticket reached ready-for-release | `gh api repos/Beakpoint-Insights/roost/issues/60/timeline --paginate --jq '.[] \| select(.event=="labeled")'`; `gh issue list … --search 'label:"Ready for Release"'` | `labeled story 2026-10-26T20:39:00Z`; 0 issues carry "Ready for Release" today | True: `labeled` events have `created_at`. Untested on a real "Ready for Release" label because none is in use yet. |
-| D5 | Jira's `status CHANGED TO (…) AFTER "<date>"` returns tickets moved since a date, at any depth | For Alan, on a Jira team's site: `project = <project> AND status CHANGED TO ("Done", "Ready for Release") AFTER "2026-09-01" ORDER BY updated ASC` | **Not run** (roost's tracker is GitHub; Acme is made up) | Open question Q1 until the result is in. |
+| D5 | Jira's `status CHANGED TO (…) AFTER "<date>"` returns tickets moved since a date, at any depth | Run read-only by the orchestrator on 2026-10-27, on a real Jira project: `project = <project> AND status CHANGED TO ("Done", "Ready for Release") AFTER "2026-09-01" ORDER BY updated ASC` | 320 issues, `hasNextPage` true at 100. First 100: Test 47, Story 24, Bug 17, Sub-task 10, Task 2; current status Done 93, Ready for Release 4, **To Do 3** | **True, with three rules** (Task 4.2, 4.3): page through every result; drop Tests and sub-tasks (a sub-task's work belongs to its parent); keep only tickets whose **current** status is done or ready-for-release, and list the ones that moved back in the checks. |
 
 ## Checking the plan against itself (checklist 9)
 
@@ -192,16 +193,18 @@ Each branch has one concern (its story) and stays inside the plugin's docs and s
 | Test-first: the eval cases are committed before the skill, but `check-references.py` fails on a grader whose `input_match` names a skill that doesn't exist yet (`scripts/check-references.py:86-89`), so a pushed red commit fails `validate-plugin` | Commit the cases first (red) locally, and don't push until the skill's task is done; the PR is green as a whole. |
 | `release-note-fallback-voice` asks for the example config "without its `release_notes` section", which doesn't exist until #61 | Works either way: in #60 there is no section to remove. No change. |
 | The fallback says "no sign-off"; `release-notes-catch-up` / `one-message-voice` needs two different sign-offs | That case uses the Acme voice (#62), so it's tagged `issue-63` and can only pass once #62 is merged. #63 starts from #62's branch. |
-| #62 AC1 "no fallback rule that conflicts with them" can read as "the fallback fills what the team's file doesn't say"; decision 2 says the file holds every rule and replaces the fallback | Q2. The plan follows decision 2: the file replaces the fallback wholly. |
+| #62 AC1 "no fallback rule that conflicts with them" can read as "the fallback fills what the team's file doesn't say"; decision 2 says the file holds every rule and replaces the fallback | Answered (Q2): the team's file is the whole voice; no fallback rule applies when a voice file is read. #62's AC1 is being reworded to match; Task 3.1 adds a grader that proves it. |
 | #61 adds `published_url` to `config.example.yml`; the #60 cases written before it (`release-note-for-one-epic`, …) then get "repeat check not done" lines | Their graders allow checks after the note (`ready-to-paste`); no change, but #61 runs every case anyway (example config). |
 | #63's AC4 "a picked candidate is drafted like an epic's note" needs a second turn, which an eval can't take (build guide, Test coverage) | A manual check on #63's PR, recorded with its evidence (Task 4.4). |
 
 ## Open questions
 
-- **Q1 (D5).** Does `status CHANGED TO (…) AFTER` work on the team's Jira, and does it include sub-tasks? Until Alan runs D5, Task 4.2 writes it as the Jira search with a note to check it.
-- **Q2.** When a team's voice file is silent on something (say, length), does the fallback fill the gap? Recommendation: no, as decision 2 says; a team copies the fallback as its starting point, so a gap is its choice.
-- **Q3.** Should roost's own `.roost/config.example.yml` get `production: release`, so `release-notes` and `close-out-epic` work on roost itself? It isn't a team's private config, but roost's notes aren't customer-facing. Recommendation: yes, in #60, one line; it is how Task 1.8's real-data check runs.
-- **Q4.** `scripts/eval-cases.sh` (Task 1.3, 3.2) widens CI's selection a little (the GitHub-only example and the voice file). Fine to add, or keep the script as is?
+None open. Answered by Alan on 2026-10-27, when approving the plan:
+
+- **Q1 (D5).** The Jira search works and includes sub-tasks (D5's result). Catch-up pages through every result, drops Tests and sub-tasks, and keeps only tickets whose current status is done or ready-for-release. Tasks 4.1 to 4.3.
+- **Q2.** No: the team's voice file is the whole voice; no fallback rule applies when one is read. Tasks 3.1 and 3.3.
+- **Q3.** Yes: `.roost/config.example.yml` gets `production: release` (Task 1.2). Task 1.8 also needs it in the session's own `.roost/config.yml` (gitignored): ask the user to add it if it's missing; never edit it silently.
+- **Q4.** Yes: widen `scripts/eval-cases.sh` (Tasks 1.3 and 3.2).
 
 ## How each test is checked
 
@@ -220,10 +223,11 @@ All are eval cases in `evals/`, run with `claude plugin eval . --no-publish --tr
 | #61 | `release-note-held-until-live` | `held-names-both-waits`, `uses-release-notes` | Eval |
 | #61 | `release-note-already-announced` | `not-announced-twice`, `uses-release-notes` | Eval |
 | #61 | `release_notes` keys in backticks resolve | — | `scripts/check-references.py`, `scripts/check-references.test.sh` |
-| #62 | `release-note-team-voice` | `follows-team-voice`, `uses-release-notes` | Eval |
+| #62 | `release-note-team-voice` | `follows-team-voice`, `no-fallback-rules` (new, Q2), `uses-release-notes` | Eval |
 | #62 | `release-note-without-release-notes-config` | `dated-by-release`, `says-what-it-skipped`, `uses-release-notes` | Eval |
 | #62 | `setup-asks-production-and-voice` | `asks-and-waits`, `uses-setup` | Eval |
 | #63 | `release-notes-catch-up` | `bugs-are-candidates`, `one-message-voice`, `right-notes-in-order`, `uses-release-notes` | Eval |
+| #63 | `release-notes-catch-up-filters` (new, Q1) | `right-tickets`, `uses-release-notes` | Eval |
 | #63 | A picked candidate is drafted like an epic's note | — | Manual, once, on the PR (Task 4.4) |
 | all | Selection of cases | — | `scripts/eval-cases.test.sh` (Task 1.3) |
 
@@ -254,7 +258,7 @@ Branch `issue-60-roost`, from `main`.
 - Modify: `skills/roost-config/references/config-schema.md:71` (new row after `apply_gate`)
 - Modify: `examples/config.example.yml:44` (acme-api), `:64` (acme-web)
 - Modify: `examples/config.github-only.yml:44` (acme-skills)
-- Modify: `.roost/config.example.yml` (roost repo entry), if Q3 is yes
+- Modify: `.roost/config.example.yml` (the `roost` repo entry gets `production: release`; Q3)
 - Test: `scripts/check-references.test.sh`
 
 **Interfaces:** Produces the key `repos[].production` with values `{ workflow: <file> }`, `release`, `merge`, as in Contracts.
@@ -335,7 +339,7 @@ Branch `issue-60-roost`, from `main`.
 ### Task 1.8: Check the story
 
 - [ ] **Step 1:** All four #60 cases, `--runs 3`: pass 3 of 3. Every other case runs in CI (the example config changed); add the `run-evals` label to the PR.
-- [ ] **Step 2: Real data, read-only.** In a session with this checkout (`claude --plugin-dir .`) and `.roost/config.yml` carrying `production: release` (Q3), ask "draft the release note for #52's work" with the evidence gathered live. Expected: dated 2026-10-26 from `roost-v1.2.0` (D3), with the evidence table. Paste the reply's table into a PR comment.
+- [ ] **Step 2: Real data, read-only.** This needs `production: release` on the `roost` repo in the session's own `.roost/config.yml` (gitignored, Q3). If it's missing, ask the user to add it; never edit that file silently. Then, in a session with this checkout (`claude --plugin-dir .`), ask "draft the release note for #52's work" with the evidence gathered live. Expected: dated 2026-10-26 from `roost-v1.2.0` (D3), with the evidence table. Paste the reply's table into a PR comment.
 - [ ] **Step 3:** Push; open the PR `feat(#60): release notes for one epic, dated by production`, body saying it waits for nothing, and add it to #56's Release order comment.
 
 ---
@@ -388,10 +392,24 @@ Branch `issue-62-roost`, from `issue-61-roost`; rebase onto `main` once #61's PR
 
 **Files:**
 - Create: `evals/release-note-team-voice/`, `evals/release-note-without-release-notes-config/`, `evals/setup-asks-production-and-voice/` (word for word from #62's `evals:` comment)
+- Create: `evals/release-note-team-voice/graders/no-fallback-rules.md` (new, for Q2)
 - Modify: `CONTRIBUTING.md` (three rows)
 
-- [ ] **Step 1:** Copy; add rows.
-- [ ] **Step 2:** Run each with `--runs 1`. Expected: `follows-team-voice` and `asks-and-waits` fail; `says-what-it-skipped` may already pass (that's fine: record it).
+- [ ] **Step 1:** Copy; add rows. Write the new grader:
+
+```markdown
+---
+type: llm
+---
+
+The example config's `release_notes.voice` names Acme's voice file, which is the team's whole voice: when it's read, none of roost's fallback voice applies, and nothing is added from it.
+
+It passes when the note follows only Acme's rules (a sentence-case title; New, Better or Fixed; a sign-off from its list; its byline), and the reply doesn't say it used, mixed in or fell back to roost's fallback or default voice.
+
+It fails if the title is in Title Case, the category is Improvement or Fix, the note has no sign-off or byline (the fallback has none), or the reply says any fallback or default voice rule was used alongside the team's.
+```
+
+- [ ] **Step 2:** Run each with `--runs 1`. Expected: `follows-team-voice`, `no-fallback-rules` and `asks-and-waits` fail; `says-what-it-skipped` may already pass (that's fine: record it).
 - [ ] **Step 3:** Commit, don't push: `test(#62): eval cases for the team's voice and setup`.
 
 ### Task 3.2: `release_notes.voice` and Acme's voice
@@ -414,7 +432,7 @@ Branch `issue-62-roost`, from `issue-61-roost`; rebase onto `main` once #61's PR
 **Files:**
 - Modify: `skills/release-notes/SKILL.md` section 6
 
-- [ ] **Step 1:** Resolve `release_notes.voice` relative to the config file's directory; it replaces the fallback wholly (Q2). Unreadable: the fallback, and the checks say so. Not set: the fallback, one line. Replace Task 1.5's "until #62" line.
+- [ ] **Step 1:** Resolve `release_notes.voice` relative to the config file's directory. When it's read, it is the whole voice: don't read `references/fallback-voice.md`, and apply no fallback rule, even where the team's file is silent (Q2). Unreadable: the fallback, and the checks say so. Not set: the fallback, one line. Replace Task 1.5's "until #62" line.
 - [ ] **Step 2:** Run `release-note-team-voice`, `release-note-without-release-notes-config`, and every #60 and #61 case, `--runs 3`. Expected: pass 3 of 3.
 - [ ] **Step 3:** Commit: `feat(#62): release notes in the team's own voice`.
 
@@ -439,10 +457,52 @@ Branch `issue-63-roost`, from `issue-62-roost`; rebase onto `main` once #62's PR
 
 **Files:**
 - Create: `evals/release-notes-catch-up/` (word for word from #63's `evals:` comment)
-- Modify: `CONTRIBUTING.md` (one row)
+- Create: `evals/release-notes-catch-up-filters/` (new, for Q1 and D5)
+- Modify: `CONTRIBUTING.md` (two rows)
 
-- [ ] **Step 1:** Copy; add the row.
-- [ ] **Step 2:** Run it, `--runs 1`. Expected: `right-notes-in-order` or `bugs-are-candidates` fails.
+- [ ] **Step 1:** Copy the first; add the rows. Write the new case:
+
+`evals/release-notes-catch-up-filters/prompt.md`
+
+```markdown
+---
+description: Catching up from a Jira search keeps only tickets still done or ready for release, drops Tests and sub-tasks, and says the search was read to its last page.
+tags: [release-notes, issue-63]
+max_turns: 20
+allowed_tools: [Read, Glob, Grep, Skill]
+---
+
+Our roost team config is the example config in the roost plugin, `examples/config.example.yml`, with its voice rules.
+
+Catch us up on release notes since February 1, 2026. You can't reach Jira, GitHub or the web from here, so here's what I found.
+
+I ran the search for tickets moved to Done or Ready for Release since February 1. It returned 2 pages; this is all of both:
+
+- **PROJ-2470** (epic) "Pay the way your finance team wants". Now Done. Slice PROJ-2471, pay by invoice instead of card, from Settings › Billing: acme/acme-api#801 and acme/acme-web#440. acme-api's production run that included #801 succeeded February 20; acme-web#440 merged February 19.
+- **PROJ-2472** (sub-task of PROJ-2471) "Add the invoice option to the billing form". Now Done. acme/acme-web#440.
+- **PROJ-2475** (Test) "Pay by invoice from Settings › Billing". Now Done.
+- **PROJ-2520** (bug) "Usage chart shows the wrong month". Moved to Done on February 10, then back to To Do on February 12. acme/acme-web#450, merged February 9, was reverted by acme/acme-web#452 on February 12.
+
+No diffs add feature flags. Our published notes page's newest post is from January 30, 2026, "Usage Reports by Email".
+```
+
+`evals/release-notes-catch-up-filters/graders/right-tickets.md`
+
+```markdown
+---
+type: llm
+---
+
+Only PROJ-2470 is released work customers can use: PROJ-2472 is a sub-task (its work is part of PROJ-2470), PROJ-2475 is a Test, and PROJ-2520 is back in To Do, its fix reverted.
+
+It passes when the reply drafts exactly one note, PROJ-2470's, dated February 20, 2026; doesn't draft or list PROJ-2472 or PROJ-2475 as notes or candidates; and doesn't draft PROJ-2520 or offer it as a candidate, saying in the checks that it moved back to To Do.
+
+It fails if PROJ-2472, PROJ-2475 or PROJ-2520 gets a note or is offered as a candidate, or if PROJ-2520 isn't mentioned at all.
+```
+
+`evals/release-notes-catch-up-filters/graders/uses-release-notes.md`: the same `tool_used` grader as the other cases.
+
+- [ ] **Step 2:** Run both, `--runs 1`. Expected: `right-notes-in-order`, `bugs-are-candidates` or `right-tickets` fails.
 - [ ] **Step 3:** Commit, don't push: `test(#63): eval case for catch-up`.
 
 ### Task 4.2: "Moved to a status since a date" in both adapters
@@ -451,7 +511,7 @@ Branch `issue-63-roost`, from `issue-62-roost`; rebase onto `main` once #62's PR
 - Modify: `skills/roost-config/references/tracker-jira.md:53` (new bullet)
 - Modify: `skills/roost-config/references/tracker-github.md:60` (new bullet)
 
-- [ ] **Step 1:** Jira: the JQL from Current state, with "check it on your site" until Q1 is answered. GitHub: the two queries from Current state (closed since, and the ready-for-release label's `labeled` event from the timeline), with `--limit 1000` and the split-by-date rule from `tracker-github.md:38`.
+- [ ] **Step 1:** Jira: the JQL from Current state, read to its last page (`searchJiraIssuesUsingJql` pages at 100: follow `nextPageToken` until there's none), keeping each issue's `issuetype` and current `status`; drop Tests and sub-tasks; keep only issues whose current status is still done or ready-for-release (D5: 3 of 100 had moved back to To Do). GitHub: the two queries from Current state (closed since, and the ready-for-release label's `labeled` event from the timeline), with `--limit 1000` and the split-by-date rule from `tracker-github.md:38`.
 - [ ] **Step 2:** Run `scripts/check-references.py`. Expected: pass.
 - [ ] **Step 3:** Commit: `feat(#63): tracker searches for tickets moved to a status since a date`.
 
@@ -460,8 +520,8 @@ Branch `issue-63-roost`, from `issue-62-roost`; rebase onto `main` once #62's PR
 **Files:**
 - Modify: `skills/release-notes/SKILL.md` (`## Catch-up`; description gains catch-up triggers)
 
-- [ ] **Step 1:** Catch-up: the adapter's new search for `tracker.statuses.done` and `tracker.statuses.ready_for_release` since the date; each epic dated by sections 1 to 5; production date before the cut-off: dropped, with the reason in the checks; standalone stories, tasks and customer-visible bugs as candidates, one line each, not drafted; a picked candidate goes through the one-epic steps; a search at its limit said in the checks. Reply: notes oldest first, candidates, checks.
-- [ ] **Step 2:** Run `release-notes-catch-up` and every other `release-notes` case, `--runs 3`. Expected: pass 3 of 3.
+- [ ] **Step 1:** Catch-up: the adapter's new search for `tracker.statuses.done` and `tracker.statuses.ready_for_release` since the date, every page; Tests and sub-tasks dropped (a sub-task counts as part of its parent); tickets no longer at done or ready-for-release dropped, and named in the checks; each epic dated by sections 1 to 5; production date before the cut-off: dropped, with the reason in the checks; standalone stories, tasks and customer-visible bugs as candidates, one line each, not drafted; a picked candidate goes through the one-epic steps; a search at its limit said in the checks. Reply: notes oldest first, candidates, checks.
+- [ ] **Step 2:** Run `release-notes-catch-up`, `release-notes-catch-up-filters` and every other `release-notes` case, `--runs 3`. Expected: pass 3 of 3.
 - [ ] **Step 3:** Commit: `feat(#63): catch up on release notes since a date`.
 
 ### Task 4.4: Manual check, a picked candidate
