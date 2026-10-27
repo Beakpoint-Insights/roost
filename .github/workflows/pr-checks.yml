@@ -43,6 +43,8 @@ jobs:
         run: scripts/check-references.test.sh
       - name: Test which eval cases a change runs
         run: scripts/eval-cases.test.sh
+      - name: Test the production-date script
+        run: python3 scripts/production-date.test.py
 
   private-details:
     runs-on: ubuntu-latest
