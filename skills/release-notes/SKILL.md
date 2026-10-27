@@ -85,11 +85,12 @@ The reply is these, in this order, and nothing else. It starts with the note its
 
 1. **The note,** complete and ready to paste, with nothing interrupting it: its title, the line with its category and date, the body, and the closing line. One version of each note, never alternatives.
 2. **The evidence table** (step 3). It may come before the note instead.
-
-   For an epic that shipped separate features, repeat 1 and 2 for each feature, then give one list of checks.
 3. **Checks:** one short list, each item one line:
    - every `[N]` and `[date]` in the note, and what would fill it;
    - what was planned but not built, and done children with no merged PR found;
    - every date not found, and every source that couldn't be read (deploy runs, releases, the tracker);
    - "Not checked yet: feature flags, unreleased slices and already-published notes." (steps 4 and 5);
    - the voice line (step 6).
+
+For an epic that shipped separate features, give 1 and 2 for each feature in turn, then one list of checks for them all.
+
