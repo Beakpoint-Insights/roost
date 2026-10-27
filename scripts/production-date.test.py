@@ -231,6 +231,19 @@ class LandingCommits(unittest.TestCase):
         self.assertEqual(result["status"], "dated")
         self.assertEqual((result["prs"][0]["landing_pr"], result["date"]), (80, "2026-03-04"))
 
+    def test_a_reused_branch_cut_from_main_after_the_change_got_there_doesnt_carry_it(self):
+        # slice-5 reached main by a push (w061 holds #50's w050). Later a new slice-5 is cut
+        # from main for #70: its head holds #50's change only because main already did.
+        fx = load("stacked")
+        fx["commits"]["w070h"] = ["w061"]
+        fx["commits"]["w070"] = ["w061"]
+        fx["pulls"].append({"number": 70, "state": "closed", "created_at": "2026-03-15T09:00:00Z",
+                            "merged_at": "2026-03-21T09:00:00Z", "merge_commit_sha": "w070",
+                            "base": {"ref": "main", "sha": "w061"}, "head": {"ref": "slice-5", "sha": "w070h"}})
+        result, _ = find(fx, "merge", [50])
+        self.assertEqual((result["status"], result["date"]), ("not_found", None))
+        self.assertIn("`slice-5` reached `main`", result["reason"])
+
     def test_a_continued_branchs_later_pr_carries_it(self):
         # #491 was opened after #486 merged into the kept branch, and its head holds #486.
         result, _ = find(load("continued-branch"), "merge", [486])

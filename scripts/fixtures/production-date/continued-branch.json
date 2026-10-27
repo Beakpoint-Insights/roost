@@ -1,23 +1,76 @@
 {
-  "about": "acme-web, as release-note-stacked-slice describes it. #480 (PROJ-2481-csv-export) squash-merged into main on March 10, and the branch was kept. #486 merged into PROJ-2481-csv-export on March 13 as c4d2b80. #491 was opened from PROJ-2481-csv-export afterwards, on March 15, to bring it up to date, and squash-merged into main on March 19 as 5e7a9c1; its head holds c4d2b80. So #491 wasn't open when #486 merged, but it carries it.",
+  "about": "acme-web, as release-note-stacked-slice describes it. #480 (PROJ-2481-csv-export) squash-merged into main on March 10, and the branch was kept. #486 merged into PROJ-2481-csv-export on March 13 as c4d2b80. #491 was opened from PROJ-2481-csv-export afterwards, on March 15, to bring it up to date, and squash-merged into main on March 19 as 5e7a9c1; its head holds c4d2b80. So #491 wasn't open when #486 merged, but it carries it. #491's base.sha, main as it was when #491 merged, is w480, which doesn't hold c4d2b80.",
   "repo": "acme/acme-web",
   "default_branch": "main",
   "commits": {
     "w000": [],
-    "c480h": ["w000"],
-    "w480": ["w000"],
-    "c4d2b80": ["c480h"],
-    "h491": ["c4d2b80", "w480"],
-    "5e7a9c1": ["w480"]
+    "c480h": [
+      "w000"
+    ],
+    "w480": [
+      "w000"
+    ],
+    "c4d2b80": [
+      "c480h"
+    ],
+    "h491": [
+      "c4d2b80",
+      "w480"
+    ],
+    "5e7a9c1": [
+      "w480"
+    ]
   },
   "pulls": [
-    {"number": 480, "state": "closed", "created_at": "2026-03-01T09:00:00Z", "merged_at": "2026-03-10T09:00:00Z", "merge_commit_sha": "w480", "base": {"ref": "main"}, "head": {"ref": "PROJ-2481-csv-export", "sha": "c480h"}},
-    {"number": 486, "state": "closed", "created_at": "2026-03-05T09:00:00Z", "merged_at": "2026-03-13T09:00:00Z", "merge_commit_sha": "c4d2b80", "base": {"ref": "PROJ-2481-csv-export"}, "head": {"ref": "PROJ-2482-column-picker", "sha": "c486h"}},
-    {"number": 491, "state": "closed", "created_at": "2026-03-15T09:00:00Z", "merged_at": "2026-03-19T09:00:00Z", "merge_commit_sha": "5e7a9c1", "base": {"ref": "main"}, "head": {"ref": "PROJ-2481-csv-export", "sha": "h491"}}
+    {
+      "number": 480,
+      "state": "closed",
+      "created_at": "2026-03-01T09:00:00Z",
+      "merged_at": "2026-03-10T09:00:00Z",
+      "merge_commit_sha": "w480",
+      "base": {
+        "ref": "main"
+      },
+      "head": {
+        "ref": "PROJ-2481-csv-export",
+        "sha": "c480h"
+      }
+    },
+    {
+      "number": 486,
+      "state": "closed",
+      "created_at": "2026-03-05T09:00:00Z",
+      "merged_at": "2026-03-13T09:00:00Z",
+      "merge_commit_sha": "c4d2b80",
+      "base": {
+        "ref": "PROJ-2481-csv-export"
+      },
+      "head": {
+        "ref": "PROJ-2482-column-picker",
+        "sha": "c486h"
+      }
+    },
+    {
+      "number": 491,
+      "state": "closed",
+      "created_at": "2026-03-15T09:00:00Z",
+      "merged_at": "2026-03-19T09:00:00Z",
+      "merge_commit_sha": "5e7a9c1",
+      "base": {
+        "ref": "main",
+        "sha": "w480"
+      },
+      "head": {
+        "ref": "PROJ-2481-csv-export",
+        "sha": "h491"
+      }
+    }
   ],
   "workflows": {},
   "attempts": {},
   "releases": [],
   "tags": [],
-  "branches": {"main": "5e7a9c1"}
+  "branches": {
+    "main": "5e7a9c1"
+  }
 }

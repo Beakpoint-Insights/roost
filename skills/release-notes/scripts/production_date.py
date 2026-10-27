@@ -135,8 +135,8 @@ def carriers(repo, owner, default, pr, gh, branches, carried, depth):
     else:
         # On a stack: it lands with a PR from its base branch that merged after it and either
         # was open when it merged into that branch (a rebase rewrites the branch's commits) or
-        # has a head that holds it (the branch was kept and a PR opened from it later). A PR
-        # from a reused branch name passes neither. Every such PR is followed: one may have
+        # has a head that holds it, where its own base didn't already (the branch was kept and a
+        # PR opened from it later). A PR from a reused branch name passes neither. Every such PR is followed: one may have
         # gone to another branch (staging) instead.
         if base not in branches:
             branches[base] = pulls_from(repo, owner, base, gh)
@@ -144,17 +144,26 @@ def carriers(repo, owner, default, pr, gh, branches, carried, depth):
         for p in branches[base]:
             if not p.get("merged_at") or p["merged_at"] < merged:
                 continue
-            if p["created_at"] <= merged or contains(repo, pr["merge_commit_sha"], p["head"]["sha"], gh):
+            if p["created_at"] <= merged or head_carries(repo, pr["merge_commit_sha"], p, gh):
                 more, why = carriers(repo, owner, default, p, gh, branches, carried, depth + 1)
                 landed += more
                 trouble += why
         if not landed and contains(repo, pr["merge_commit_sha"], default, gh):
-            trouble.append(f"`{base}` reached `{default}`, but not through a PR open when "
-                           f"#{pr['number']} merged into it")
+            trouble.append(f"`{base}` reached `{default}`, but not through a PR that carried "
+                           f"#{pr['number']} there")
     # A result the depth limit cut short depends on how deep it was reached: don't reuse it.
     if not any(DEEP in t for t in trouble):
         carried[pr["number"]] = (landed, trouble)
     return landed, trouble
+
+
+def head_carries(repo, sha, p, gh):
+    """Whether PR `p` brought commit `sha` with it: its head holds it, and the branch it merged
+    into didn't already (`base.sha` is that branch as it was when `p` merged). A branch cut from
+    main after the change got there holds it without carrying it."""
+    if not contains(repo, sha, p["head"]["sha"], gh):
+        return False
+    return not (p["base"].get("sha") and contains(repo, sha, p["base"]["sha"], gh))
 
 
 def pulls_from(repo, owner, branch, gh):
