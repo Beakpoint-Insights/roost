@@ -17,13 +17,13 @@ A release note is public, and hard to take back once it's out. Each one has to b
 
 ## 1. Find the work
 
-Read EPIC and its children (stories, tasks, bugs) through the tracker adapter, with their statuses. For each child that's done, find the PRs that built it, in every repo in `repos`:
+Read EPIC and its children (stories, tasks, bugs) through the tracker adapter, with their statuses. For each child that's at `tracker.statuses.done` or `tracker.statuses.ready_for_release` (a shipped ticket can still sit there), find the PRs that built it, in every repo in `repos`:
 
 - the PRs that close it (a closing reference);
 - PRs whose title, body or branch name has its key (`gh pr list -R <repo> --state merged --search "<key> in:title,body"`, and `head:<branch>` for `vcs.branch_name`'s form of the key);
 - PRs on its timeline (`cross-referenced` and `connected` events, with `tracker.kind: github`).
 
-Keep only merged PRs, with each one's merge commit and merge date. A done child with no merged PR found goes in the checks ("no merged PR found for PROJ-1234"); don't treat it as not built.
+Keep only merged PRs, with each one's merge commit and merge date. Such a child with no merged PR found goes in the checks ("no merged PR found for PROJ-1234"); don't treat it as not built.
 
 ## 2. What shipped
 
@@ -35,8 +35,8 @@ For each repo the feature touched, find the date production first carried that r
 
 | `production` | The date of a change |
 |---|---|
-| `{ workflow: <file> }` | The first run of that workflow that **succeeded**, ran on the default branch or a tag (not a pull request), and whose head commit contains the PR's merge commit. List runs with `gh run list -R <repo> --workflow <file> --status success --limit 200 --created ">=<merge date>" --json databaseId,headSha,headBranch,event,createdAt`, oldest first, and check each candidate with `gh api repos/<repo>/compare/<merge sha>...<run head sha> --jq .status`: `ahead` or `identical` means the run contains it. Match by commit, never by date. If the oldest run returned is still after the merge and none contains it, or `gh` can't read the runs, say so in the checks; don't fall back to a nearby date. |
-| `release` | The `publishedAt` of the first published (not draft) release whose tag contains the merge commit: `gh release list -R <repo> --json tagName,publishedAt,isDraft`, checked the same way with `compare`. |
+| `{ workflow: <file> }` | The first run of that workflow that **succeeded**, ran on the default branch or a tag (not a pull request), and whose head commit contains the PR's merge commit. List runs from the day **before** the merge (`--created` compares UTC dates): `gh run list -R <repo> --workflow <file> --status success --limit 1000 --created "<day before merge>..<end>" --json databaseId,headSha,headBranch,event,createdAt`. `gh` returns the newest first and `--limit` drops the oldest, so if it returns exactly the limit, the first deploy may be missing: move `<end>` earlier until it returns fewer. Then, oldest first, check each candidate with `gh api repos/<repo>/compare/<merge sha>...<run head sha> --jq .status`: `ahead` or `identical` means the run contains it. Match by commit, never by date. If no run contains it, or `gh` can't read the runs, say so in the checks; don't fall back to a nearby date. |
+| `release` | The `publishedAt` of the first published release whose tag contains the merge commit: `gh release list -R <repo> --exclude-drafts --exclude-pre-releases --order asc --limit 1000 --json tagName,publishedAt`, checked oldest first with `compare` the same way. If it returns exactly the limit, say so in the checks. |
 | `merge` | The merge date. |
 | *(missing)* | **Date not found.** Don't guess, and don't assume it deploys on merge. Say "Date not found: `<repo>` has no `production` in the config", give the evidence you do have (its last change and when it merged), and ask how the repo reaches production, or suggest setting its `production` key. |
 
@@ -48,8 +48,8 @@ Show the evidence in one table, one row per repo:
 
 | Repo | Last change | Deploy | Date |
 |---|---|---|---|
-| acme-api | acme/acme-api#820, merged March 2 | `deploy-production.yml` run on March 3 | March 3, 2026 |
-| acme-web | acme/acme-web#461, merged March 2 | deploys on merge | March 2, 2026 |
+| api | org/api#120, merged June 9 | `release-prod.yml` run on June 11 | June 11, 2026 |
+| web | org/web#45, merged June 10 | deploys on merge | June 10, 2026 |
 
 ## 4. Can customers use it yet?
 
@@ -63,7 +63,7 @@ Not checked yet: this version doesn't read the team's published notes. Say so in
 
 Follow `references/fallback-voice.md`, roost's own voice, and say in the checks, in one line, that the fallback voice was used because the config has no `release_notes.voice`.
 
-Before you send the note, check it against every rule in the voice, one by one. The ones most often missed: count the title's words; put the practical number or timing the evidence gives (how soon, how many) in the closing line, not only in the body; and say what the customer doesn't have to do when the evidence says it.
+Before you send the note, check it against every rule in the voice, one by one. The ones most often missed: keep the title well inside the voice's word limit, aiming for 3 to 5 words, and count every word, numbers and short words included ("Invoices Searchable Up to 90 Days Back" is 7 words; "Search Older Invoices" is 3); put the practical number or timing the evidence gives (how soon, how many) in the closing line, not only in the body; and say what the customer doesn't have to do when the evidence says it.
 
 ## 7. Write the reply
 
