@@ -127,7 +127,7 @@ After the last slice, `build-epic` carries on:
 
 1. The "before release" items are fixed (bugs through `run-bug` and `bug-bash`), and every test in the epic runs once more.
 2. `review-epic` has every session review the whole epic against `main`, plus a security review of the server code, looking hardest at code no slice review saw. **You decide** each finding.
-3. `close-out-epic` gives every open ticket a place: fixed before release, moved to a follow-up epic, or standalone. **You confirm** the places.
+3. `close-out-epic` gives every open ticket a place: fixed before release, moved to a follow-up epic, or standalone. **You confirm** the places. Once the release ships, it checks production runs the epic and offers to draft its release note.
 4. The e2e session runs `release-qa`: the full e2e run, exploratory testing, and a release call.
 
 ### 5. Ship
@@ -199,6 +199,7 @@ The skills are grouped by where they fit in the development cycle, in order.
 | `release-qa` | QA for an epic before release: e2e run with every failure sorted, exploratory testing, bugs filed, and a release call |
 | `write-runbook` | Writes a recordable, gated runbook with literal commands, kept one to one with the rollout ticket's sub-tasks (one per stage, same number and name) |
 | `pair-runbook` | Runs a rollout runbook with you one step at a time: gives the next command, you run it and paste the output, it checks the output, fills in the run's record and updates the step's sub-task. Never runs a rollout command itself |
+| `release-notes` | Drafts a shipped epic's customer-facing release note, ready to paste: dated by when production first carried it, with the evidence in a table, written from what the slices built, and with anything the evidence doesn't give left for you to fill in. Never publishes |
 
 ## What each skill needs
 
@@ -216,6 +217,7 @@ Every skill needs the team config. Install fails quietly if a skill's tools aren
 | `build-epic`, `run-bug`, `review-epic` | Everything `run-slice` needs; `build-epic` also needs what `slice-handoff` and `release-qa` need |
 | `slice-handoff` | Tracker access, the `gh` CLI, and the repo sessions open for the epic test run |
 | `close-out-epic` | Tracker access |
+| `release-notes` | Tracker access, and the `gh` CLI to read PRs, deploy runs and releases |
 | `stacked-prs` | The `gh` CLI with the `gh stack` extension, and commit signing if your config requires it |
 | `cross-repo-handoff` | Tracker access to post the prompt; works without it by returning the text |
 | `triage-ticket` | Tracker access |
@@ -245,7 +247,7 @@ The skills were written for Claude Code. In Cursor, set up the same MCP servers 
 |---|---|
 | `setup`, `create-xray-test` | Work |
 | `live-verified-bdd` | Works. Its hand-off for filing goes through your tests adapter; on Xray that's `create-xray-test` by name, so ask for that skill if Cursor doesn't pick it up. |
-| `stacked-prs`, `bug-bash`, `cross-repo-handoff`, `triage-ticket`, `write-runbook`, `pair-runbook`, `close-out-epic` | Work |
+| `stacked-prs`, `bug-bash`, `cross-repo-handoff`, `triage-ticket`, `write-runbook`, `pair-runbook`, `close-out-epic`, `release-notes` | Work |
 | `release-qa`, `automate-tests`, `verify-slice-tests` | Work, with the Playwright MCP set up for an app |
 | `run-slice`, `build-epic`, `run-bug`, `review-epic` | Don't work. They message other Claude Code sessions, which Cursor can't do. |
 | `slice-handoff` | Partly. Sorting, tracker updates and stack checks work; the epic test run needs the repo sessions, so run that step in each repo by hand. |
