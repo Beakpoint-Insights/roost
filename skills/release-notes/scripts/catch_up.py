@@ -23,6 +23,8 @@ Both print one JSON object:
   children    [{key, epic}] slices whose work counts toward their epic
   dropped     [{key, reason}] Tests, sub-tasks, and tickets moved back out
               of done, with the reason, for the checks
+  notes       lines for the checks about tickets kept on less than full
+              evidence
 
 cutoff:  give it each feature's production_date.py result with its key,
          [{key, status, date, ...}], on stdin. It prints {notes, dropped}:
@@ -40,6 +42,8 @@ import sys
 
 LIMIT = 1000  # GitHub's search returns at most this many results
 KINDS = ("epic", "story", "task", "bug", "test")
+# Test issue types (Xray adds the last four), never customer work.
+TEST_TYPES = ("test", "test execution", "test plan", "test set", "precondition")
 
 
 class GhError(Exception):
@@ -54,12 +58,25 @@ def gh(args):
         raise GhError(f"can't run gh: {e}")
     if out.returncode != 0:
         raise GhError(f"gh {' '.join(args[:2])}: {(out.stderr or out.stdout).strip()}")
-    return json.loads(out.stdout)
+    return parse(f"gh {' '.join(args[:2])}", out.stdout)
+
+
+def parse(what, text):
+    """Parses gh's output as JSON, or raises GhError saying what it printed."""
+    try:
+        return json.loads(text)
+    except ValueError:
+        raise GhError(f"{what} didn't print JSON: {text.strip()[:200]}")
 
 
 def result():
     return {"complete": True, "reason": None, "epics": [], "candidates": [],
-            "children": [], "dropped": []}
+            "children": [], "dropped": [], "notes": []}
+
+
+def incomplete(r, why):
+    r["complete"] = False
+    r["reason"] = f"{r['reason']}; {why}" if r["reason"] else why
 
 
 def add_epic(r, key, title):
@@ -78,32 +95,47 @@ def sort_jira(pages, done, ready=None):
             r["reason"] = (f"page {n} has a nextPageToken: the search wasn't read "
                            "to its last page")
     kept = {s.lower() for s in (done, ready) if s}
-    seen = set()
+    issues, seen = [], set()
     for page in pages:
         for issue in page.get("issues", []):
-            key = issue["key"]
-            if key in seen:
-                continue
-            seen.add(key)
-            f = issue.get("fields", {})
-            kind = f.get("issuetype", {})
-            status = f.get("status", {}).get("name", "")
-            parent = f.get("parent")
-            if kind.get("name", "").lower() == "test":
-                r["dropped"].append({"key": key, "reason": "a Test, not customer work"})
-            elif kind.get("subtask"):
-                p = parent["key"] if parent else "its parent"
-                r["dropped"].append({"key": key, "reason": f"sub-task of {p}: its work is part of {p}"})
-            elif status.lower() not in kept:
-                r["dropped"].append({"key": key, "reason": f"moved back to {status}"})
-            elif kind.get("name", "").lower() == "epic" or kind.get("hierarchyLevel") == 1:
-                add_epic(r, key, f.get("summary", ""))
-            elif parent and parent.get("fields", {}).get("issuetype", {}).get("name", "").lower() == "epic":
-                add_epic(r, parent["key"], parent["fields"].get("summary", ""))
-                r["children"].append({"key": key, "epic": parent["key"]})
-            else:
-                r["candidates"].append({"key": key, "type": kind.get("name", "").lower(),
-                                        "title": f.get("summary", "")})
+            if issue["key"] not in seen:
+                seen.add(issue["key"])
+                issues.append(issue)
+
+    def is_epic(kind):
+        return kind.get("name", "").lower() == "epic" or kind.get("hierarchyLevel") == 1
+
+    def still_done(status):
+        return (status.get("name", "").lower() in kept
+                or status.get("statusCategory", {}).get("key") == "done")
+
+    moved_back = {i["key"] for i in issues
+                  if is_epic(i["fields"].get("issuetype", {}))
+                  and not still_done(i["fields"].get("status", {}))}
+    for issue in issues:
+        key = issue["key"]
+        f = issue.get("fields", {})
+        kind = f.get("issuetype", {})
+        status = f.get("status", {})
+        parent = f.get("parent")
+        parent_kind = parent.get("fields", {}).get("issuetype", {}) if parent else {}
+        if kind.get("name", "").lower() in TEST_TYPES:
+            r["dropped"].append({"key": key, "reason": f"a {kind['name']}, not customer work"})
+        elif kind.get("subtask"):
+            p = parent["key"] if parent else "its parent"
+            r["dropped"].append({"key": key, "reason": f"sub-task of {p}: its work is part of {p}"})
+        elif not still_done(status):
+            r["dropped"].append({"key": key, "reason": f"moved back to {status.get('name', '')}"})
+        elif is_epic(kind):
+            add_epic(r, key, f.get("summary", ""))
+        elif parent and is_epic(parent_kind) and parent["key"] in moved_back:
+            r["dropped"].append({"key": key, "reason": f"its epic, {parent['key']}, moved back out of done"})
+        elif parent and is_epic(parent_kind):
+            add_epic(r, parent["key"], parent["fields"].get("summary", ""))
+            r["children"].append({"key": key, "epic": parent["key"]})
+        else:
+            r["candidates"].append({"key": key, "type": kind.get("name", "").lower(),
+                                    "title": f.get("summary", "")})
     return r
 
 
@@ -154,19 +186,22 @@ def search_github(repo, since, today, ready_label=None, gh=gh):
     r = result()
     issues, why = closed_since(repo, since, today, gh)
     if why:
-        r["complete"], r["reason"] = False, why
+        incomplete(r, why)
     if ready_label:
+        search = f'label:"{ready_label}" updated:>={since}'
         ready = gh(["issue", "list", "-R", repo, "--state", "all", "--limit", str(LIMIT),
-                    "--search", f'label:"{ready_label}"', "--json", FIELDS])
+                    "--search", search, "--json", FIELDS])
         if len(ready) >= LIMIT:
-            r["complete"] = False
-            r["reason"] = f'the search for label:"{ready_label}" returned its limit of {LIMIT}'
+            incomplete(r, f"the search for {search} returned its limit of {LIMIT}")
         numbers = {i["number"] for i in issues}
         for issue in ready:
             if issue["number"] in numbers:
                 continue
             at = labelled_at(repo, issue["number"], ready_label, gh)
-            if at and at[:10] < since:
+            if not at:
+                r["notes"].append(f"#{issue['number']} has the {ready_label} label but no record "
+                                  f"of when it was added: check it moved since {since}")
+            elif at[:10] < since:
                 r["dropped"].append({"key": f"#{issue['number']}",
                                      "reason": f"labelled {ready_label} on {at[:10]}, before {since}"})
                 continue
@@ -181,7 +216,7 @@ def search_github(repo, since, today, ready_label=None, gh=gh):
 
     for issue in issues:
         key, kind, parent = f"#{issue['number']}", kind_of(issue), issue.get("parent")
-        if kind == "test":
+        if kind in TEST_TYPES:
             r["dropped"].append({"key": key, "reason": "a Test, not customer work"})
         elif kind == "epic":
             add_epic(r, key, issue["title"])
@@ -193,7 +228,6 @@ def search_github(repo, since, today, ready_label=None, gh=gh):
             r["dropped"].append({"key": key, "reason": f"sub-task of {p}: its work is part of {p}"})
         else:
             r["candidates"].append({"key": key, "type": kind, "title": issue["title"]})
-    r["epics"].sort(key=lambda e: int(e["key"][1:]))
     return r
 
 
@@ -223,7 +257,8 @@ def main(argv=None):
     g.add_argument("--repo", required=True)
     g.add_argument("--since", required=True)
     g.add_argument("--ready-label")
-    g.add_argument("--today", default=datetime.date.today().isoformat())
+    # GitHub's closed: qualifier compares UTC dates.
+    g.add_argument("--today", default=datetime.datetime.now(datetime.timezone.utc).date().isoformat())
     c = sub.add_parser("cutoff")
     c.add_argument("--since", required=True)
     args = p.parse_args(argv)
