@@ -1,5 +1,5 @@
 ---
-description: With the team's own voice file in its config, a release note follows those rules (title case, categories, sign-off, byline) instead of roost's fallback.
+description: With the team's own voice file in its config, a release note follows those rules (sentence-case titles, categories, sign-off, byline) instead of roost's fallback.
 tags: [release-notes, issue-62]
 max_turns: 15
 allowed_tools: [Read, Glob, Grep, Skill]
