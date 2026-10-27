@@ -1,0 +1,30 @@
+{
+  "about": "PROJ-2400 in acme-api, as the release-note-for-one-epic eval case describes it: #812 and #820 merged into main, deploy-production.yml succeeded on February 28 (with #812) and March 3 (with #820), and failed on March 2. Objects have the fields gh api returns.",
+  "repo": "acme/acme-api",
+  "default_branch": "main",
+  "commits": {
+    "a000": [],
+    "a812": ["a000"],
+    "a813": ["a812"],
+    "a820": ["a813"],
+    "a821": ["a820"]
+  },
+  "pulls": [
+    {"number": 812, "state": "closed", "merged_at": "2026-02-27T15:04:11Z", "merge_commit_sha": "a812", "base": {"ref": "main"}, "head": {"ref": "proj-2401-backend"}},
+    {"number": 820, "state": "closed", "merged_at": "2026-03-02T16:20:45Z", "merge_commit_sha": "a820", "base": {"ref": "main"}, "head": {"ref": "proj-2403-backend"}}
+  ],
+  "workflows": {
+    "deploy-production.yml": [
+      {"id": 3001, "head_sha": "a813", "head_branch": "main", "event": "push", "status": "completed", "conclusion": "success", "created_at": "2026-02-28T09:00:02Z", "run_attempt": 1, "html_url": "https://github.com/acme/acme-api/actions/runs/3001"},
+      {"id": 3002, "head_sha": "a820", "head_branch": "main", "event": "push", "status": "completed", "conclusion": "failure", "created_at": "2026-03-02T16:21:30Z", "run_attempt": 1, "html_url": "https://github.com/acme/acme-api/actions/runs/3002"},
+      {"id": 3003, "head_sha": "a821", "head_branch": "main", "event": "push", "status": "completed", "conclusion": "success", "created_at": "2026-03-03T10:00:15Z", "run_attempt": 1, "html_url": "https://github.com/acme/acme-api/actions/runs/3003"}
+    ]
+  },
+  "attempts": {
+    "3001": [{"conclusion": "success", "updated_at": "2026-02-28T09:11:40Z"}],
+    "3002": [{"conclusion": "failure", "updated_at": "2026-03-02T16:25:02Z"}],
+    "3003": [{"conclusion": "success", "updated_at": "2026-03-03T10:12:40Z"}]
+  },
+  "releases": [],
+  "tags": []
+}

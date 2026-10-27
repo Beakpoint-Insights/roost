@@ -41,9 +41,21 @@ To use the roost skills here, copy [`.roost/config.example.yml`](.roost/config.e
 
 1. Branch from `main`, commit (commits must be signed), and open a PR.
 2. Give the PR a Conventional Commit title, such as `feat: add the verify-slice skill`. It becomes the commit message when the PR is squash-merged, and release-please reads it.
-3. Three checks must pass: `conventional-title` (the PR title), `validate-plugin` and `private-details`. `validate-plugin` runs `claude plugin validate --strict`, which fails on warnings too, and `scripts/check-skills.sh`, which checks that every skill folder has a `SKILL.md` whose `name` matches the folder and that has a description. It also runs `scripts/check-references.py`, which checks, with no model, that everything the skills and docs refer to exists: skills named as skills or in eval graders, reference files and repo paths in backticks, config keys against `config-schema.md`, and relative links. Run them locally before you push.
+3. Three checks must pass: `conventional-title` (the PR title), `validate-plugin` and `private-details`. `validate-plugin` runs `claude plugin validate --strict`, which fails on warnings too, and `scripts/check-skills.sh`, which checks that every skill folder has a `SKILL.md` whose `name` matches the folder and that has a description. It also runs `scripts/check-references.py`, which checks, with no model, that everything the skills and docs refer to exists: skills named as skills or in eval graders, reference files and repo paths in backticks, config keys against `config-schema.md`, and relative links. Separately, it runs the scripts' own tests: `scripts/*.test.sh` and `python3 scripts/production-date.test.py`. Run them all locally before you push.
    `private-details` fails if the PR's diff, title, body or commit messages add a string from a private list (a repository secret): a team's tracker site, IDs, hostnames and the like. A team's own values belong in its config, never in roost; examples use the made-up Acme team and `PROJ-1234`. The check names the file and line and which list entry matched, never the value. It's skipped on PRs from forks, which don't get the secret, so a maintainer runs it before merging.
 4. Squash-merge. The branch is deleted automatically.
+
+## Which tests run when
+
+| When | What runs | Costs |
+|---|---|---|
+| Every push to a PR | `pr-checks`: the PR title, `claude plugin validate --strict`, `scripts/check-skills.sh`, `scripts/check-references.py`, the private-details check, and the scripts' tests | Nothing: no model is called |
+| When someone asks: the `run-evals` label, or `gh workflow run Evals` | The eval cases the PR's changes can affect, once each | Real Claude sessions |
+| Before a release: the release PR, reopened | The eval cases whose skills changed since the last release | Real Claude sessions |
+
+Why: checks that give the same answer every time and cost nothing run on every change. Evals are slow, cost something, and vary from run to run, like end-to-end tests, so they run when they matter: before a release, and when a change to how a skill behaves needs checking. Logic with one right answer (dates, matching, paging) goes in a script with ordinary tests, which run on every PR, not in a skill's prose, where only an eval could check it. `release-notes`' production date is the first: `skills/release-notes/scripts/production_date.py`, tested by `scripts/production-date.test.py` with recorded `gh` answers in `scripts/fixtures/production-date/`. Scripts are Python 3 with its standard library only; a skill runs one from its own folder (`<skill folder>/scripts/`), which works wherever the skill folder does, Cursor's links included.
+
+**A red eval means "look before release",** not "this PR is broken". The judges get some verdicts wrong, and a model can answer differently from one run to the next. Read the failing case's reply and verdicts (below) and decide: fix the skill, fix the case, or note it for the release.
 
 ## Evals
 
@@ -100,13 +112,18 @@ Each case runs 3 times with roost and 3 times without it, so you can see what th
 
 They also run in CI (`.github/workflows/evals.yml`), but only when someone asks, because every run is a real Claude session paid for by the repository's credential:
 
-- **On a PR, add the `run-evals` label** when it changes how a skill behaves. `scripts/eval-cases.sh` picks the cases the PR's changes can affect: a change to `skills/<name>/` runs the cases tagged `<name>`, a change to a case runs that case, a change to the example voice file `examples/release-notes-voice.md` runs the cases tagged `release-notes`, a change to another file in `examples/` runs the cases whose prompt names it, and a change to `roost-config`, `examples/config.example.yml` or the plugin manifest runs them all. Each runs once. They run again on each push while the label stays on; remove it to stop.
+- **On a PR, add the `run-evals` label** when it changes how a skill behaves. `scripts/eval-cases.sh` picks the cases the PR's changes can affect: a change to `skills/<name>/` runs the cases tagged `<name>`, a change to a case runs that case, a change to the example voice file `examples/release-notes-voice.md` runs the cases tagged `release-notes`, a change to another file in `examples/` runs the cases whose prompt names it, and a change to `roost-config`, `examples/config.example.yml` or the plugin manifest runs them all. Each runs once, when the label is added; pushes don't run them again. To run them again after more changes, remove the label and add it again. Closing and reopening a PR doesn't run them; only the release PR's reopen does.
 - **Before a release,** reopen the release PR (it needs reopening anyway, so its required checks start): the cases whose skills changed since the last release run once each. Check that run before merging the release.
 - **By hand,** `gh workflow run Evals` does the same as a release. Name cases with `-f cases="update-moving status-is-a-table"`, or run every case with `-f all=true`, adding `-f runs=3` for three runs each, when you want a full baseline.
 
 Cases run on Opus, judged by Sonnet (the default judge, Haiku, fails too many correct replies on these rubrics), four at a time, through `scripts/run-evals.sh`, which you can run locally too: `scripts/run-evals.sh 1 <case>…`. Every run of a case must pass. The judges that grade the replies get a few verdicts wrong, so a case that fails is run once more, and fails the check only if it fails again. Each attempt has a cost ceiling, so a runaway case stops. The results are posted on the PR and printed in the run's log, and every run keeps an `eval-results` artifact for 30 days: each case's prompt, reply, grader verdicts and output, plus the first try of a retried case. Download it with `gh run download <run id> -n eval-results` to read why a case failed.
 
-CI needs a Claude credential in a repository secret: `ANTHROPIC_API_KEY`, an API key from the Claude Console, which bills the API account and leaves your subscription alone, or `CLAUDE_CODE_OAUTH_TOKEN` (from `claude setup-token`), which shares your subscription's limits with your own sessions. Without one, and on PRs from forks, the job skips with a warning.
+CI needs a Claude credential in a repository secret:
+
+- `CLAUDE_CODE_OAUTH_TOKEN` (from `claude setup-token`), preferred. It runs on a subscription, so a heavy day hits a rate limit rather than a bill, and it shares that subscription's limits with your own sessions.
+- `ANTHROPIC_API_KEY`, an API key from the Claude Console. It bills the API account per token.
+
+With both set, the workflow uses the token and leaves the key out: Claude Code would otherwise take the key, which ranks above `CLAUDE_CODE_OAUTH_TOKEN` and is always used in `-p` mode when present ("Authentication precedence", [code.claude.com/docs/en/authentication](https://code.claude.com/docs/en/authentication#authentication-precedence)). The run's log says which one it used. Without either, and on PRs from forks, the job skips with a warning.
 
 When you change a skill's behaviour, add or update a case for it, and tag it with the skill's name so CI runs it.
 

@@ -1,0 +1,33 @@
+{
+  "about": "acme-api with production: release. #820 (a820) merged into main on March 2. v3.20.0 (published March 1) is older; a draft and a pre-release made on March 2 contain #820 but don't count; v3.21.0, published March 3, is the first published release that contains it. Objects have the fields gh api returns.",
+  "repo": "acme/acme-api",
+  "default_branch": "main",
+  "commits": {
+    "a000": [],
+    "a812": ["a000"],
+    "a820": ["a812"],
+    "a821": ["a820"],
+    "a822": ["a821"]
+  },
+  "pulls": [
+    {"number": 812, "state": "closed", "merged_at": "2026-02-27T15:04:11Z", "merge_commit_sha": "a812", "base": {"ref": "main"}, "head": {"ref": "proj-2401-backend", "sha": "a812"}},
+    {"number": 820, "state": "closed", "merged_at": "2026-03-02T16:20:45Z", "merge_commit_sha": "a820", "base": {"ref": "main"}, "head": {"ref": "proj-2403-backend", "sha": "a820"}}
+  ],
+  "workflows": {},
+  "attempts": {},
+  "releases": [
+    {"tag_name": "v3.20.0", "draft": false, "prerelease": false, "created_at": "2026-03-01T08:00:00Z", "published_at": "2026-03-01T08:05:00Z", "html_url": "https://github.com/acme/acme-api/releases/tag/v3.20.0"},
+    {"tag_name": "v3.21.0-draft", "draft": true, "prerelease": false, "created_at": "2026-03-02T17:00:00Z", "published_at": null, "html_url": "https://github.com/acme/acme-api/releases/tag/untagged-1"},
+    {"tag_name": "v3.21.0-rc.1", "draft": false, "prerelease": true, "created_at": "2026-03-02T18:00:00Z", "published_at": "2026-03-02T18:02:00Z", "html_url": "https://github.com/acme/acme-api/releases/tag/v3.21.0-rc.1"},
+    {"tag_name": "v3.21.0", "draft": false, "prerelease": false, "created_at": "2026-03-03T09:00:00Z", "published_at": "2026-03-03T09:30:00Z", "html_url": "https://github.com/acme/acme-api/releases/tag/v3.21.0"},
+    {"tag_name": "v3.22.0", "draft": false, "prerelease": false, "created_at": "2026-03-05T09:00:00Z", "published_at": "2026-03-05T09:01:00Z", "html_url": "https://github.com/acme/acme-api/releases/tag/v3.22.0"}
+  ],
+  "tag_commits": {
+    "v3.20.0": "a812",
+    "v3.21.0-draft": "a821",
+    "v3.21.0-rc.1": "a821",
+    "v3.21.0": "a821",
+    "v3.22.0": "a822"
+  },
+  "tags": ["v3.20.0", "v3.21.0-rc.1", "v3.21.0", "v3.22.0"]
+}
