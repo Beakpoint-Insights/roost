@@ -5,7 +5,7 @@ max_turns: 15
 allowed_tools: [Read, Glob, Grep, Skill]
 ---
 
-Our roost team config is the example config in the roost plugin, `examples/config.example.yml`. You can't change files or reach GitHub from here.
+Our roost team config is the example config in the roost plugin, `examples/config.example.yml`, but without its `production` keys and its `release_notes` section. You can't change files or reach GitHub from here.
 
 Use roost's setup to get our config ready for release notes. What you need to know:
 
