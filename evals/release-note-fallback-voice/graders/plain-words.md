@@ -6,4 +6,4 @@ roost's fallback voice, for the note's text (not the evidence table or checks ar
 
 It passes when the note does all of that.
 
-It fails if the note contains a ticket key, a PR number or "acme-api", uses hype, ends with a sign-off (such as "Cheers!" or "Happy uploading!") or a byline, or never says how things were before.
+It fails if the note's own text (not the evidence table or checks) contains a ticket key, a PR number or "acme-api", uses hype, ends with a sign-off (such as "Cheers!" or "Happy uploading!") or a byline, or never says how things were before.
