@@ -1,0 +1,24 @@
+scripts/fixtures/production-date/continued-branch.json
+  s_5c34957c951ed4::t_eaaf02b503271d 2,7-22,25-67,73-75
+skills/release-notes/scripts/production_date.py
+  s_5c34957c951ed4::t_10aed6b8948f5c 138-139,147,152-153,160-166
+  s_5c34957c951ed4::t_0d6afbc6ef04d2 167-168
+scripts/production-date.test.py
+  s_5c34957c951ed4::t_eaaf02b503271d 234-246
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "12ca9264f5fe285158a4e2e7fbd39dbf3f6564ec",
+  "prompts": {},
+  "sessions": {
+    "s_5c34957c951ed4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c41c75a1-94dc-432e-b46a-87c67b176f0b",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Alan Cox <acox@beakpointinsights.com>"
+    }
+  }
+}
