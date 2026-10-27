@@ -135,6 +135,14 @@ The local environment the sessions run and test against. *Optional.* Leave it ou
 | `runbooks.house_rules` | Extra rules for this team's runbooks. |
 | `runbooks.never_run_against` | Environments and services no session changes anything in itself: `pair-runbook` never runs a command against them, and other skills hand those steps to the user. |
 
+## `release_notes`
+
+*Optional.* Used by `release-notes`. Without it, the notes are still drafted; the report says what couldn't be checked.
+
+| Key | Meaning |
+|---|---|
+| `published_url` | *Optional.* The page where the team's published release notes live. `release-notes` fetches it to check a feature isn't already announced. Without it, or when it can't be read, the report says the repeat check wasn't done, and each note's checks say to make sure it isn't already announced. |
+
 ## `design`
 
 *Optional.* Leave it out if there's no design system; `shape-epic` then asks the user what the prototype should follow.

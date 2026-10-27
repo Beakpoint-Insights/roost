@@ -21,6 +21,7 @@ Planted: see `references/phase-3-prototype.md`, use the `run-slices` skill, read
 Also `repos[].apply_gate.plna`, `team.name.typo`, `repos[].e2f` and
 `skills/no-such-skill/references/config-schema.md`.
 Also `repos[].production.workflw`, next to a correct `repos[].production.workflow`.
+Also `release_notes.publshed_url`, next to a correct `release_notes.published_url`.
 MD
 cat > "$copy/evals/update-moving/graders/planted.md" <<'MD'
 ---
@@ -41,11 +42,15 @@ for want in "reference file that doesn't exist: references/phase-3-prototype.md"
             "config key that isn't in config-schema.md: team.name.typo" \
             "config key that isn't in config-schema.md: repos[].e2f" \
             "reference file that doesn't exist: skills/no-such-skill/references/config-schema.md" \
-            "config key that isn't in config-schema.md: repos[].production.workflw"; do
+            "config key that isn't in config-schema.md: repos[].production.workflw" \
+            "config key that isn't in config-schema.md: release_notes.publshed_url"; do
   if ! grep -q -F "$want" <<<"$out"; then echo "FAIL: expected '$want' in:"; echo "$out"; fail=1; fi
 done
 if grep -q -F ": repos[].production.workflow" <<<"$out"; then
   echo "FAIL: a documented key was reported: repos[].production.workflow"; echo "$out"; fail=1
+fi
+if grep -q -F ": release_notes.published_url" <<<"$out"; then
+  echo "FAIL: a documented key was reported: release_notes.published_url"; echo "$out"; fail=1
 fi
 
 [[ $fail -eq 0 ]] && echo "check-references: all tests pass"

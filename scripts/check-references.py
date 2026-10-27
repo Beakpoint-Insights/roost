@@ -19,7 +19,7 @@ os.chdir(ROOT)
 
 SKILLS = {os.path.basename(os.path.dirname(p)) for p in glob.glob("skills/*/SKILL.md")}
 REFERENCE_FILES = {os.path.basename(p) for p in glob.glob("skills/*/references/*.md")}
-SECTIONS = ["team", "tracker", "tests", "repos", "stack", "vcs", "planning", "deploy", "design", "qa", "roadmap"]
+SECTIONS = ["team", "tracker", "tests", "repos", "stack", "vcs", "planning", "deploy", "release_notes", "design", "qa", "roadmap"]
 
 
 def schema_keys():
