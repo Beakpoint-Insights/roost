@@ -85,6 +85,18 @@ def pages(gh, path, what):
         page += 1
 
 
+def failure_kind(error):
+    """What kind of gh failure `error` is, in words, or None when its message doesn't say."""
+    text = str(error).lower()
+    if "rate limit" in text or "http 429" in text:
+        return "GitHub's rate limit, so try again later"
+    if "http 401" in text or "authentication" in text or "gh auth login" in text:
+        return "a sign-in problem (check `gh auth status`)"
+    if "http 404" in text or "not found" in text:
+        return "not found"
+    return None
+
+
 def utc_day(timestamp):
     return datetime.date.fromisoformat(timestamp[:10])
 
@@ -209,7 +221,10 @@ def by_workflow(repo, default, workflow, last, today, gh):
     try:
         gh(f"repos/{repo}/actions/workflows/{workflow}")
     except GhError as e:
-        raise NotFound(f"gh couldn't read the workflow `{workflow}` ({e}); check `production`'s workflow")
+        kind = failure_kind(e)
+        if kind == "not found":
+            raise NotFound(f"the workflow `{workflow}` isn't there ({e}); check `production`'s workflow")
+        raise NotFound(f"gh couldn't read the workflow `{workflow}`: {kind or 'an error'} ({e})")
     tags = {}
 
     def tag_commit(name):

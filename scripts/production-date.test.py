@@ -564,6 +564,21 @@ class Workflow(unittest.TestCase):
         result, _ = find(load("one-epic"), {"workflow": "deploy-prod.yml"}, [820])
         self.assertEqual(result["status"], "not_found")
         self.assertIn("deploy-prod.yml", result["reason"])
+        self.assertIn("isn't there", result["reason"])
+        self.assertIn("check `production`'s workflow", result["reason"])
+
+    def test_a_rate_limit_on_the_workflow_lookup_isnt_blamed_on_the_config(self):
+        result, _ = find(load("one-epic"), DEPLOY, [820], fail={
+            "repos/acme/acme-api/actions/workflows/deploy-production.yml": "gh: API rate limit exceeded (HTTP 403)"})
+        self.assertEqual(result["status"], "not_found")
+        self.assertIn("rate limit", result["reason"])
+        self.assertNotIn("check `production`", result["reason"])
+
+    def test_a_sign_in_failure_on_the_workflow_lookup_says_so(self):
+        result, _ = find(load("one-epic"), DEPLOY, [820], fail={
+            "repos/acme/acme-api/actions/workflows/deploy-production.yml": "gh: Requires authentication (HTTP 401)"})
+        self.assertIn("sign-in", result["reason"])
+        self.assertNotIn("check `production`", result["reason"])
 
     def test_runs_gh_cant_list_mean_date_not_found_not_a_nearby_date(self):
         result, _ = find(load("one-epic"), DEPLOY, [820],
