@@ -96,7 +96,7 @@ Before you send the note, check it against every rule in the voice you're using,
 
 The reply is these, in this order, and nothing else. It starts with the note itself: no introduction before it. Anything you'd want to say about the note (why this date, what you assumed) goes in the checks.
 
-1. **The note,** complete and ready to paste, with nothing interrupting it: its title, the line with its category and date, the bracketed held and already-announced lines if it has them (steps 4 and 5), the body, and the closing line. One version of each note, never alternatives.
+1. **The note,** complete and ready to paste, with nothing interrupting it: its title, the line with its category and date, the bracketed held and already-announced lines if it has them (steps 4 and 5), the body, the closing line, then the voice's sign-off and byline if it has them. One version of each note, never alternatives.
 2. **The evidence table** (step 3). It may come before the note instead.
 3. **Checks:** one short list, each item one line:
    - every `[N]` and `[date]` in the note, and what would fill it;
