@@ -1,0 +1,19 @@
+skills/close-out-epic/SKILL.md
+  s_5c34957c951ed4::t_68ca61802ce80f 68
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d8b930e04fd255b7321cd25dd7c512384717aba1",
+  "prompts": {},
+  "sessions": {
+    "s_5c34957c951ed4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c41c75a1-94dc-432e-b46a-87c67b176f0b",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Alan Cox <acox@beakpointinsights.com>"
+    }
+  }
+}
