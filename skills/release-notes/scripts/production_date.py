@@ -227,7 +227,11 @@ def by_workflow(repo, default, workflow, last, today, gh):
         return tags[name]
 
     def deploys(run):
-        if run["conclusion"] != "success" or run["event"] in ("pull_request", "pull_request_target"):
+        """Whether the run may have deployed: it succeeded, or it was re-run (GitHub reports a
+        run's conclusion from its latest attempt, so an earlier attempt may have succeeded)."""
+        if run["conclusion"] != "success" and run["run_attempt"] < 2:
+            return False
+        if run["event"] in ("pull_request", "pull_request_target"):
             return False
         # A run on a tag has the tag as its branch; a branch can share a tag's name, so the
         # run must be of the tag's own commit.
@@ -249,7 +253,7 @@ def by_workflow(repo, default, workflow, last, today, gh):
                                f"and {start} has more")
             end = start + (end - start) // 2
         for run in sorted(filter(deploys, runs), key=lambda r: r["created_at"]):
-            deployed_before = True
+            deployed_before = deployed_before or run["conclusion"] == "success"
             # A run that started after the best one finished can't have finished first.
             if best and run["created_at"] > best[0]:
                 break
@@ -259,6 +263,8 @@ def by_workflow(repo, default, workflow, last, today, gh):
             # Dated by its first successful attempt: a run can succeed only on a re-run, after a
             # later run, so the scan goes on until no later run could have finished sooner.
             attempt, finished = first_success(repo, run, gh)
+            if attempt is None:
+                continue
             if not best or finished < best[0]:
                 best = (finished, {"kind": "workflow", "workflow": workflow, "run_id": run["id"],
                                    "url": run["html_url"], "head_sha": run["head_sha"],
@@ -273,10 +279,11 @@ def by_workflow(repo, default, workflow, last, today, gh):
 
 
 def list_runs(repo, workflow, created, gh):
-    """(runs, capped): a workflow's successful runs, every page; capped when GitHub
-    has more than one search returns (it reports the true total_count)."""
+    """(runs, capped): a workflow's completed runs, every page; capped when GitHub has
+    more than one search returns (it reports the true total_count). Completed, not only
+    successful: a run that deployed and was then re-run and failed is listed as failed."""
     runs = []
-    for body in pages(gh, f"repos/{repo}/actions/workflows/{workflow}/runs?status=success{created}",
+    for body in pages(gh, f"repos/{repo}/actions/workflows/{workflow}/runs?status=completed{created}",
                       f"`{workflow}`'s runs"):
         if body["total_count"] > SEARCH_LIMIT:
             return runs, True
@@ -298,13 +305,14 @@ def ever_deployed(repo, workflow, deploys, gh):
 
 
 def first_success(repo, run, gh):
-    """(attempt, finished at) of the run's first successful attempt: a run can succeed
-    only on a re-run, or finish the day after it started."""
+    """(attempt, finished at) of the run's first successful attempt, or (None, None) when no
+    attempt succeeded: a run can succeed only on a re-run, fail on a later one, or finish
+    the day after it started."""
     for n in range(1, run["run_attempt"] + 1):
         attempt = read(gh, f"repos/{repo}/actions/runs/{run['id']}/attempts/{n}", f"run {run['id']}'s attempts")
         if attempt["conclusion"] == "success":
             return n, attempt["updated_at"]
-    raise NotFound(f"run {run['id']} is listed as successful, but none of its attempts succeeded")
+    return None, None
 
 
 def by_release(repo, last, today, gh):

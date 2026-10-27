@@ -113,7 +113,9 @@ class FakeGitHub:
 
     def _runs(self, workflow, query):
         runs = self.fx["workflows"][workflow]
-        if "status" in query:
+        if query.get("status") == "completed":
+            runs = [r for r in runs if r["status"] == "completed"]
+        elif "status" in query:
             runs = [r for r in runs if r["conclusion"] == query["status"]]
         if "created" in query:
             lo, _, hi = query["created"].partition("..")
@@ -479,6 +481,17 @@ class Workflow(unittest.TestCase):
                                              event="workflow_dispatch"))
         result, _ = find(fx, DEPLOY, [820])
         self.assertEqual(result["deploy"]["run_id"], 3003)
+
+    def test_a_deploy_that_succeeded_before_a_failed_rerun_still_dates_it(self):
+        # GitHub reports a run's conclusion from its latest attempt: 3003 deployed on attempt 1,
+        # then a re-run failed, so it's listed as a failure.
+        fx = with_runs(load("one-epic"), run(3003, "a821", "2026-03-03T10:00:15Z", conclusion="failure", attempts=[
+            {"conclusion": "success", "updated_at": "2026-03-03T10:12:40Z"},
+            {"conclusion": "failure", "updated_at": "2026-03-04T09:00:00Z"}]), replace=True)
+        result, _ = find(fx, DEPLOY, [820])
+        self.assertEqual(result["status"], "dated")
+        self.assertEqual((result["deploy"]["run_id"], result["deploy"]["attempt"], result["time"]),
+                         (3003, 1, "2026-03-03T10:12:40Z"))
 
     def test_a_rerun_that_finished_after_a_later_run_doesnt_date_it(self):
         # 3010 started first but succeeded only on a re-run, the next day; 3011 finished first.
