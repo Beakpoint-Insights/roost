@@ -5,7 +5,7 @@ max_turns: 15
 allowed_tools: [Read, Glob, Grep, Skill]
 ---
 
-Our roost team config is the example config in the roost plugin, `examples/config.example.yml`, but without its `release_notes` section: we haven't set up our own voice rules yet.
+Our roost team config is the example config in the roost plugin, `examples/config.example.yml`, but without `release_notes.voice`: we haven't set up our own voice rules yet.
 
 Draft the release note for PROJ-2420. You can't reach Jira or GitHub from here, so here's what I found:
 
