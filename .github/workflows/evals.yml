@@ -1,19 +1,20 @@
 name: Evals
 
-# Runs the eval cases only when someone asks, since every run is a real Claude
-# session paid for by the credential below:
+# Runs the eval cases only before a release or when someone asks, never on a PR's
+# pushes, since every run is a real Claude session on the credential below:
 # - a PR labelled run-evals: the cases its changes can affect (scripts/eval-cases.sh),
-#   once each, when the label is added and on each push while it stays on;
+#   once each, when the label is added (remove it and add it again to re-run);
 # - the release PR, when it's reopened to start its checks: the cases whose skills
 #   changed since the last release, once each;
 # - a run started by hand (gh workflow run Evals): the same by default; name cases
 #   with -f cases="a b", or run every case with -f all=true (and -f runs=3).
-# Needs ANTHROPIC_API_KEY (an API key from the Claude Console), or
-# CLAUDE_CODE_OAUTH_TOKEN (from `claude setup-token`, which uses a subscription).
+# Needs CLAUDE_CODE_OAUTH_TOKEN (from `claude setup-token`, on a subscription), or
+# ANTHROPIC_API_KEY (from the Claude Console, billed per token). With both set, the
+# token is used: `claude -p` would otherwise always take the key.
 
 on:
   pull_request:
-    types: [labeled, synchronize, reopened]
+    types: [labeled, reopened]
   workflow_dispatch:
     inputs:
       cases:
@@ -39,8 +40,7 @@ jobs:
     if: >-
       github.event_name == 'workflow_dispatch' ||
       (startsWith(github.head_ref, 'release-please--') && github.event.action == 'reopened') ||
-      (contains(github.event.pull_request.labels.*.name, 'run-evals') &&
-       (github.event.action != 'labeled' || github.event.label.name == 'run-evals'))
+      (github.event.action == 'labeled' && github.event.label.name == 'run-evals')
     # On the job, not the workflow: a run whose job is skipped (an unrelated label
     # added) must not cancel one that's running.
     concurrency:
@@ -113,6 +113,15 @@ jobs:
             echo "::warning::Skipped: no Claude credential (CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY). PRs from forks don't get secrets; a maintainer runs the evals before merging."
             echo "skipped=true" >> "$GITHUB_OUTPUT"
             exit 0
+          fi
+          # Claude Code takes ANTHROPIC_API_KEY over CLAUDE_CODE_OAUTH_TOKEN, and in -p
+          # mode always uses the key when it's set ("Authentication precedence",
+          # code.claude.com/docs/en/authentication). Prefer the subscription token.
+          if [ -n "$CLAUDE_CODE_OAUTH_TOKEN" ]; then
+            unset ANTHROPIC_API_KEY
+            echo "Credential: CLAUDE_CODE_OAUTH_TOKEN"
+          else
+            echo "Credential: ANTHROPIC_API_KEY"
           fi
           failed=0
           scripts/run-evals.sh "$RUNS" $CASES || failed=1
