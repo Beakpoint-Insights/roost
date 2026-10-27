@@ -234,6 +234,17 @@ class LandingCommits(unittest.TestCase):
         result, _ = find(fx, "merge", [46])
         self.assertIs(result["prs"][0]["landed"], False)
 
+    def test_every_pr_open_from_the_branch_is_tried_not_only_the_first_to_merge(self):
+        # slice-1 had two PRs open when #81 merged into it: #91 into staging, which merged
+        # first and never reached main, and #80 into main.
+        fx = load("rebased-stack")
+        fx["pulls"].append({"number": 91, "state": "closed", "created_at": "2026-03-01T12:00:00Z",
+                            "merged_at": "2026-03-02T12:00:00Z", "merge_commit_sha": "w091",
+                            "base": {"ref": "staging"}, "head": {"ref": "slice-1", "sha": "w081"}})
+        fx["commits"]["w091"] = ["w081"]
+        result, _ = find(fx, "merge", [81])
+        self.assertEqual((result["status"], result["prs"][0]["landing_pr"]), ("dated", 80))
+
     def test_a_branch_that_reached_main_without_a_pr_isnt_held_forever(self):
         result, _ = find(load("stacked"), "merge", [50])
         self.assertEqual(result["status"], "not_found")
@@ -257,6 +268,18 @@ class LandingCommits(unittest.TestCase):
         self.assertEqual(result["status"], "not_found")
         self.assertIn("KeyError", result["reason"])
         self.assertIn("production_date.py failed", result["reason"])
+
+    def test_a_crash_keeps_what_was_found_before_it(self):
+        fx = load("one-epic")
+        del fx["workflows"]["deploy-production.yml"][2]["run_attempt"]
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            code = production_date.main(["--repo", "acme/acme-api", "--workflow", "deploy-production.yml", "820"],
+                                        gh=FakeGitHub(fx))
+        result = json.loads(out.getvalue())
+        self.assertEqual((code, result["status"]), (1, "not_found"))
+        self.assertEqual(result["last_change"]["pr"], 820)
+        self.assertEqual([p["pr"] for p in result["prs"]], [820])
 
     def test_squash_merged_stack_more_than_one_branch_deep_lands(self):
         # #70 into slice-2, #71 slice-2 into slice-1, #72 slice-1 into main, all squashed.
@@ -389,6 +412,12 @@ class Workflow(unittest.TestCase):
         # Unencoded, `hotfix?x` would ask about the tag `hotfix`.
         fx = with_runs(load("one-epic"), run(3010, "a821", "2026-03-02T20:00:00Z", branch="hotfix?x"))
         fx["tags"], fx["tag_commits"] = ["hotfix"], {"hotfix": "a821"}
+        result, _ = find(fx, DEPLOY, [820])
+        self.assertEqual(result["deploy"]["run_id"], 3003)
+
+    def test_a_run_with_no_branch_isnt_a_deploy(self):
+        fx = with_runs(load("one-epic"), run(3010, "a821", "2026-03-02T20:00:00Z", branch=None,
+                                             event="workflow_dispatch"))
         result, _ = find(fx, DEPLOY, [820])
         self.assertEqual(result["deploy"]["run_id"], 3003)
 

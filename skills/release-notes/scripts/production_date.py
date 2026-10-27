@@ -11,7 +11,8 @@ of the three options when the config has none). It finds where each PR landed
 on the default branch, takes the last to land, and finds the first deploy,
 release or merge that carried it, matching by commit, never by date.
 
-It prints one JSON object and exits 0 whatever it finds (2 for bad arguments):
+It prints one JSON object and exits 0 whatever it finds; 2 is for bad arguments, and 1
+for a failure of its own (still with the JSON, status not_found, naming the error):
   status       "dated", "held" (production hasn't carried it yet) or
                "not_found" (the date can't be known)
   date, time   the UTC day and time customers could first use it, when dated
@@ -95,29 +96,36 @@ def landing(repo, owner, default, number, gh, branches):
     entry = {"pr": number, "base": pr["base"]["ref"]}
     if not pr.get("merged_at"):
         return dict(entry, landed=False, reason=f"#{number} isn't merged")
-    sha = pr["merge_commit_sha"]
-    current = pr
-    for _ in range(MAX_STACK):
-        base = current["base"]["ref"]
-        if base == default:
-            return dict(entry, landing_pr=current["number"], landing_sha=current["merge_commit_sha"],
-                        landed_at=current["merged_at"])
-        # On a stack: it lands with the first PR from its base branch that was open when it merged
-        # into that branch, and merged after it. Matched by dates, not commits: a rebase rewrites
-        # the branch's commits, and a PR opened later from a reused branch name doesn't count.
-        if base not in branches:
-            branches[base] = pulls_from(repo, owner, base, gh)
-        merged = current["merged_at"]
-        carriers = [p for p in branches[base] if p.get("merged_at") and p["created_at"] <= merged <= p["merged_at"]]
-        if not carriers:
-            if contains(repo, sha, default, gh):
-                raise NotFound(f"#{number} reached `{default}` from `{base}` without a PR, "
-                               f"so when it landed isn't known")
-            return dict(entry, landed=False,
-                        reason=f"#{number} merged into `{base}`, and no PR has brought it onto `{default}`")
-        current = min(carriers, key=lambda p: p["merged_at"])
-        sha = current["merge_commit_sha"]
-    raise NotFound(f"#{number}'s stack is deeper than {MAX_STACK} branches")
+    found = carrier(repo, owner, default, number, pr, gh, branches, 0)
+    if not found:
+        return dict(entry, landed=False,
+                    reason=f"#{number} merged into `{pr['base']['ref']}`, and no PR has brought it onto `{default}`")
+    return dict(entry, landing_pr=found["number"], landing_sha=found["merge_commit_sha"], landed_at=found["merged_at"])
+
+
+def carrier(repo, owner, default, number, pr, gh, branches, depth):
+    """The PR, `pr` or one below it on the stack, that merged into the default branch with
+    `pr`'s change, or None."""
+    base = pr["base"]["ref"]
+    if base == default:
+        return pr
+    if depth == MAX_STACK:
+        raise NotFound(f"#{number}'s stack is deeper than {MAX_STACK} branches")
+    # On a stack: it lands with a PR from its base branch that was open when it merged into
+    # that branch, and merged after it. Matched by dates, not commits: a rebase rewrites the
+    # branch's commits, and a PR opened later from a reused branch name doesn't count. Every
+    # such PR is tried, first to merge first: one may have gone to another branch instead.
+    if base not in branches:
+        branches[base] = pulls_from(repo, owner, base, gh)
+    merged = pr["merged_at"]
+    for p in sorted((p for p in branches[base] if p.get("merged_at") and p["created_at"] <= merged <= p["merged_at"]),
+                    key=lambda p: p["merged_at"]):
+        found = carrier(repo, owner, default, number, p, gh, branches, depth + 1)
+        if found:
+            return found
+    if contains(repo, pr["merge_commit_sha"], default, gh):
+        raise NotFound(f"#{number} reached `{default}` from `{base}` without a PR, so when it landed isn't known")
+    return None
 
 
 def pulls_from(repo, owner, branch, gh):
@@ -164,6 +172,9 @@ def find(repo, production, prs, today, gh=gh_api):
             result.update(status="dated", date=time[:10], time=time)
     except NotFound as e:
         result.update(status="not_found", date=None, time=None, reason=str(e))
+    except Exception as e:
+        e.result = result  # what was found before it failed, for the command line to print
+        raise
     return result
 
 
@@ -202,7 +213,8 @@ def by_workflow(repo, default, workflow, last, today, gh):
             return False
         # A run on a tag has the tag as its branch; a branch can share a tag's name, so the
         # run must be of the tag's own commit.
-        return run["head_branch"] == default or tag_commit(run["head_branch"]) == run["head_sha"]
+        branch = run["head_branch"]
+        return bool(branch) and (branch == default or tag_commit(branch) == run["head_sha"])
 
     one_day = datetime.timedelta(days=1)
     start = utc_day(last["landed_at"]) - one_day
@@ -334,10 +346,11 @@ def main(argv=None, gh=gh_api):
     try:
         result, code = find(args.repo, production, args.prs, today, gh), 0
     except Exception as e:  # a bug, or an answer from gh it doesn't understand: say so, never a date
-        result = {"repo": args.repo, "production": production, "status": "not_found", "date": None, "time": None,
-                  "reason": f"production_date.py failed ({type(e).__name__}: {e}); "
-                            f"date not found until it's fixed, so report it",
-                  "last_change": None, "deploy": None, "prs": []}
+        result = getattr(e, "result", None) or {"repo": args.repo, "production": production, "last_change": None,
+                                                "deploy": None, "prs": []}
+        result.update(status="not_found", date=None, time=None,
+                      reason=f"production_date.py failed ({type(e).__name__}: {e}); "
+                             f"date not found until it's fixed, so report it")
         code = 1
     print(json.dumps(result, indent=2))
     return code
