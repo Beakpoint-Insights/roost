@@ -82,6 +82,7 @@ To use the roost skills here, copy [`.roost/config.example.yml`](.roost/config.e
 | `release-note-announced-as-beta` | A post that announced only a beta of part of a feature doesn't make the finished feature a repeat: it gets a new note about what's new since, naming the post |
 | `release-note-team-voice` | With the team's voice file, the note follows it (sentence-case title; New, Better, Fixed; a rotating sign-off; the byline), and no fallback rule is mixed in |
 | `release-note-without-release-notes-config` | With no `release_notes` section, the note is dated by its release, uses roost's fallback voice and says so in one line, and says the repeat check wasn't done |
+| `release-note-sparse-team-voice` | A team voice that sets only a few rules is still the whole voice: no fallback rule, such as the title word limit, is inherited |
 | `close-out-offers-release-note` | After an epic ships, `close-out-epic` confirms production from each repo's `production` key, then offers to draft the release note instead of writing one unasked |
 | `setup-asks-production-and-voice` | `setup` recommends each repo's `production` from its workflows or host, asks for the published notes and the voice, and saves no voice rules the user hasn't seen |
 
