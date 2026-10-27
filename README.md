@@ -216,8 +216,8 @@ Every skill needs the team config. Install fails quietly if a skill's tools aren
 | `run-slice` | Claude Code, run from a separate orchestrator session, with a session open for each repo on the same machine; tracker access; roost in every session |
 | `build-epic`, `run-bug`, `review-epic` | Everything `run-slice` needs; `build-epic` also needs what `slice-handoff` and `release-qa` need |
 | `slice-handoff` | Tracker access, the `gh` CLI, and the repo sessions open for the epic test run |
-| `close-out-epic` | Tracker access |
-| `release-notes` | Tracker access, and the `gh` CLI to read PRs, deploy runs and releases |
+| `close-out-epic` | Tracker access; to confirm production from GitHub, Python 3 and the `gh` CLI |
+| `release-notes` | Tracker access, the `gh` CLI to read PRs, deploy runs and releases, and Python 3 for its production-date script |
 | `stacked-prs` | The `gh` CLI with the `gh stack` extension, and commit signing if your config requires it |
 | `cross-repo-handoff` | Tracker access to post the prompt; works without it by returning the text |
 | `triage-ticket` | Tracker access |

@@ -25,7 +25,7 @@ Read EPIC and its children (stories, tasks, bugs) through the tracker adapter, w
 
 For every other child that isn't `tracker.statuses.wont_do`, find its PRs the same ways with `--state all` instead of `--state merged`, and note its status. Judge it by its PRs, not only its status: when every PR found has merged, it's built, and step 3 dates it like the others; when one is still open, it's still being built; with no PR and its status still the first one, its work never started. Step 2 needs this.
 
-Keep only merged PRs. For each, find the commit that brought its change onto the repo's default branch, and that commit's date: step 3 dates the PR by it, never by the PR's own merge into another branch. For a PR merged into the default branch, it's the PR's merge commit. A PR merged into another branch (on a stack, into the PR below it) lands when that branch does: find the first PR whose head is that base branch and that merged after it (`gh pr list -R <repo> --state merged --head <base branch> --limit 1000 --json number,mergedAt,mergeCommit`), follow base branches the same way until one merged into the default branch, and use that PR's merge commit and date. Call it the PR's **landing commit**. A PR whose change hasn't reached the default branch yet hasn't shipped: list it in the checks. Such a child with no merged PR found goes in the checks ("no merged PR found for PROJ-1234"); don't treat it as not built.
+Keep only merged PRs. Each one's change reaches the repo's default branch through its **landing PR**: the PR itself, when it merged into the default branch, or, for a PR merged into another branch (on a stack, into the PR below it), the PR that later brought that branch onto the default branch. Its merge commit is the **landing commit**. Step 3's script finds both for you; when the user gave you the PRs' merges instead, find them by the same rule: the first PR from the base branch that was open when the PR merged into it, and merged after it, followed down the stack until one merged into the default branch. A PR whose change hasn't reached the default branch yet hasn't shipped: list it in the checks. Such a child with no merged PR found goes in the checks ("no merged PR found for PROJ-1234"); don't treat it as not built.
 
 ## 2. What shipped
 
@@ -33,32 +33,45 @@ The note describes what the merged PRs built, read from the children and their P
 
 ## 3. When customers could use it
 
-For each repo the feature touched, find the date production first carried that repo's **last** change for the feature, the way the repo's `production` key says. "Last" means the last to land on the default branch, by its landing commit's date (step 1), not by the PR's own merge: a stacked PR that merged early but landed late can be the last change.
+For each repo the feature touched, find the date production first carried that repo's **last** change for the feature, the way the repo's `production` key says. "Last" means the last to land on the default branch, by its landing PR's merge (step 1), not by the PR's own merge: a stacked PR that merged early but landed late can be the last change.
+
+**Run the script** in this skill's folder, once per repo, with the repo's `production` and every merged PR the feature has in that repo:
+
+```
+python3 <this skill's folder>/scripts/production_date.py --repo <owner/name> --workflow <file> <PR> [<PR>…]
+```
+
+Use `--workflow <file>` for `{ workflow: <file> }`, `--release` for `release`, `--merge` for `merge`, and none of the three when the repo has no `production`. It reads GitHub with `gh`, finds each PR's landing PR, takes the last to land, and prints one JSON object. Use what it prints as it is: don't redo its search by hand, and don't move its date.
+
+| `status` | What it means |
+|---|---|
+| `dated` | `date` (UTC) is when production first carried the repo's last change; `deploy` says what carried it. |
+| `held` | Production hasn't carried it yet: no deploy or release contains it, or a PR hasn't reached the default branch (its `prs` entry has `landed: false`). The note is held (step 4); `reason` says what it waits for. |
+| `not_found` | **Date not found.** Put "Date not found: <`reason`>" in the checks, and the feature's date is `[date]`. When the reason is that the repo has no `production`, also give the evidence you have (`last_change`: its last change and when it landed), and ask how the repo reaches production, or suggest setting its `production` key. |
+
+If the script exits with an error, or prints something that isn't its JSON, or `python3` or `gh` isn't there, the date isn't found: say why in the checks. Don't work the date out by hand from `gh` instead.
+
+**What the script does,** so you can explain its result, and so you can apply the same rules when the user has given you the deploys, releases and merges instead (use what they gave; don't run the script for a repo whose evidence you already have):
 
 | `production` | The date of a change |
 |---|---|
-| `{ workflow: <file> }` | The first run of that workflow that **succeeded**, ran on the default branch or a tag (not a pull request), and whose head commit contains the PR's landing commit. List runs from the day **before** it landed (`--created` compares UTC dates): `gh run list -R <repo> --workflow <file> --status success --limit 1000 --created "<day before it landed>..<end>" --json databaseId,headSha,headBranch,event,createdAt`, where `<end>` starts as today. `gh` returns the newest first and `--limit` drops the oldest, so if it returns exactly the limit, the first deploy may be missing: move `<end>` earlier until it returns fewer. Then, oldest first, check each candidate with `gh api repos/<repo>/compare/<landing sha>...<run head sha> --jq .status`: `ahead` or `identical` means the run contains it. If no run in that window contains it, list the next window, from that `<end>` on, the same way, until you reach today. Match by commit, never by date. The first run that contains it ends the search. Date that run by when its first successful attempt finished, not by `createdAt` (a run can cross midnight, or succeed only on a re-run): check its attempts from 1 up with `gh api repos/<repo>/actions/runs/<run id>/attempts/<n> --jq '[.conclusion, .updated_at]'`, and take the `updated_at` of the first `success`. If the workflow has succeeded on the default branch or a tag before (it exists and deploys) and no run up to today contains it, it isn't deployed yet: the note is held (step 4), not "date not found". If it has never succeeded, or its file isn't found, say "Date not found: no successful `<file>` runs; check `production`'s workflow" in the checks. If `gh` can't read the runs, the date isn't found: say so in the checks, and don't fall back to a nearby date. |
-| `release` | The publish date of the first published release whose tag contains the landing commit. List every release published from the day **before** it landed, paging through all of them (the command is below the table). The API orders them by when each was created, not published, so sort them by `published_at`, oldest first, and check them in that order with `compare` the same way. If none contains it, it isn't released yet: the note is held (step 4). If the releases can't be read, the date isn't found: say so in the checks. |
-| `merge` | The landing PR's `mergedAt`: when the PR that brought the change onto the default branch merged. Not a commit's date, which can be when the code was written. |
+| `{ workflow: <file> }` | When the first run of that workflow to **succeed**, on the default branch or a tag (not a pull request), whose head commit contains the landing commit, finished: its first successful attempt's end, not when it started (a run can cross midnight, or succeed only on a re-run). A run on a tag counts only if it ran the tag's own commit. It searches every run from the day **before** the change landed to today, page by page, narrowing its window when GitHub's 1,000-run limit for one search would hide some. If the workflow has deployed before and no run up to today contains the change, it's `held`; if it has never succeeded, or its file isn't found, `not_found`. |
+| `release` | The publish date of the first published release, by publish date (drafts and pre-releases skipped), whose tag contains the landing commit, from every release published from the day **before** it landed. None: `held`. |
+| `merge` | When the landing PR merged. Not a commit's date, which can be when the code was written. |
+| *(missing)* | `not_found`. Don't guess, and don't assume it deploys on merge. |
 
-| *(missing)* | **Date not found.** Don't guess, and don't assume it deploys on merge. Say "Date not found: `<repo>` has no `production` in the config", give the evidence you do have (its last change and when it landed), and ask how the repo reaches production, or suggest setting its `production` key. |
-
-The releases for `release`, published from the day before the PR landed:
-
-```
-gh api --paginate "repos/<repo>/releases?per_page=100" --jq '.[] | select((.draft or .prerelease) | not) | select(.published_at >= "<day before it landed>") | [.tag_name, .published_at] | @tsv'
-```
+It matches by commit (GitHub's `compare` says the run or tag is `ahead` of the landing commit, or `identical`), never by date, and never returns a nearby date: anything it can't read, or a search GitHub won't list in full, is `not_found` with the reason.
 
 **One note per feature.** Most epics ship one feature and get one note. An epic that shipped separate features, each usable without the other, gets one note for each, dated and evidenced on its own from the changes that feature needed. A feature's date is the **latest** of its repos' dates: customers can use it only when every part is live. Every date rule works this way, here and in step 4: when more than one thing must happen first (each repo's deploy, a flag going on for everyone, a correction's run), the date is the latest of them. If any repo's date wasn't found, the feature's date is `[date]`.
 
 **Never use the tracker's resolution date,** or the date a ticket moved to done: an epic can close weeks before or after customers could use it.
 
-Show each feature's evidence in one table, one row per repo:
+Show each feature's evidence in one table, one row per repo, from the script's `last_change` and `deploy` (or from what the user gave): which run, release or merge carried it, its commit, and how it was matched.
 
-| Repo | Last change | Deploy | Date |
-|---|---|---|---|
-| api | org/api#120, landed June 9 | `release-prod.yml` run on June 11 | June 11, 2026 |
-| web | org/web#45, landed June 10 | deploys on merge | June 10, 2026 |
+| Repo | Last change | Deploy | Matched by | Date |
+|---|---|---|---|---|
+| api | org/api#120, landed June 9 | `release-prod.yml` run 4211 on `main`, at `9f2c1ab` | contains `4e1d2c0`, #120's merge (`compare`: ahead) | June 11, 2026 |
+| web | org/web#45, landed June 10 with #44 | merge of #44 (deploys on merge) | #44's merge | June 10, 2026 |
 
 ## 4. Can customers use it yet?
 
@@ -101,7 +114,7 @@ The reply is these, in this order, and nothing else. It starts with the note its
 3. **Checks:** one short list, each item one line:
    - every `[N]` and `[date]` in the note, and what would fill it;
    - what was planned but not built, and done children with no merged PR found;
-   - every date not found, and every source that couldn't be read (deploy runs, releases, the tracker);
+   - every date not found, and every source that couldn't be read (deploy runs, releases, the tracker), with the script's `reason` for each repo it didn't date;
    - each held note and what it waits for, with "check the flag's rollout" for a flag (step 4);
    - each feature already announced, naming the post's title and date, or "Repeat check not done: <why>." and "check it isn't already announced" for each note (step 5);
    - the voice line, when roost's fallback voice was used (step 6).
