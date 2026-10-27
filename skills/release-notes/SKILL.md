@@ -25,7 +25,7 @@ Read EPIC and its children (stories, tasks, bugs) through the tracker adapter, w
 
 For every other child that isn't `tracker.statuses.wont_do`, find its PRs the same ways with `--state all` instead of `--state merged`, and note its status. Judge it by its PRs, not only its status: when every PR found has merged, it's built, and step 3 dates it like the others; when one is still open, it's still being built; with no PR and its status still the first one, its work never started. Step 2 needs this.
 
-Keep only merged PRs. Each one's change reaches the repo's default branch through its **landing PR**: the PR itself, when it merged into the default branch, or, for a PR merged into another branch (on a stack, into the PR below it), the PR that later brought that branch onto the default branch. Its merge commit is the **landing commit**. Step 3's script finds both for you; when the user gave you the PRs' merges instead, find them by the same rule: the first PR from the base branch that was open when the PR merged into it, and merged after it, followed down the stack until one merged into the default branch. A PR whose change hasn't reached the default branch yet hasn't shipped: list it in the checks. Such a child with no merged PR found goes in the checks ("no merged PR found for PROJ-1234"); don't treat it as not built.
+Keep only merged PRs. Each one's change reaches the repo's default branch through its **landing PR**: the PR itself, when it merged into the default branch, or, for a PR merged into another branch (on a stack, into the PR below it), the PR that later brought that branch onto the default branch. Its merge commit is the **landing commit**. Step 3's script finds both for you; when the user gave you the PRs' merges instead, find them by the same rule: follow each PR from the base branch that was open when the PR merged into it, and merged after it, down the stack, and the first of them to merge into the default branch lands it. A PR the user says merged, without naming another branch, merged into the default branch. A PR whose change hasn't reached the default branch yet hasn't shipped: list it in the checks. Such a child with no merged PR found goes in the checks ("no merged PR found for PROJ-1234"); don't treat it as not built.
 
 ## 2. What shipped
 
@@ -51,7 +51,9 @@ Use `--workflow <file>` for `{ workflow: <file> }`, `--release` for `release`, `
 
 If the script exits with an error, or prints something that isn't its JSON, or `python3` or `gh` isn't there, the date isn't found: say why in the checks. Don't work the date out by hand from `gh` instead.
 
-**What the script does,** so you can explain its result, and so you can apply the same rules when the user has given you the deploys, releases and merges instead (use what they gave; don't run the script for a repo whose evidence you already have):
+**Evidence the user gave counts as read** (see the top of this skill): when the user has told you which deploy, release or merge carried a repo's last change, use that for the repo, and don't run the script for it. Don't add checks saying you didn't run the script, compare commits, or see a run's ID or end time for what they told you; in the evidence table, its "Matched by" is "as you gave it".
+
+**What the script does,** so you can explain its result, and apply the same rules to evidence the user gave:
 
 | `production` | The date of a change |
 |---|---|
@@ -60,13 +62,13 @@ If the script exits with an error, or prints something that isn't its JSON, or `
 | `merge` | When the landing PR merged. Not a commit's date, which can be when the code was written. |
 | *(missing)* | `not_found`. Don't guess, and don't assume it deploys on merge. |
 
-It matches by commit (GitHub's `compare` says the run or tag is `ahead` of the landing commit, or `identical`), never by date, and never returns a nearby date: anything it can't read, or a search GitHub won't list in full, is `not_found` with the reason.
+A deploy or release matches by commit (GitHub's `compare` says the run or tag is `ahead` of the landing commit, or `identical`), never by a date near it; only a stacked PR's landing PR is found by dates (step 1), since a rebase rewrites the stack's commits. It never returns a nearby date: anything it can't read, or a search GitHub won't list in full, is `not_found` with the reason.
 
 **One note per feature.** Most epics ship one feature and get one note. An epic that shipped separate features, each usable without the other, gets one note for each, dated and evidenced on its own from the changes that feature needed. A feature's date is the **latest** of its repos' dates: customers can use it only when every part is live. Every date rule works this way, here and in step 4: when more than one thing must happen first (each repo's deploy, a flag going on for everyone, a correction's run), the date is the latest of them. If any repo's date wasn't found, the feature's date is `[date]`.
 
 **Never use the tracker's resolution date,** or the date a ticket moved to done: an epic can close weeks before or after customers could use it.
 
-Show each feature's evidence in one table, one row per repo, from the script's `last_change` and `deploy` (or from what the user gave): which run, release or merge carried it, its commit, and how it was matched.
+Show each feature's evidence in one table, one row per repo, from the script's `last_change` and `deploy` (or from what the user gave): which run, release or merge carried it, its commit, and how it was matched. Write anything you'd add about the dates in the checks, not between the table and the checks.
 
 | Repo | Last change | Deploy | Matched by | Date |
 |---|---|---|---|---|
