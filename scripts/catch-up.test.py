@@ -1,0 +1,225 @@
+#!/usr/bin/env python3
+"""Tests skills/release-notes/scripts/catch_up.py with no network: Jira pages
+come from a recorded fixture, and a fake `gh` answers the GitHub searches from
+another, returning at most --limit results the way `gh issue list` does.
+
+Run: python3 scripts/catch-up.test.py
+"""
+import contextlib
+import copy
+import io
+import json
+import os
+import sys
+import tempfile
+import unittest
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+SCRIPT = os.path.join(ROOT, "skills", "release-notes", "scripts", "catch_up.py")
+FIXTURES = os.path.join(ROOT, "scripts", "fixtures", "catch-up")
+sys.path.insert(0, os.path.dirname(SCRIPT))
+
+import catch_up  # noqa: E402
+
+
+def load(name):
+    with open(os.path.join(FIXTURES, name + ".json"), encoding="utf-8") as f:
+        return json.load(f)
+
+
+def keys(items):
+    return [i["key"] for i in items]
+
+
+def reasons(result):
+    return {d["key"]: d["reason"] for d in result["dropped"]}
+
+
+class Jira(unittest.TestCase):
+    def sort(self, pages, done="Done", ready="Ready for Release"):
+        return catch_up.sort_jira(pages, done=done, ready=ready)
+
+    def test_epics_candidates_and_dropped(self):
+        r = self.sort(load("jira-two-pages")["pages"])
+        self.assertEqual(keys(r["epics"]), ["PROJ-2470", "PROJ-2480"])
+        self.assertEqual(keys(r["candidates"]), ["PROJ-2501", "PROJ-2510"])
+        self.assertEqual(r["candidates"][0]["type"], "bug")
+        why = reasons(r)
+        self.assertEqual(set(why), {"PROJ-2472", "PROJ-2475", "PROJ-2520"})
+        self.assertIn("sub-task of PROJ-2471", why["PROJ-2472"])
+        self.assertIn("Test", why["PROJ-2475"])
+        self.assertIn("moved back to To Do", why["PROJ-2520"])
+
+    def test_a_slice_counts_toward_its_epic_even_when_the_epic_isnt_listed(self):
+        r = self.sort(load("jira-two-pages")["pages"])
+        self.assertIn({"key": "PROJ-2481", "epic": "PROJ-2480"}, r["children"])
+        self.assertIn({"key": "PROJ-2471", "epic": "PROJ-2470"}, r["children"])
+        self.assertEqual(r["epics"][1]["title"], "Download costs as a spreadsheet")
+
+    def test_a_ticket_on_two_pages_counts_once(self):
+        r = self.sort(load("jira-two-pages")["pages"])
+        self.assertEqual(keys(r["epics"]).count("PROJ-2470"), 1)
+
+    def test_every_page_read(self):
+        r = self.sort(load("jira-two-pages")["pages"])
+        self.assertTrue(r["complete"])
+        self.assertIsNone(r["reason"])
+
+    def test_a_missing_last_page_is_said(self):
+        pages = load("jira-two-pages")["pages"][:1]
+        r = self.sort(pages)
+        self.assertFalse(r["complete"])
+        self.assertIn("page 1", r["reason"])
+        self.assertIn("nextPageToken", r["reason"])
+
+    def test_status_names_match_whatever_their_case(self):
+        r = self.sort(load("jira-two-pages")["pages"], done="done", ready="READY FOR RELEASE")
+        self.assertNotIn("PROJ-2510", reasons(r))
+
+    def test_without_a_ready_for_release_status_only_done_counts(self):
+        r = self.sort(load("jira-two-pages")["pages"], ready=None)
+        self.assertIn("moved back to Ready for Release", reasons(r)["PROJ-2510"])
+
+
+class FakeGh:
+    """Answers catch_up's gh(args) calls from the github fixture. A search
+    returns at most --limit results, as `gh issue list` does; `big` maps a
+    search string to how many made-up issues it should return instead."""
+
+    def __init__(self, fixture, big=None):
+        self.fx = fixture
+        self.big = big or {}
+        self.calls = []
+
+    def __call__(self, args):
+        self.calls.append(args)
+        if args[:2] == ["issue", "list"]:
+            search = args[args.index("--search") + 1]
+            limit = int(args[args.index("--limit") + 1])
+            if search in self.big:
+                n = self.big[search]
+                made = [{"number": 1000 + i, "title": f"Issue {i}", "state": "CLOSED",
+                         "stateReason": "COMPLETED", "closedAt": "2026-02-02T00:00:00Z",
+                         "issueType": None, "labels": [{"name": "bug"}], "parent": None}
+                        for i in range(n)]
+                return made[:limit]
+            if "reason:completed" in search:
+                return copy.deepcopy(self.fx["closed"])[:limit]
+            return copy.deepcopy(self.fx["ready"])[:limit]
+        if args[:2] == ["issue", "view"]:
+            return copy.deepcopy(self.fx["issues"][args[2]])
+        if args[0] == "api":
+            n = args[-1].split("/")[-2]
+            return copy.deepcopy(self.fx["timelines"][n])
+        raise AssertionError(f"unexpected gh call: {args}")
+
+
+class GitHub(unittest.TestCase):
+    def run_github(self, fake, since="2026-02-01", today="2026-03-01"):
+        return catch_up.search_github("acme/acme-skills", since=since, today=today,
+                                      ready_label="Ready for Release", gh=fake)
+
+    def test_closed_and_ready_since_the_date(self):
+        r = self.run_github(FakeGh(load("github")))
+        self.assertEqual(keys(r["epics"]), ["#90", "#97"])
+        self.assertEqual(keys(r["candidates"]), ["#95"])
+        self.assertEqual(r["candidates"][0]["type"], "bug")
+        self.assertIn({"key": "#91", "epic": "#90"}, r["children"])
+        self.assertIn({"key": "#96", "epic": "#97"}, r["children"])
+        self.assertTrue(r["complete"])
+
+    def test_a_kind_label_wins_over_an_issue_type(self):
+        fx = load("github")
+        fx["issues"]["90"]["issueType"] = {"name": "Feature"}
+        r = self.run_github(FakeGh(fx))
+        self.assertIn({"key": "#91", "epic": "#90"}, r["children"])
+
+    def test_a_sub_issue_of_a_story_is_dropped(self):
+        r = self.run_github(FakeGh(load("github")))
+        self.assertIn("sub-task of #91", reasons(r)["#93"])
+
+    def test_labelled_ready_before_the_date_is_dropped(self):
+        r = self.run_github(FakeGh(load("github")))
+        self.assertIn("2026-01-20", reasons(r)["#98"])
+
+    def test_the_closed_search_asks_for_completed_issues_since_the_date(self):
+        fake = FakeGh(load("github"))
+        self.run_github(fake)
+        searches = [c[c.index("--search") + 1] for c in fake.calls if c[:2] == ["issue", "list"]]
+        self.assertIn("closed:2026-02-01..2026-03-01 reason:completed", searches)
+        limits = {c[c.index("--limit") + 1] for c in fake.calls if c[:2] == ["issue", "list"]}
+        self.assertEqual(limits, {"1000"})
+
+    def test_a_search_at_its_limit_is_split_by_date(self):
+        big = {"closed:2026-02-01..2026-03-01 reason:completed": 1000,
+               "closed:2026-02-01..2026-02-15 reason:completed": 400,
+               "closed:2026-02-16..2026-03-01 reason:completed": 300}
+        fake = FakeGh(load("github"), big=big)
+        r = self.run_github(fake)
+        self.assertTrue(r["complete"])
+        searches = [c[c.index("--search") + 1] for c in fake.calls if c[:2] == ["issue", "list"]]
+        self.assertIn("closed:2026-02-01..2026-02-15 reason:completed", searches)
+        self.assertIn("closed:2026-02-16..2026-03-01 reason:completed", searches)
+
+    def test_one_day_at_the_limit_is_said(self):
+        big = {f"closed:{d}..{d} reason:completed": 1000 for d in ["2026-02-01"]}
+        big["closed:2026-02-01..2026-02-01 reason:completed"] = 1000
+        fake = FakeGh(load("github"), big=big)
+        r = self.run_github(fake, since="2026-02-01", today="2026-02-01")
+        self.assertFalse(r["complete"])
+        self.assertIn("2026-02-01", r["reason"])
+
+
+class Cutoff(unittest.TestCase):
+    def test_live_before_the_date_is_dropped_and_the_rest_sorted_oldest_first(self):
+        features = [
+            {"key": "PROJ-2400", "status": "dated", "date": "2026-03-03"},
+            {"key": "PROJ-2450", "status": "dated", "date": "2026-01-28"},
+            {"key": "PROJ-2470", "status": "dated", "date": "2026-02-20"},
+            {"key": "PROJ-2490", "status": "held"},
+            {"key": "PROJ-2495", "status": "not_found"},
+        ]
+        r = catch_up.cut_off(features, since="2026-02-01")
+        self.assertEqual(keys(r["notes"]), ["PROJ-2470", "PROJ-2400", "PROJ-2490", "PROJ-2495"])
+        self.assertEqual(r["dropped"], [{"key": "PROJ-2450",
+                                         "reason": "live 2026-01-28, before 2026-02-01"}])
+
+    def test_live_on_the_date_is_kept(self):
+        r = catch_up.cut_off([{"key": "A", "status": "dated", "date": "2026-02-01"}], since="2026-02-01")
+        self.assertEqual(keys(r["notes"]), ["A"])
+
+
+class Cli(unittest.TestCase):
+    def main(self, argv, stdin=""):
+        out = io.StringIO()
+        old = sys.stdin
+        sys.stdin = io.StringIO(stdin)
+        try:
+            with contextlib.redirect_stdout(out):
+                code = catch_up.main(argv)
+        finally:
+            sys.stdin = old
+        return code, json.loads(out.getvalue())
+
+    def test_jira_reads_page_files(self):
+        pages = load("jira-two-pages")["pages"]
+        with tempfile.TemporaryDirectory() as d:
+            paths = []
+            for i, p in enumerate(pages):
+                path = os.path.join(d, f"p{i}.json")
+                with open(path, "w") as f:
+                    json.dump(p, f)
+                paths.append(path)
+            code, r = self.main(["jira", "--done", "Done", "--ready", "Ready for Release"] + paths)
+        self.assertEqual(code, 0)
+        self.assertEqual(keys(r["epics"]), ["PROJ-2470", "PROJ-2480"])
+
+    def test_cutoff_reads_stdin(self):
+        code, r = self.main(["cutoff", "--since", "2026-02-01"],
+                            json.dumps([{"key": "A", "status": "dated", "date": "2026-01-02"}]))
+        self.assertEqual(code, 0)
+        self.assertEqual(keys(r["dropped"]), ["A"])
+
+
+if __name__ == "__main__":
+    unittest.main()

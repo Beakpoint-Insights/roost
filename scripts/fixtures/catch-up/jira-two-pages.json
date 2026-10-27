@@ -1,0 +1,24 @@
+{
+  "about": "A Jira search for PROJ tickets moved to Done or Ready for Release since February 1, 2026, read in two pages. PROJ-2470 is an epic and PROJ-2471 its slice; PROJ-2472 is a sub-task of PROJ-2471 and PROJ-2475 a Test; PROJ-2520 moved to Done and back to To Do; PROJ-2481 is a slice whose epic, PROJ-2480, isn't in the results; PROJ-2501 and PROJ-2510 are standalone bugs. Objects have the fields Jira's search returns.",
+  "pages": [
+    {
+      "issues": [
+        {"key": "PROJ-2470", "fields": {"summary": "Pay the way your finance team wants", "issuetype": {"name": "Epic", "subtask": false, "hierarchyLevel": 1}, "status": {"name": "Done", "statusCategory": {"key": "done"}}}},
+        {"key": "PROJ-2471", "fields": {"summary": "[Slice 1] Pay by invoice", "issuetype": {"name": "Story", "subtask": false, "hierarchyLevel": 0}, "status": {"name": "Done", "statusCategory": {"key": "done"}}, "parent": {"key": "PROJ-2470", "fields": {"summary": "Pay the way your finance team wants", "issuetype": {"name": "Epic", "hierarchyLevel": 1}}}}},
+        {"key": "PROJ-2472", "fields": {"summary": "Add the invoice option to the billing form", "issuetype": {"name": "Sub-task", "subtask": true, "hierarchyLevel": -1}, "status": {"name": "Done", "statusCategory": {"key": "done"}}, "parent": {"key": "PROJ-2471", "fields": {"summary": "[Slice 1] Pay by invoice", "issuetype": {"name": "Story", "hierarchyLevel": 0}}}}},
+        {"key": "PROJ-2475", "fields": {"summary": "Pay by invoice from Settings > Billing", "issuetype": {"name": "Test", "subtask": false, "hierarchyLevel": 0}, "status": {"name": "Done", "statusCategory": {"key": "done"}}}}
+      ],
+      "nextPageToken": "page-2"
+    },
+    {
+      "issues": [
+        {"key": "PROJ-2520", "fields": {"summary": "Usage chart shows the wrong month", "issuetype": {"name": "Bug", "subtask": false, "hierarchyLevel": 0}, "status": {"name": "To Do", "statusCategory": {"key": "new"}}}},
+        {"key": "PROJ-2481", "fields": {"summary": "[Slice 1] Export the cost table", "issuetype": {"name": "Story", "subtask": false, "hierarchyLevel": 0}, "status": {"name": "Ready for Release", "statusCategory": {"key": "done"}}, "parent": {"key": "PROJ-2480", "fields": {"summary": "Download costs as a spreadsheet", "issuetype": {"name": "Epic", "hierarchyLevel": 1}}}}},
+        {"key": "PROJ-2501", "fields": {"summary": "CSV export drops the last row", "issuetype": {"name": "Bug", "subtask": false, "hierarchyLevel": 0}, "status": {"name": "Done", "statusCategory": {"key": "done"}}}},
+        {"key": "PROJ-2510", "fields": {"summary": "Typo on the Billing page", "issuetype": {"name": "Bug", "subtask": false, "hierarchyLevel": 0}, "status": {"name": "Ready for Release", "statusCategory": {"key": "done"}}}},
+        {"key": "PROJ-2470", "fields": {"summary": "Pay the way your finance team wants", "issuetype": {"name": "Epic", "subtask": false, "hierarchyLevel": 1}, "status": {"name": "Done", "statusCategory": {"key": "done"}}}}
+      ],
+      "isLast": true
+    }
+  ]
+}
