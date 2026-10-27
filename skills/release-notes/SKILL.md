@@ -1,6 +1,6 @@
 ---
 name: release-notes
-description: Draft customer-facing release notes for an epic that has shipped, ready to paste. Dates each note by when customers could first use the feature (the production deploy, release or merge that first carried its last change, shown in an evidence table), never by the tracker's resolution date; writes only what the slices built, listing anything cut; leaves facts the evidence doesn't give as [N]; and follows roost's fallback voice. Never publishes or posts anything. Use when the user says "draft the release note for PROJ-X", "write the release notes for this epic", "what do we tell customers about PROJ-X", and from close-out-epic once production runs the epic.
+description: Draft customer-facing release notes for an epic that has shipped, ready to paste, one note per feature it shipped (usually one). Dates each note by when customers could first use the feature (the production deploy, release or merge that first carried its last change, shown in an evidence table), never by the tracker's resolution date; writes only what the slices built, listing anything cut; leaves facts the evidence doesn't give as [N]; and follows roost's fallback voice. Never publishes or posts anything. Use when the user says "draft the release note for PROJ-X", "write the release notes for this epic", "what do we tell customers about PROJ-X", and from close-out-epic once production runs the epic.
 ---
 
 # Release Notes
@@ -23,7 +23,7 @@ Read EPIC and its children (stories, tasks, bugs) through the tracker adapter, w
 - PRs whose title, body or branch name has its key (`gh pr list -R <repo> --state merged --search "<key> in:title,body"`, and `head:<branch>` for `vcs.branch_name`'s form of the key);
 - PRs on its timeline (`cross-referenced` and `connected` events, with `tracker.kind: github`).
 
-Keep only merged PRs, with each one's merge commit and merge date. Such a child with no merged PR found goes in the checks ("no merged PR found for PROJ-1234"); don't treat it as not built.
+Keep only merged PRs. For each, find the commit that brought its change onto the repo's default branch, and that commit's date: step 3 dates the PR by it, never by the PR's own merge into another branch. For a PR merged into the default branch, it's the PR's merge commit. A PR merged into another branch (on a stack, into the PR below it) lands when that branch does: find the first PR whose head is that base branch and that merged after it (`gh pr list -R <repo> --state merged --head <base branch>`), follow base branches the same way until one merged into the default branch, and use that PR's merge commit and date. Call it the PR's **landing commit**. A PR whose change hasn't reached the default branch yet hasn't shipped: list it in the checks. Such a child with no merged PR found goes in the checks ("no merged PR found for PROJ-1234"); don't treat it as not built.
 
 ## 2. What shipped
 
@@ -35,16 +35,16 @@ For each repo the feature touched, find the date production first carried that r
 
 | `production` | The date of a change |
 |---|---|
-| `{ workflow: <file> }` | The first run of that workflow that **succeeded**, ran on the default branch or a tag (not a pull request), and whose head commit contains the PR's merge commit. List runs from the day **before** the merge (`--created` compares UTC dates): `gh run list -R <repo> --workflow <file> --status success --limit 1000 --created "<day before merge>..<end>" --json databaseId,headSha,headBranch,event,createdAt`. `gh` returns the newest first and `--limit` drops the oldest, so if it returns exactly the limit, the first deploy may be missing: move `<end>` earlier until it returns fewer. Then, oldest first, check each candidate with `gh api repos/<repo>/compare/<merge sha>...<run head sha> --jq .status`: `ahead` or `identical` means the run contains it. Match by commit, never by date. If no run contains it, or `gh` can't read the runs, say so in the checks; don't fall back to a nearby date. |
-| `release` | The `publishedAt` of the first published release whose tag contains the merge commit: `gh release list -R <repo> --exclude-drafts --exclude-pre-releases --order asc --limit 1000 --json tagName,publishedAt`, checked oldest first with `compare` the same way. If it returns exactly the limit, say so in the checks. |
-| `merge` | The merge date. |
+| `{ workflow: <file> }` | The first run of that workflow that **succeeded**, ran on the default branch or a tag (not a pull request), and whose head commit contains the PR's landing commit. List runs from the day **before** it landed (`--created` compares UTC dates): `gh run list -R <repo> --workflow <file> --status success --limit 1000 --created "<day before it landed>..<end>" --json databaseId,headSha,headBranch,event,createdAt`. `gh` returns the newest first and `--limit` drops the oldest, so if it returns exactly the limit, the first deploy may be missing: move `<end>` earlier until it returns fewer. Then, oldest first, check each candidate with `gh api repos/<repo>/compare/<landing sha>...<run head sha> --jq .status`: `ahead` or `identical` means the run contains it. Match by commit, never by date. If no run contains it, or `gh` can't read the runs, say so in the checks; don't fall back to a nearby date. |
+| `release` | The `publishedAt` of the first published release whose tag contains the landing commit: `gh release list -R <repo> --exclude-drafts --exclude-pre-releases --order asc --limit 1000 --json tagName,publishedAt`, checked oldest first with `compare` the same way. If it returns exactly the limit, say so in the checks. |
+| `merge` | The landing commit's date. |
 | *(missing)* | **Date not found.** Don't guess, and don't assume it deploys on merge. Say "Date not found: `<repo>` has no `production` in the config", give the evidence you do have (its last change and when it merged), and ask how the repo reaches production, or suggest setting its `production` key. |
 
-The feature's date is the **latest** of its repos' dates: customers can use it only when every part is live. If any repo's date wasn't found, the feature's date is `[date]`.
+**One note per feature.** Most epics ship one feature and get one note. An epic that shipped separate features, each usable without the other, gets one note for each, dated and evidenced on its own from the changes that feature needed. A feature's date is the **latest** of its repos' dates: customers can use it only when every part is live. If any repo's date wasn't found, the feature's date is `[date]`.
 
 **Never use the tracker's resolution date,** or the date a ticket moved to done: an epic can close weeks before or after customers could use it.
 
-Show the evidence in one table, one row per repo:
+Show each feature's evidence in one table, one row per repo:
 
 | Repo | Last change | Deploy | Date |
 |---|---|---|---|
@@ -71,8 +71,10 @@ Before you send the note, check it against every rule in the voice, one by one. 
 
 The reply is these, in this order, and nothing else. It starts with the note itself: no introduction before it. Anything you'd want to say about the note (why this date, what you assumed) goes in the checks.
 
-1. **The note,** complete and ready to paste, with nothing interrupting it: its title, the line with its category and date, the body, and the closing line. One version only.
+1. **The note,** complete and ready to paste, with nothing interrupting it: its title, the line with its category and date, the body, and the closing line. One version of each note, never alternatives.
 2. **The evidence table** (step 3). It may come before the note instead.
+
+   For an epic that shipped separate features, repeat 1 and 2 for each feature, then give one list of checks.
 3. **Checks:** one short list, each item one line:
    - every `[N]` and `[date]` in the note, and what would fill it;
    - what was planned but not built, and done children with no merged PR found;

@@ -74,6 +74,8 @@ To use the roost skills here, copy [`.roost/config.example.yml`](.roost/config.e
 | `release-note-for-one-epic` | One epic's release note is dated by its production deploy, not the resolution date, with an evidence table; it leaves out a slice that was cut and leaves an unknown number as `[N]`, all in one paste-ready reply |
 | `release-note-fallback-voice` | Without the team's own voice, a note follows roost's fallback: a feature title, a category and date line, "Previously… Now…", and no ticket keys, hype or sign-off |
 | `release-note-date-not-found` | When a repo's config doesn't say how it reaches production, the note says the date wasn't found and shows the evidence, instead of guessing one |
+| `release-note-stacked-slice` | A slice merged into another slice's branch is dated by the commit that brought it onto `main`, not its own merge, and a PR whose key only contains the slice's key is left out |
+| `release-note-one-per-feature` | An epic that shipped two separate features gets one note for each, each dated by the last change that feature needed |
 | `close-out-offers-release-note` | After an epic ships, `close-out-epic` confirms production from each repo's `production` key, then offers to draft the release note instead of writing one unasked |
 
 Run them before merging a change to a skill:
