@@ -78,7 +78,7 @@ When a post already covers a feature, don't present its note as new. Still give 
 
 If the page shows only the newest posts (one page of a longer changelog), check what it shows, and say in the checks how far back it goes.
 
-When the config has no `release_notes.published_url`, or the page can't be read (no web tool, an error, a sign-in page), never say a feature wasn't announced before. Say "Repeat check not done: <why>." in the checks, and add "check it isn't already announced" for each note.
+When you have neither the page's text from the user nor a readable `release_notes.published_url` (it isn't set, or there's no web tool, an error, a sign-in page), never say a feature wasn't announced before. Say "Repeat check not done: <why>." in the checks, and add "check it isn't already announced" for each note.
 
 ## 6. The voice
 
