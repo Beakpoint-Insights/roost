@@ -1,6 +1,6 @@
 ---
 name: release-notes
-description: Draft customer-facing release notes for an epic that has shipped, ready to paste, one note per feature it shipped (usually one). Dates each note by when customers could first use the feature (the production deploy, release or merge that first carried its last change, shown in an evidence table), never by the tracker's resolution date; writes only what the slices built, listing anything cut; leaves facts the evidence doesn't give as [N]; and follows roost's fallback voice. Never publishes or posts anything. Use when the user says "draft the release note for PROJ-X", "write the release notes for this epic", "what do we tell customers about PROJ-X", and from close-out-epic once production runs the epic.
+description: Draft customer-facing release notes for an epic that has shipped, ready to paste, one note per feature it shipped (usually one). Dates each note by when customers could first use the feature (the production deploy, release or merge that first carried its last change, shown in an evidence table), never by the tracker's resolution date; writes only what the slices built, listing anything cut; holds a note customers can't use yet (a feature flag, a slice not yet live, a correction to past data not yet run), saying what it waits for; checks the team's published notes so nothing is announced twice; leaves facts the evidence doesn't give as [N]; and follows roost's fallback voice. Never publishes or posts anything. Use when the user says "draft the release note for PROJ-X", "write the release notes for this epic", "what do we tell customers about PROJ-X", and from close-out-epic once production runs the epic.
 ---
 
 # Release Notes
@@ -65,11 +65,21 @@ Show each feature's evidence in one table, one row per repo:
 
 ## 4. Can customers use it yet?
 
-Not checked yet: this version doesn't look for feature flags, slices waiting to deploy, or corrections to past data that haven't run. Say so in the checks.
+Code in production isn't always something customers can use. For each feature, hold its note when any of these is true:
+
+- **A feature flag.** Read each merged PR's diff and, on the default branch, the code that renders or routes to what it adds (the page, the menu entry, the route, the handler), for a check that turns it on or off. It can come from any library or the team's own helper: `flags.isEnabled("spend-by-team")`, `useFeature("bulk-export")`, `if (featureFlags.newBilling)`, `variation("usage-alerts", false)`. Never read a flag provider: you can't know who has the flag on, so say "check the flag's rollout", and never say the rollout was checked.
+- **A slice that isn't live yet.** A child the feature needs whose landing commit no production deploy has carried yet, by step 3's rule: for example one at `tracker.statuses.ready_for_release` whose PR landed after the last deploy.
+- **A correction to past data that hasn't run.** A job, backfill, script or data migration a merged PR adds for someone to run by hand, with no record that it ran in production (a comment, a run, a runbook record), when the note's promise depends on it ("past costs are corrected").
+
+A held note is still drafted in full. Its date is `[date]`, the day it's live for everyone, and one line directly under the date line says it's held and names each thing it waits for: "Held: waiting for the `spend-by-team` flag to be on for everyone (check the flag's rollout)." Its evidence table row dates are what you found so far, and the feature's date is `[date]`. Write it to be true on the day it's published, without claiming that anything it waits for has already happened: not "past costs already include the correction" while the recalculation hasn't run, but "past costs are recalculated the same way".
 
 ## 5. Already announced?
 
-Not checked yet: this version doesn't read the team's published notes. Say so in the checks.
+Check the team's published notes, so nothing is announced twice. Fetch `release_notes.published_url`, or use the page's text if the user gave it: pasted text counts as fetched. Compare each feature with the posts by what it does for the customer, not by title: a post called "Spend Alerts by Email" announces a feature called "Know right away when spending jumps".
+
+When a post already covers a feature, don't present its note as new: leave it out, or give it marked "Already announced: <post title>, <date>" on the line under the date line, for the user to decide. Name the post in the checks either way.
+
+When the config has no `release_notes.published_url`, or the page can't be read (no web tool, an error, a sign-in page), never say a feature wasn't announced before. Say "Repeat check not done: <why>." in the checks, and add "check it isn't already announced" for each note.
 
 ## 6. The voice
 
@@ -83,13 +93,14 @@ Before you send the note, check it against every rule in the voice, one by one. 
 
 The reply is these, in this order, and nothing else. It starts with the note itself: no introduction before it. Anything you'd want to say about the note (why this date, what you assumed) goes in the checks.
 
-1. **The note,** complete and ready to paste, with nothing interrupting it: its title, the line with its category and date, the body, and the closing line. One version of each note, never alternatives.
+1. **The note,** complete and ready to paste, with nothing interrupting it: its title, the line with its category and date, the held or already-announced line if it has one (steps 4 and 5), the body, and the closing line. One version of each note, never alternatives.
 2. **The evidence table** (step 3). It may come before the note instead.
 3. **Checks:** one short list, each item one line:
    - every `[N]` and `[date]` in the note, and what would fill it;
    - what was planned but not built, and done children with no merged PR found;
-   - every date not found, and every source that couldn't be read (deploy runs, releases, the tracker);
-   - "Not checked yet: feature flags, unreleased slices and already-published notes." (steps 4 and 5);
+   - every date not found, and every source that couldn't be read (deploy runs, releases, the tracker, the published notes);
+   - each held note and what it waits for, with "check the flag's rollout" for a flag (step 4);
+   - each feature already announced, naming the post's title and date, or "Repeat check not done: <why>." and "check it isn't already announced" for each note (step 5);
    - the voice line (step 6).
 
 For an epic that shipped separate features, give 1 and 2 for each feature in turn, then one list of checks for them all.
