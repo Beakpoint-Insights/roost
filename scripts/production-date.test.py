@@ -134,8 +134,8 @@ class FakeGitHub:
 
     def _compare(self, base, head):
         commits = self.fx["commits"]
-        tags = {t: sha for t, sha in self.fx.get("tag_commits", {}).items()}
-        base, head = tags.get(base, base), tags.get(head, head)
+        refs = dict(self.fx.get("tag_commits", {}), **self.fx.get("branches", {}))
+        base, head = refs.get(base, base), refs.get(head, head)
         if base not in commits or head not in commits:
             raise GhError("gh: Not Found (HTTP 404)")
         if base == head:
@@ -197,6 +197,34 @@ class LandingCommits(unittest.TestCase):
         self.assertEqual(result["status"], "held")
         self.assertIn("isn't merged", [p for p in result["prs"] if p["pr"] == 49][0]["reason"])
 
+    def test_a_branch_name_with_query_characters_is_encoded(self):
+        fx = load("stacked")
+        for p in fx["pulls"]:
+            for side in ("base", "head"):
+                if p[side]["ref"] == "slice-1":
+                    p[side]["ref"] = "feat/a+b&c"
+        result, _ = find(fx, "merge", [45])
+        self.assertEqual(result["prs"][0]["landing_pr"], 44)
+
+    def test_a_reused_branch_name_doesnt_land_a_pr(self):
+        # slice-2 was reused for #60, merged into main after #46 merged into the old slice-2.
+        result, _ = find(load("stacked"), "merge", [46])
+        self.assertEqual(result["status"], "held")
+        self.assertIs(result["prs"][0]["landed"], False)
+
+    def test_a_branch_that_reached_main_without_a_pr_isnt_held_forever(self):
+        result, _ = find(load("stacked"), "merge", [50])
+        self.assertEqual(result["status"], "not_found")
+        self.assertIn("#50", result["reason"])
+        self.assertIn("without a PR", result["reason"])
+
+    def test_an_unexpected_answer_from_gh_is_reported_not_raised(self):
+        fx = load("one-epic")
+        del fx["pulls"][0]["base"]
+        result, _ = find(fx, "merge", [812])
+        self.assertEqual(result["status"], "not_found")
+        self.assertIn("unexpected", result["reason"])
+
     def test_a_pr_gh_cant_read_means_date_not_found(self):
         result, _ = find(load("one-epic"), "merge", [812], fail={"repos/acme/acme-api/pulls/812": "gh: HTTP 502"})
         self.assertEqual(result["status"], "not_found")
@@ -226,6 +254,147 @@ class MissingProduction(unittest.TestCase):
         self.assertEqual(result["last_change"]["pr"], 820)
         self.assertIsNone(result["deploy"])
         self.assertFalse([c for c in gh.calls if "/actions/" in c or "/releases" in c])
+
+    def test_no_production_and_a_pr_not_on_main_says_both(self):
+        result, _ = find(load("stacked"), None, [43, 46])
+        self.assertEqual(result["status"], "not_found")
+        self.assertIn("no `production`", result["reason"])
+        self.assertIn("#46", result["reason"])
+
+
+DEPLOY = {"workflow": "deploy-production.yml"}
+
+
+def run(run_id, sha, created, branch="main", event="push", conclusion="success", attempts=None):
+    """A workflow run as gh api returns it, and its attempts."""
+    attempts = attempts or [{"conclusion": conclusion, "updated_at": created[:11] + "23:59:00Z"}]
+    return ({"id": run_id, "head_sha": sha, "head_branch": branch, "event": event, "status": "completed",
+             "conclusion": conclusion, "created_at": created, "run_attempt": len(attempts),
+             "html_url": f"https://github.com/acme/acme-api/actions/runs/{run_id}"},
+            attempts)
+
+
+def with_runs(fixture, *runs, replace=False):
+    fx = copy.deepcopy(fixture)
+    workflow = fx["workflows"]["deploy-production.yml"]
+    if replace:
+        workflow.clear()
+        fx["attempts"].clear()
+    for r, attempts in runs:
+        workflow.append(r)
+        fx["attempts"][str(r["id"])] = attempts
+    return fx
+
+
+def hourly(count, start, sha_for, first_id=10000):
+    """`count` successful deploys on main, one an hour from `start`; sha_for(i) is the i-th's commit."""
+    t0 = datetime.datetime.fromisoformat(start.replace("Z", "+00:00"))
+    runs = []
+    for i in range(count):
+        created = (t0 + datetime.timedelta(hours=i)).strftime("%Y-%m-%dT%H:%M:%SZ")
+        finished = (t0 + datetime.timedelta(hours=i, minutes=9)).strftime("%Y-%m-%dT%H:%M:%SZ")
+        runs.append(run(first_id + i, sha_for(i), created, attempts=[{"conclusion": "success", "updated_at": finished}]))
+    return runs
+
+
+class Workflow(unittest.TestCase):
+    def test_the_first_deploy_containing_the_last_change_dates_it(self):
+        result, _ = find(load("one-epic"), DEPLOY, [812, 820])
+        self.assertEqual(result["status"], "dated")
+        self.assertEqual((result["date"], result["time"]), ("2026-03-03", "2026-03-03T10:12:40Z"))
+        self.assertEqual(result["deploy"], {
+            "kind": "workflow", "workflow": "deploy-production.yml", "run_id": 3003,
+            "url": "https://github.com/acme/acme-api/actions/runs/3003", "head_sha": "a821",
+            "head_branch": "main", "event": "push", "attempt": 1, "matched": "compare a820...a821: ahead"})
+
+    def test_an_earlier_deploy_is_found_for_an_earlier_change(self):
+        result, _ = find(load("one-epic"), DEPLOY, [812])
+        self.assertEqual((result["deploy"]["run_id"], result["time"]), (3001, "2026-02-28T09:11:40Z"))
+
+    def test_a_deploy_of_exactly_the_landing_commit_is_identical(self):
+        fx = with_runs(load("one-epic"), run(3010, "a820", "2026-03-02T19:00:00Z"))
+        result, _ = find(fx, DEPLOY, [820])
+        self.assertEqual(result["deploy"]["run_id"], 3010)
+        self.assertEqual(result["deploy"]["matched"], "compare a820...a820: identical")
+
+    def test_failed_cancelled_pull_request_and_other_branch_runs_dont_count(self):
+        fx = with_runs(load("one-epic"),
+                       run(3010, "a820", "2026-03-02T17:00:00Z", conclusion="cancelled"),
+                       run(3011, "a821", "2026-03-02T17:30:00Z", branch="proj-2403-backend", event="pull_request"),
+                       run(3012, "a821", "2026-03-02T18:00:00Z", branch="staging"),
+                       run(3013, "a821", "2026-03-02T18:30:00Z", conclusion="failure"))
+        result, _ = find(fx, DEPLOY, [820])
+        self.assertEqual(result["deploy"]["run_id"], 3003)
+
+    def test_a_deploy_from_a_tag_counts(self):
+        fx = with_runs(load("one-epic"), run(3010, "a821", "2026-03-02T20:00:00Z", branch="v3.21.0"))
+        fx["tags"] = ["v3.21.0"]
+        result, _ = find(fx, DEPLOY, [820])
+        self.assertEqual(result["deploy"]["run_id"], 3010)
+        self.assertEqual(result["deploy"]["head_branch"], "v3.21.0")
+
+    def test_a_deploy_that_succeeded_on_a_rerun_is_dated_by_that_attempt(self):
+        fx = with_runs(load("one-epic"), run(3003, "a821", "2026-03-03T23:50:00Z", attempts=[
+            {"conclusion": "failure", "updated_at": "2026-03-03T23:58:00Z"},
+            {"conclusion": "success", "updated_at": "2026-03-04T08:15:00Z"}]), replace=True)
+        result, _ = find(fx, DEPLOY, [820])
+        self.assertEqual((result["date"], result["deploy"]["attempt"]), ("2026-03-04", 2))
+
+    def test_a_busy_workflow_is_read_past_the_first_page(self):
+        # 250 deploys from the day before #812 landed; the first 30 don't contain it.
+        runs = hourly(250, "2026-02-26T00:00:00Z", lambda i: "a000" if i < 30 else "a813")
+        result, gh = find(with_runs(load("one-epic"), *runs, replace=True), DEPLOY, [812], today="2026-03-12")
+        self.assertEqual(result["deploy"]["run_id"], 10030)
+        self.assertEqual(result["time"], "2026-02-27T06:09:00Z")
+        self.assertTrue(any("page=3" in c for c in gh.calls))
+
+    def test_more_runs_than_a_search_returns_narrows_the_window(self):
+        # 1,500 deploys in the window; the first that contains #820 is the 1,100th.
+        runs = hourly(1500, "2026-03-01T00:00:00Z", lambda i: "a813" if i < 1100 else "a821")
+        result, _ = find(with_runs(load("one-epic"), *runs, replace=True), DEPLOY, [820], today="2026-05-01")
+        self.assertEqual(result["status"], "dated")
+        self.assertEqual(result["deploy"]["run_id"], 11100)
+
+    def test_one_day_over_the_search_limit_is_not_a_guess(self):
+        t0 = datetime.datetime(2026, 3, 3, tzinfo=datetime.timezone.utc)
+        runs = [run(20000 + i, "a821", (t0 + datetime.timedelta(seconds=60 * i)).strftime("%Y-%m-%dT%H:%M:%SZ"))
+                for i in range(1100)]
+        result, _ = find(with_runs(load("one-epic"), *runs, replace=True), DEPLOY, [820])
+        self.assertEqual(result["status"], "not_found")
+        self.assertIn("page limit", result["reason"])
+        self.assertIn("2026-03-03", result["reason"])
+
+    def test_not_deployed_yet_holds_the_note(self):
+        fx = load("one-epic")
+        fx["workflows"]["deploy-production.yml"] = fx["workflows"]["deploy-production.yml"][:2]
+        result, _ = find(fx, DEPLOY, [820])
+        self.assertEqual(result["status"], "held")
+        self.assertIsNone(result["date"])
+        self.assertIn("#820", result["reason"])
+        self.assertIn("2026-03-10", result["reason"])
+
+    def test_a_workflow_that_has_never_deployed_means_date_not_found(self):
+        fx = with_runs(load("one-epic"), run(3010, "a821", "2026-03-03T10:00:00Z", conclusion="failure"),
+                       replace=True)
+        result, _ = find(fx, DEPLOY, [820])
+        self.assertEqual(result["status"], "not_found")
+        self.assertIn("no successful `deploy-production.yml` runs", result["reason"])
+
+    def test_a_missing_workflow_file_means_date_not_found(self):
+        result, _ = find(load("one-epic"), {"workflow": "deploy-prod.yml"}, [820])
+        self.assertEqual(result["status"], "not_found")
+        self.assertIn("deploy-prod.yml", result["reason"])
+
+    def test_runs_gh_cant_list_mean_date_not_found_not_a_nearby_date(self):
+        result, _ = find(load("one-epic"), DEPLOY, [820],
+                         fail={"repos/acme/acme-api/actions/workflows/deploy-production.yml/runs": "gh: HTTP 403"})
+        self.assertEqual((result["status"], result["date"]), ("not_found", None))
+        self.assertIn("HTTP 403", result["reason"])
+
+    def test_attempts_gh_cant_read_mean_date_not_found(self):
+        result, _ = find(load("one-epic"), DEPLOY, [820], fail={"repos/acme/acme-api/actions/runs/3003/attempts": "gh: HTTP 500"})
+        self.assertEqual((result["status"], result["date"]), ("not_found", None))
+        self.assertIn("HTTP 500", result["reason"])
 
 
 class CommandLine(unittest.TestCase):

@@ -1,27 +1,184 @@
 {
-  "about": "A gh stack in acme-web. #45 merged early into slice-1 (#44's branch), which landed on main later; #47 merged into slice-3, whose PR #48 merged into slice-1. #43 merged straight into main in between. #46 merged into slice-2 after #45 had already merged, so nothing brought it onto main.",
+  "about": "A gh stack in acme-web. #45 merged early into slice-1 (#44's branch), which landed on main later; #47 merged into slice-3, whose PR #48 merged into slice-1. #43 merged straight into main in between. #46 merged into slice-2 after #45 had already merged, so nothing brought it onto main. PRs are squash-merged: #44's commit on main (w044) has main as its only parent, and slice-1's tip when it merged (w044h) holds #45 and #48. slice-2 was later reused for #60, unrelated work merged into main. slice-5 (#50's base) reached main by a push, with no PR.",
   "repo": "acme/acme-web",
   "default_branch": "main",
   "commits": {
     "w000": [],
-    "w045": ["w000"],
-    "w047": ["w000"],
-    "w048": ["w047"],
-    "w043": ["w000"],
-    "w044": ["w043", "w045", "w048"],
-    "w046": ["w045"]
+    "w045": [
+      "w000"
+    ],
+    "w047": [
+      "w000"
+    ],
+    "w048": [
+      "w047"
+    ],
+    "w043": [
+      "w000"
+    ],
+    "w044": [
+      "w043"
+    ],
+    "w046": [
+      "w045"
+    ],
+    "w044h": [
+      "w045",
+      "w048"
+    ],
+    "w045h": [
+      "w000"
+    ],
+    "w047h": [
+      "w000"
+    ],
+    "w048h": [
+      "w047"
+    ],
+    "w043h": [
+      "w000"
+    ],
+    "w046h": [
+      "w045"
+    ],
+    "w060": [
+      "w044"
+    ],
+    "w060h": [
+      "w044"
+    ],
+    "w050": [
+      "w000"
+    ],
+    "w061": [
+      "w060",
+      "w050"
+    ]
   },
   "pulls": [
-    {"number": 45, "state": "closed", "merged_at": "2026-03-01T10:00:00Z", "merge_commit_sha": "w045", "base": {"ref": "slice-1"}, "head": {"ref": "slice-2"}},
-    {"number": 47, "state": "closed", "merged_at": "2026-03-01T11:00:00Z", "merge_commit_sha": "w047", "base": {"ref": "slice-3"}, "head": {"ref": "slice-4"}},
-    {"number": 48, "state": "closed", "merged_at": "2026-03-02T09:00:00Z", "merge_commit_sha": "w048", "base": {"ref": "slice-1"}, "head": {"ref": "slice-3"}},
-    {"number": 43, "state": "closed", "merged_at": "2026-03-03T12:00:00Z", "merge_commit_sha": "w043", "base": {"ref": "main"}, "head": {"ref": "fix-header"}},
-    {"number": 44, "state": "closed", "merged_at": "2026-03-05T15:30:00Z", "merge_commit_sha": "w044", "base": {"ref": "main"}, "head": {"ref": "slice-1"}},
-    {"number": 46, "state": "closed", "merged_at": "2026-03-06T08:00:00Z", "merge_commit_sha": "w046", "base": {"ref": "slice-2"}, "head": {"ref": "slice-2b"}},
-    {"number": 49, "state": "closed", "merged_at": null, "merge_commit_sha": null, "base": {"ref": "main"}, "head": {"ref": "abandoned"}}
+    {
+      "number": 45,
+      "state": "closed",
+      "merged_at": "2026-03-01T10:00:00Z",
+      "merge_commit_sha": "w045",
+      "base": {
+        "ref": "slice-1"
+      },
+      "head": {
+        "ref": "slice-2",
+        "sha": "w045h"
+      }
+    },
+    {
+      "number": 47,
+      "state": "closed",
+      "merged_at": "2026-03-01T11:00:00Z",
+      "merge_commit_sha": "w047",
+      "base": {
+        "ref": "slice-3"
+      },
+      "head": {
+        "ref": "slice-4",
+        "sha": "w047h"
+      }
+    },
+    {
+      "number": 48,
+      "state": "closed",
+      "merged_at": "2026-03-02T09:00:00Z",
+      "merge_commit_sha": "w048",
+      "base": {
+        "ref": "slice-1"
+      },
+      "head": {
+        "ref": "slice-3",
+        "sha": "w048h"
+      }
+    },
+    {
+      "number": 43,
+      "state": "closed",
+      "merged_at": "2026-03-03T12:00:00Z",
+      "merge_commit_sha": "w043",
+      "base": {
+        "ref": "main"
+      },
+      "head": {
+        "ref": "fix-header",
+        "sha": "w043h"
+      }
+    },
+    {
+      "number": 44,
+      "state": "closed",
+      "merged_at": "2026-03-05T15:30:00Z",
+      "merge_commit_sha": "w044",
+      "base": {
+        "ref": "main"
+      },
+      "head": {
+        "ref": "slice-1",
+        "sha": "w044h"
+      }
+    },
+    {
+      "number": 46,
+      "state": "closed",
+      "merged_at": "2026-03-06T08:00:00Z",
+      "merge_commit_sha": "w046",
+      "base": {
+        "ref": "slice-2"
+      },
+      "head": {
+        "ref": "slice-2b",
+        "sha": "w046h"
+      }
+    },
+    {
+      "number": 49,
+      "state": "closed",
+      "merged_at": null,
+      "merge_commit_sha": null,
+      "base": {
+        "ref": "main"
+      },
+      "head": {
+        "ref": "abandoned",
+        "sha": "w000"
+      }
+    },
+    {
+      "number": 60,
+      "state": "closed",
+      "merged_at": "2026-03-08T09:00:00Z",
+      "merge_commit_sha": "w060",
+      "base": {
+        "ref": "main"
+      },
+      "head": {
+        "ref": "slice-2",
+        "sha": "w060h"
+      }
+    },
+    {
+      "number": 50,
+      "state": "closed",
+      "merged_at": "2026-03-04T09:00:00Z",
+      "merge_commit_sha": "w050",
+      "base": {
+        "ref": "slice-5"
+      },
+      "head": {
+        "ref": "slice-6",
+        "sha": "w000"
+      }
+    }
   ],
   "workflows": {},
   "attempts": {},
   "releases": [],
-  "tags": []
+  "tags": [],
+  "branches": {
+    "main": "w061"
+  }
 }
