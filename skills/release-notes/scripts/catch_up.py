@@ -8,7 +8,10 @@ Usage:
                      [--today YYYY-MM-DD]
   catch_up.py cutoff --since YYYY-MM-DD < features.json
 
-jira:    give it every page the Jira search for tickets moved to done or ready
+jira:    a ticket counts as still done when its status is one of the names
+         given or in Jira's done category, unless its status or resolution
+         closed it without shipping (Won't Do, Duplicate, Cancelled, ...).
+         Give it every page the Jira search for tickets moved to done or ready
          for release since the date returned, in order, each as saved from
          the search (its `issues`, and `nextPageToken` or `isLast`).
 github:  it runs the searches itself with `gh`: issues closed as completed
@@ -43,7 +46,10 @@ import sys
 LIMIT = 1000  # GitHub's search returns at most this many results
 KINDS = ("epic", "story", "task", "bug", "test")
 # Test issue types (Xray adds the last four), never customer work.
-TEST_TYPES = ("test", "test execution", "test plan", "test set", "precondition")
+TEST_TYPES = ("test", "test execution", "test plan", "test set", "precondition", "pre-condition")
+# Status or resolution names that close a ticket without shipping it.
+NOT_SHIPPED = ("won't do", "wont do", "won't fix", "cancelled", "canceled", "duplicate",
+               "declined", "not a bug", "cannot reproduce", "obsolete", "rejected")
 
 
 class GhError(Exception):
@@ -105,31 +111,46 @@ def sort_jira(pages, done, ready=None):
     def is_epic(kind):
         return kind.get("name", "").lower() == "epic" or kind.get("hierarchyLevel") == 1
 
-    def still_done(status):
+    def unshipped(f):
+        """The status or resolution name that closed it without shipping, or None."""
+        for name in (f.get("status", {}).get("name", ""), (f.get("resolution") or {}).get("name", "")):
+            if name.lower() in NOT_SHIPPED:
+                return name
+        return None
+
+    def still_done(f):
+        status = f.get("status", {})
+        if unshipped(f):
+            return False
         return (status.get("name", "").lower() in kept
                 or status.get("statusCategory", {}).get("key") == "done")
 
     moved_back = {i["key"] for i in issues
-                  if is_epic(i["fields"].get("issuetype", {}))
-                  and not still_done(i["fields"].get("status", {}))}
+                  if is_epic(i.get("fields", {}).get("issuetype", {}))
+                  and not still_done(i.get("fields", {}))}
     for issue in issues:
         key = issue["key"]
         f = issue.get("fields", {})
         kind = f.get("issuetype", {})
         status = f.get("status", {})
         parent = f.get("parent")
-        parent_kind = parent.get("fields", {}).get("issuetype", {}) if parent else {}
+        parent_fields = parent.get("fields", {}) if parent else {}
+        parent_kind = parent_fields.get("issuetype", {})
+        if parent and unshipped(parent_fields):
+            moved_back.add(parent["key"])
         if kind.get("name", "").lower() in TEST_TYPES:
             r["dropped"].append({"key": key, "reason": f"a {kind['name']}, not customer work"})
         elif kind.get("subtask"):
             p = parent["key"] if parent else "its parent"
             r["dropped"].append({"key": key, "reason": f"sub-task of {p}: its work is part of {p}"})
-        elif not still_done(status):
+        elif unshipped(f):
+            r["dropped"].append({"key": key, "reason": f"closed as {unshipped(f)}, not shipped"})
+        elif not still_done(f):
             r["dropped"].append({"key": key, "reason": f"moved back to {status.get('name', '')}"})
         elif is_epic(kind):
             add_epic(r, key, f.get("summary", ""))
         elif parent and is_epic(parent_kind) and parent["key"] in moved_back:
-            r["dropped"].append({"key": key, "reason": f"its epic, {parent['key']}, moved back out of done"})
+            r["dropped"].append({"key": key, "reason": f"its epic, {parent['key']}, isn't done or was closed without shipping"})
         elif parent and is_epic(parent_kind):
             add_epic(r, parent["key"], parent["fields"].get("summary", ""))
             r["children"].append({"key": key, "epic": parent["key"]})
@@ -170,7 +191,7 @@ def closed_since(repo, start, end, gh):
     mid = a + (b - a) // 2
     left, why_l = closed_since(repo, start, mid.isoformat(), gh)
     right, why_r = closed_since(repo, (mid + datetime.timedelta(days=1)).isoformat(), end, gh)
-    return left + right, why_l or why_r
+    return left + right, "; ".join(w for w in (why_l, why_r) if w) or None
 
 
 def labelled_at(repo, number, label, gh):
@@ -197,6 +218,11 @@ def search_github(repo, since, today, ready_label=None, gh=gh):
         for issue in ready:
             if issue["number"] in numbers:
                 continue
+            if issue.get("stateReason") == "NOT_PLANNED":
+                r["dropped"].append({"key": f"#{issue['number']}",
+                                     "reason": "closed as not planned, though still labelled "
+                                               f"{ready_label}"})
+                continue
             at = labelled_at(repo, issue["number"], ready_label, gh)
             if not at:
                 r["notes"].append(f"#{issue['number']} has the {ready_label} label but no record "
@@ -217,7 +243,8 @@ def search_github(repo, since, today, ready_label=None, gh=gh):
     for issue in issues:
         key, kind, parent = f"#{issue['number']}", kind_of(issue), issue.get("parent")
         if kind in TEST_TYPES:
-            r["dropped"].append({"key": key, "reason": "a Test, not customer work"})
+            shown = (issue.get("issueType") or {}).get("name") or kind
+            r["dropped"].append({"key": key, "reason": f"a {shown}, not customer work"})
         elif kind == "epic":
             add_epic(r, key, issue["title"])
         elif parent and parent_kind(parent["number"]) == "epic":

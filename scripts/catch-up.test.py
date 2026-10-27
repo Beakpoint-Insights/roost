@@ -79,13 +79,42 @@ class Jira(unittest.TestCase):
     def page(self, *issues):
         return [{"issues": list(issues), "isLast": True}]
 
-    def issue(self, key, kind="Story", status="Done", category="done", parent=None, level=0, subtask=False):
+    def issue(self, key, kind="Story", status="Done", category="done", parent=None, level=0,
+              subtask=False, resolution=None, parent_status=None):
         f = {"summary": key, "issuetype": {"name": kind, "subtask": subtask, "hierarchyLevel": level},
              "status": {"name": status, "statusCategory": {"key": category}}}
+        if resolution:
+            f["resolution"] = {"name": resolution}
         if parent:
             f["parent"] = {"key": parent[0], "fields": {"summary": parent[0],
                            "issuetype": {"name": parent[1], "hierarchyLevel": parent[2]}}}
+            if parent_status:
+                f["parent"]["fields"]["status"] = {"name": parent_status, "statusCategory": {"key": "done"}}
         return {"key": key, "fields": f}
+
+    def test_a_ticket_closed_without_shipping_is_dropped(self):
+        r = self.sort(self.page(self.issue("P-1", kind="Bug", status="Won't Do"),
+                                self.issue("P-2", kind="Bug", status="Closed", resolution="Duplicate")))
+        self.assertEqual(r["candidates"], [])
+        self.assertIn("Won't Do", reasons(r)["P-1"])
+        self.assertIn("Duplicate", reasons(r)["P-2"])
+
+    def test_a_slice_of_a_cancelled_epic_is_dropped(self):
+        r = self.sort(self.page(self.issue("P-2", parent=("P-1", "Epic", 1), parent_status="Cancelled")))
+        self.assertEqual(r["epics"], [])
+        self.assertIn("P-1", reasons(r)["P-2"])
+
+    def test_an_xray_pre_condition_is_dropped(self):
+        r = self.sort(self.page(self.issue("P-1", kind="Pre-Condition")))
+        self.assertEqual(r["candidates"], [])
+
+    def test_an_issue_without_fields_doesnt_crash(self):
+        r = self.sort([{"issues": [{"key": "P-1"}], "isLast": True}])
+        self.assertIn("P-1", reasons(r))
+
+    def test_without_a_ready_status_a_done_category_status_still_counts(self):
+        r = self.sort(self.page(self.issue("P-1", kind="Bug", status="Ready for Release")), ready=None)
+        self.assertEqual(keys(r["candidates"]), ["P-1"])
 
     def test_a_ticket_moved_on_to_another_done_status_is_kept(self):
         r = self.sort(self.page(self.issue("P-1", kind="Bug", status="Released")))
@@ -211,6 +240,26 @@ class GitHub(unittest.TestCase):
         r = self.run_github(FakeGh(load("github"), big=big), today="2026-02-01")
         self.assertIn("2026-02-01", r["reason"])
         self.assertIn("label", r["reason"])
+
+    def test_a_ready_issue_closed_as_not_planned_is_dropped(self):
+        fx = load("github")
+        fx["ready"][0].update(state="CLOSED", stateReason="NOT_PLANNED")
+        r = self.run_github(FakeGh(fx))
+        self.assertIn("not planned", reasons(r)["#96"])
+
+    def test_both_halves_limit_reasons_are_kept(self):
+        big = {"closed:2026-02-01..2026-02-02 reason:completed": 1000,
+               "closed:2026-02-01..2026-02-01 reason:completed": 1000,
+               "closed:2026-02-02..2026-02-02 reason:completed": 1000}
+        r = self.run_github(FakeGh(load("github"), big=big), today="2026-02-02")
+        self.assertIn("2026-02-01", r["reason"])
+        self.assertIn("2026-02-02", r["reason"])
+
+    def test_a_test_type_reason_names_the_type(self):
+        fx = load("github")
+        fx["closed"][3]["issueType"] = {"name": "Test Plan"}
+        r = self.run_github(FakeGh(fx))
+        self.assertIn("Test Plan", reasons(r)["#95"])
 
     def test_output_that_isnt_json_is_a_gh_error(self):
         with self.assertRaises(catch_up.GhError):
