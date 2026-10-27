@@ -82,13 +82,13 @@ When you have neither the page's text from the user nor a readable `release_note
 
 ## 6. The voice
 
-**The team's voice.** When the config sets `release_notes.voice`, read that file, its path relative to the config file's folder. It's the team's whole voice: follow only its rules, don't read `references/fallback-voice.md`, and add nothing from it, even where the team's file says nothing (no sign-off rule means no sign-off, not roost's).
+**The team's voice.** When the config sets `release_notes.voice`, read that file, its path relative to the folder the config file really lives in (when the config is a link, follow it: `realpath`). It's the team's whole voice: follow only its rules, don't read `references/fallback-voice.md`, and add nothing from it, even where the team's file says nothing (no sign-off rule means no sign-off, not roost's).
 
 **roost's fallback voice.** Follow `references/fallback-voice.md` only when the team's voice isn't available, and say why in the checks, in one line:
 - `release_notes.voice` isn't set: "Used roost's fallback voice: the config has no `release_notes.voice`."
 - The file can't be read: "Couldn't read the voice file `<path>`: used roost's fallback voice."
 
-Before you send the note, check it against every rule in the voice, one by one. The ones most often missed: keep the title well inside the voice's word limit, aiming for its lower half, and count every word, numbers and short words included (a title like "Invoices searchable up to 90 days back" is 7 words; "Search older invoices" is 3); put the practical number or timing the evidence gives (how soon, how many) in the closing line, not only in the body; and say what the customer doesn't have to do when the evidence says it.
+Before you send the note, check it against every rule in the voice you're using, one by one, and add none of your own. With roost's fallback voice, the ones most often missed: keep the title well inside the voice's word limit, aiming for its lower half, and count every word, numbers and short words included (a title like "Invoices searchable up to 90 days back" is 7 words; "Search older invoices" is 3); put the practical number or timing the evidence gives (how soon, how many) in the closing line, not only in the body; and say what the customer doesn't have to do when the evidence says it.
 
 ## 7. Write the reply
 
@@ -104,7 +104,7 @@ The reply is these, in this order, and nothing else. It starts with the note its
    - every date not found, and every source that couldn't be read (deploy runs, releases, the tracker);
    - each held note and what it waits for, with "check the flag's rollout" for a flag (step 4);
    - each feature already announced, naming the post's title and date, or "Repeat check not done: <why>." and "check it isn't already announced" for each note (step 5);
-   - the voice line (step 6).
+   - the voice line, when roost's fallback voice was used (step 6).
 
 For an epic that shipped separate features, give 1 and 2 for each feature in turn, then one list of checks for them all.
 
