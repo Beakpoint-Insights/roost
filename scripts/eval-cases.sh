@@ -5,8 +5,10 @@
 #        scripts/eval-cases.sh <base-sha> <head-sha>
 #
 # A change to roost-config, examples/config.example.yml or the plugin manifest can
-# change every skill's behaviour, so it runs every case. A change to another file
-# in examples/ runs the cases whose prompt names it. A change to skills/<name>/
+# change every skill's behaviour, so it runs every case. A change to the example
+# voice file, examples/release-notes-voice.md, runs the cases tagged release-notes,
+# which read it through the example config. A change to another file in
+# examples/ runs the cases whose prompt names it. A change to skills/<name>/
 # runs the cases tagged <name>. A change to evals/<case>/ runs that case.
 set -euo pipefail
 
@@ -44,8 +46,7 @@ git diff --name-only "$base...$head" | while IFS= read -r path; do
   case "$path" in
     skills/roost-config/*|examples/config.example.yml|.claude-plugin/*)
       all_cases ;;
-    examples/*.md)
-      # A voice file: the release-notes cases read it through the example config.
+    examples/release-notes-voice.md)
       cases_naming "$path"
       cases_tagged release-notes ;;
     examples/*)

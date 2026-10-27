@@ -52,5 +52,9 @@ echo 'Sentence case.' >> examples/release-notes-voice.md
 voice=$(commit "change the example voice")
 expect examples/release-notes-voice.md "$example" "$voice" "writes-notes"
 
+echo '# Notes about the examples' > examples/README.md
+readme=$(commit "add an examples README")
+expect examples/README.md "$voice" "$readme" ""
+
 [[ $fail -eq 0 ]] && echo "eval-cases: all tests pass"
 exit $fail
