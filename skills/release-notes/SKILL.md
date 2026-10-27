@@ -1,6 +1,6 @@
 ---
 name: release-notes
-description: Draft customer-facing release notes for an epic that has shipped, ready to paste, one note per feature it shipped (usually one). Dates each note by when customers could first use the feature (the production deploy, release or merge that first carried its last change, shown in an evidence table), never by the tracker's resolution date; writes only what the slices built, listing anything cut; holds a note customers can't use yet (a feature flag, a slice not yet live, a correction to past data not yet run), saying what it waits for; checks the team's published notes so nothing is announced twice; leaves facts the evidence doesn't give as [N]; and follows roost's fallback voice. Never publishes or posts anything. Use when the user says "draft the release note for PROJ-X", "write the release notes for this epic", "what do we tell customers about PROJ-X", and from close-out-epic once production runs the epic.
+description: Draft customer-facing release notes for an epic that has shipped, ready to paste, one note per feature it shipped (usually one). Dates each note by when customers could first use the feature (the production deploy, release or merge that first carried its last change, shown in an evidence table), never by the tracker's resolution date; writes only what the slices built, listing anything cut; holds a note customers can't use yet (a feature flag, a slice not yet live, a correction to past data not yet run), saying what it waits for; checks the team's published notes so nothing is announced twice; leaves facts the evidence doesn't give as [N]; and writes in the team's voice (`release_notes.voice`), or roost's fallback voice without one. Never publishes or posts anything. Use when the user says "draft the release note for PROJ-X", "write the release notes for this epic", "what do we tell customers about PROJ-X", and from close-out-epic once production runs the epic.
 ---
 
 # Release Notes
@@ -68,13 +68,13 @@ Code in production isn't always something customers can use. For each feature, h
 - **A slice that isn't live yet.** A child the feature needs that's still being built (step 2), named by its key and status; or one whose PR hasn't landed on the default branch yet (step 1: merged into a stacked branch that hasn't merged), or whose landing commit no production deploy has carried yet, by step 3's rule: for example one at `tracker.statuses.ready_for_release` whose PR landed after the last deploy.
 - **A correction to past data that hasn't run.** A job, backfill, script or data migration a merged PR adds for someone to run by hand, with no record that it ran in production (a comment, a run, a runbook record), when the note's promise depends on it ("past costs are corrected"). Once it has run, count its recorded run as one more thing that had to happen first (step 3's rule).
 
-A held note is still drafted in full. Its date is `[date]`, the day it's live for everyone, and one line in square brackets directly under the date line says it's held and names each thing it waits for: "[Held: waiting for the `spend-by-team` flag to be on for everyone. Check the flag's rollout.]" Like `[date]` and `[N]`, the brackets mark it as the user's to remove before publishing; it never reaches customers. Its evidence table row dates are what you found so far, and the feature's date is `[date]`. Write it to be true on the day it's published, without claiming that anything it waits for has already happened: not "past costs already include the correction" while the recalculation hasn't run, but "past costs are recalculated the same way".
+A held note is still drafted in full. Its date is `[date]`, the day it's live for everyone, and one line in square brackets directly under the date line (under the title, when the voice has no date line) says it's held and names each thing it waits for: "[Held: waiting for the `spend-by-team` flag to be on for everyone. Check the flag's rollout.]" Like `[date]` and `[N]`, the brackets mark it as the user's to remove before publishing; it never reaches customers. Its evidence table row dates are what you found so far, and the feature's date is `[date]`. Write it to be true on the day it's published, without claiming that anything it waits for has already happened: not "past costs already include the correction" while the recalculation hasn't run, but "past costs are recalculated the same way".
 
 ## 5. Already announced?
 
 Check the team's published notes, so nothing is announced twice. Fetch `release_notes.published_url`, or use the page's text if the user gave it: pasted text counts as fetched. Compare each feature with the posts by what it does for the customer, not by title: a post called "Spend Alerts by Email" announces a feature called "Know right away when spending jumps".
 
-When a post already covers a feature, don't present its note as new. Still give the note, so the reply keeps its shape, with "[Already announced: <post title>, <date>]" on its own line under the date line (under the held line, if it has one), for the user to decide, and name the post in the checks. When a post covers only part of it (a beta, one slice), the note is new: write about what's new since that post, and name the post in the checks.
+When a post already covers a feature, don't present its note as new. Still give the note, so the reply keeps its shape, with "[Already announced: <post title>, <date>]" on its own line under the date line, or under the title when the voice has no date line (under the held line, if it has one), for the user to decide, and name the post in the checks. When a post covers only part of it (a beta, one slice), the note is new: write about what's new since that post, and name the post in the checks.
 
 If the page shows only the newest posts (one page of a longer changelog), check what it shows, and say in the checks how far back it goes.
 
@@ -82,9 +82,13 @@ When you have neither the page's text from the user nor a readable `release_note
 
 ## 6. The voice
 
-Follow `references/fallback-voice.md`, roost's own voice, and say in the checks, in one line, that roost's fallback voice was used.
+**The team's voice.** When the config sets `release_notes.voice`, read that file, its path relative to the folder the config file really lives in (when the config is a link, follow it: `realpath`). It's the team's whole voice: follow only its rules, don't read `references/fallback-voice.md`, and add nothing from it, even where the team's file says nothing (no sign-off rule means no sign-off, not roost's).
 
-Before you send the note, check it against every rule in the voice, one by one. The ones most often missed: keep the title well inside the voice's word limit, aiming for 3 to 5 words, and count every word, numbers and short words included ("Invoices Searchable Up to 90 Days Back" is 7 words; "Search Older Invoices" is 3); put the practical number or timing the evidence gives (how soon, how many) in the closing line, not only in the body; and say what the customer doesn't have to do when the evidence says it.
+**roost's fallback voice.** Follow `references/fallback-voice.md` only when the team's voice isn't available, and say why in the checks, in one line:
+- `release_notes.voice` isn't set: "Used roost's fallback voice: the config has no `release_notes.voice`."
+- The file can't be read: "Couldn't read the voice file `<path>`: used roost's fallback voice."
+
+Before you send the note, check it against every rule in the voice you're using, one by one, and add none of your own. With roost's fallback voice, the ones most often missed: keep the title well inside the voice's word limit, aiming for 3 to 5 words, and count every word, numbers and short words included ("Invoices Searchable Up to 90 Days Back" is 7 words; "Search Older Invoices" is 3); put the practical number or timing the evidence gives (how soon, how many) in the closing line, not only in the body; and say what the customer doesn't have to do when the evidence says it, in the body, before the closing line, so the closing line stays last.
 
 ## 7. Write the reply
 
@@ -92,7 +96,7 @@ Before you send the note, check it against every rule in the voice, one by one. 
 
 The reply is these, in this order, and nothing else. It starts with the note itself: no introduction before it. Anything you'd want to say about the note (why this date, what you assumed) goes in the checks.
 
-1. **The note,** complete and ready to paste, with nothing interrupting it: its title, the line with its category and date, the bracketed held and already-announced lines if it has them (steps 4 and 5), the body, and the closing line. One version of each note, never alternatives.
+1. **The note,** complete and ready to paste, with nothing interrupting it: its title, the line with its category and date (or wherever the voice puts the date, if anywhere), the bracketed held and already-announced lines if it has them (steps 4 and 5), the body, then the closing line, sign-off and byline the voice has. One version of each note, never alternatives.
 2. **The evidence table** (step 3). It may come before the note instead.
 3. **Checks:** one short list, each item one line:
    - every `[N]` and `[date]` in the note, and what would fill it;
@@ -100,7 +104,7 @@ The reply is these, in this order, and nothing else. It starts with the note its
    - every date not found, and every source that couldn't be read (deploy runs, releases, the tracker);
    - each held note and what it waits for, with "check the flag's rollout" for a flag (step 4);
    - each feature already announced, naming the post's title and date, or "Repeat check not done: <why>." and "check it isn't already announced" for each note (step 5);
-   - the voice line (step 6).
+   - the voice line, when roost's fallback voice was used (step 6).
 
 For an epic that shipped separate features, give 1 and 2 for each feature in turn, then one list of checks for them all.
 

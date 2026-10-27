@@ -114,6 +114,7 @@ deploy:
 
 release_notes:
   published_url: https://acme.example/changelog
+  voice: release-notes-voice.md   # Acme's made-up voice, relative to this file: point it at your own voice file, or remove it
 
 qa:
   test_account_email: qa+<something><timestamp>@example.com

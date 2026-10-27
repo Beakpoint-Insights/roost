@@ -80,7 +80,11 @@ To use the roost skills here, copy [`.roost/config.example.yml`](.roost/config.e
 | `release-note-held-until-live` | An epic with a slice not yet deployed and a correction to past data that hasn't run gets a held note naming both waits |
 | `release-note-already-announced` | A feature the team's published notes already announce isn't announced again; the draft is dropped or flagged, naming the published post |
 | `release-note-announced-as-beta` | A post that announced only a beta of part of a feature doesn't make the finished feature a repeat: it gets a new note about what's new since, naming the post |
+| `release-note-team-voice` | With the team's voice file, the note follows it (sentence-case title; New, Better, Fixed; a rotating sign-off; the byline), and no fallback rule is mixed in |
+| `release-note-without-release-notes-config` | With no `release_notes` section, the note is dated by its release, uses roost's fallback voice and says so in one line, and says the repeat check wasn't done |
+| `release-note-sparse-team-voice` | A team voice that sets only a few rules is still the whole voice: no fallback rule, such as the title word limit, is inherited |
 | `close-out-offers-release-note` | After an epic ships, `close-out-epic` confirms production from each repo's `production` key, then offers to draft the release note instead of writing one unasked |
+| `setup-asks-production-and-voice` | `setup` recommends each repo's `production` from its workflows or host, asks for the published notes and the voice, and saves no voice rules the user hasn't seen |
 
 Run them before merging a change to a skill:
 
@@ -96,7 +100,7 @@ Each case runs 3 times with roost and 3 times without it, so you can see what th
 
 They also run in CI (`.github/workflows/evals.yml`), but only when someone asks, because every run is a real Claude session paid for by the repository's credential:
 
-- **On a PR, add the `run-evals` label** when it changes how a skill behaves. `scripts/eval-cases.sh` picks the cases the PR's changes can affect: a change to `skills/<name>/` runs the cases tagged `<name>`, a change to a case runs that case, a change to another file in `examples/` runs the cases whose prompt names it, and a change to `roost-config`, `examples/config.example.yml` or the plugin manifest runs them all. Each runs once. They run again on each push while the label stays on; remove it to stop.
+- **On a PR, add the `run-evals` label** when it changes how a skill behaves. `scripts/eval-cases.sh` picks the cases the PR's changes can affect: a change to `skills/<name>/` runs the cases tagged `<name>`, a change to a case runs that case, a change to the example voice file `examples/release-notes-voice.md` runs the cases tagged `release-notes`, a change to another file in `examples/` runs the cases whose prompt names it, and a change to `roost-config`, `examples/config.example.yml` or the plugin manifest runs them all. Each runs once. They run again on each push while the label stays on; remove it to stop.
 - **Before a release,** reopen the release PR (it needs reopening anyway, so its required checks start): the cases whose skills changed since the last release run once each. Check that run before merging the release.
 - **By hand,** `gh workflow run Evals` does the same as a release. Name cases with `-f cases="update-moving status-is-a-table"`, or run every case with `-f all=true`, adding `-f runs=3` for three runs each, when you want a full baseline.
 

@@ -18,8 +18,10 @@ case_with() { # <name> <tags> <prompt text>
 case_with names-github-only roost-config 'Our config is `examples/config.github-only.yml`.'
 case_with names-example roost-config 'Our config is `examples/config.example.yml`.'
 case_with closes-out close-out-epic 'Our config is `examples/config.example.yml`. Close out PROJ-1.'
+case_with writes-notes release-notes 'Draft the release note for PROJ-1.'
 echo 'version: 1' > examples/config.example.yml
 echo 'version: 1' > examples/config.github-only.yml
+echo '# Our voice' > examples/release-notes-voice.md
 echo '# Close Out Epic' > skills/close-out-epic/SKILL.md
 
 git init -q
@@ -44,7 +46,15 @@ expect skills/close-out-epic/SKILL.md "$github_only" "$skill" "closes-out"
 
 echo 'team: { name: Acme }' >> examples/config.example.yml
 example=$(commit "change the example config")
-expect examples/config.example.yml "$skill" "$example" "$(printf 'closes-out\nnames-example\nnames-github-only')"
+expect examples/config.example.yml "$skill" "$example" "$(printf 'closes-out\nnames-example\nnames-github-only\nwrites-notes')"
+
+echo 'Sentence case.' >> examples/release-notes-voice.md
+voice=$(commit "change the example voice")
+expect examples/release-notes-voice.md "$example" "$voice" "writes-notes"
+
+echo '# Notes about the examples' > examples/README.md
+readme=$(commit "add an examples README")
+expect examples/README.md "$voice" "$readme" ""
 
 [[ $fail -eq 0 ]] && echo "eval-cases: all tests pass"
 exit $fail
