@@ -572,6 +572,14 @@ class Workflow(unittest.TestCase):
         self.assertIn("#820", result["reason"])
         self.assertIn("2026-03-10", result["reason"])
 
+    def test_a_workflow_whose_only_deploy_was_rerun_and_failed_has_deployed(self):
+        # 3001 deployed #812 on attempt 1 on February 28; a re-run failed. #820 hasn't deployed.
+        fx = with_runs(load("one-epic"), run(3001, "a813", "2026-02-28T09:00:02Z", conclusion="failure", attempts=[
+            {"conclusion": "success", "updated_at": "2026-02-28T09:11:40Z"},
+            {"conclusion": "failure", "updated_at": "2026-03-01T08:00:00Z"}]), replace=True)
+        result, _ = find(fx, DEPLOY, [820])
+        self.assertEqual((result["status"], result["date"]), ("held", None))
+
     def test_a_workflow_that_has_never_deployed_means_date_not_found(self):
         fx = with_runs(load("one-epic"), run(3010, "a821", "2026-03-03T10:00:00Z", conclusion="failure"),
                        replace=True)

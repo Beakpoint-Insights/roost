@@ -313,15 +313,19 @@ def list_runs(repo, workflow, created, gh):
 
 
 def ever_deployed(repo, workflow, deploys, gh):
-    """Whether any successful run, ever, ran on the default branch or a tag."""
-    total = 0
-    for body in pages(gh, f"repos/{repo}/actions/workflows/{workflow}/runs?status=success", f"`{workflow}`'s runs"):
+    """Whether any run, ever, deployed: an attempt succeeded, on the default branch or a tag.
+    Listed with no status filter, since a run that deployed and was then re-run and failed is
+    listed as failed."""
+    total = seen = 0
+    for body in pages(gh, f"repos/{repo}/actions/workflows/{workflow}/runs", f"`{workflow}`'s runs"):
         total = body["total_count"]
-        if any(map(deploys, body["workflow_runs"])):
-            return True
-    if total > SEARCH_LIMIT:
-        raise NotFound(f"page limit: none of `{workflow}`'s newest {SEARCH_LIMIT} successful runs ran on the "
-                       f"default branch or a tag, and GitHub lists no more")
+        seen += len(body["workflow_runs"])
+        for run in body["workflow_runs"]:
+            if deploys(run) and (run["conclusion"] == "success" or first_success(repo, run, gh)[0]):
+                return True
+    if seen < total:
+        raise NotFound(f"page limit: none of the {seen} `{workflow}` runs GitHub lists deployed, "
+                       f"and it lists no more of its {total}")
     return False
 
 
