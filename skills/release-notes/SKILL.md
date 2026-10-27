@@ -73,7 +73,7 @@ Not checked yet: this version doesn't read the team's published notes. Say so in
 
 ## 6. The voice
 
-Follow `references/fallback-voice.md`, roost's own voice, and say in the checks, in one line, that the fallback voice was used because the config has no `release_notes.voice`.
+Follow `references/fallback-voice.md`, roost's own voice, and say in the checks, in one line, that roost's fallback voice was used.
 
 Before you send the note, check it against every rule in the voice, one by one. The ones most often missed: keep the title well inside the voice's word limit, aiming for 3 to 5 words, and count every word, numbers and short words included ("Invoices Searchable Up to 90 Days Back" is 7 words; "Search Older Invoices" is 3); put the practical number or timing the evidence gives (how soon, how many) in the closing line, not only in the body; and say what the customer doesn't have to do when the evidence says it.
 

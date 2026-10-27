@@ -1,6 +1,6 @@
 # roost's fallback voice
 
-The voice `release-notes` writes in when the team config has no `release_notes.voice`. It's generic on purpose: no team's brand, sign-offs or product names.
+The voice `release-notes` writes in. It's generic on purpose: no team's brand, sign-offs or product names.
 
 **Title**
 - Title Case, 2 to 7 words, naming the feature or what the customer gets: "Usage Alerts by Email", "Costs from Your Cloud Bill".
@@ -25,7 +25,7 @@ The voice `release-notes` writes in when the team config has no `release_notes.v
 - One practical sentence: how to start, where to find it, or what to expect, with real numbers where the evidence gives them ("Alerts arrive within 5 minutes").
 
 **Sign-off and byline**
-- None. A team that wants them sets them in its own `release_notes.voice`.
+- None.
 
 **Word choice**
 - Plain and honest, no hype ("revolutionary", "game-changing", "excited to announce").
