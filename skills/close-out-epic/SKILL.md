@@ -76,4 +76,4 @@ Run this part again once production runs the epic's code, and confirm that first
 
 ## Report
 
-Anything the user must do first, in a 🙋 **Your turn** block (leave it out when there's nothing). Then one line: "PROJ-2306 closed out: 9 tickets to PROJ-2900 (follow-ups), 5 standalone, 0 left open." Then the deferred table from the closing comment. After the release ships: "PROJ-2306 shipped in API 3.20.0 and UI 3.3.0; 0 tickets left open; release syncs checked."
+Anything the user must do first, in a 🙋 **Your turn** block (leave it out when there's nothing). Then one line: "PROJ-2306 closed out: 9 tickets to PROJ-2900 (follow-ups), 5 standalone, 0 left open." Then the deferred table from the closing comment. After the release ships: "PROJ-2306 shipped in API 3.20.0 and UI 3.3.0; 0 tickets left open; release syncs checked. Want me to draft its release note?"
