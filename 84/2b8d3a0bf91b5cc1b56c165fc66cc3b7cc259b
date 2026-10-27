@@ -1,0 +1,25 @@
+skills/release-notes/scripts/production_date.py
+  s_5c34957c951ed4::t_8bf7626c06e026 73-85,106,112-115,126-127,152,160,173-174,187-189,191,194-206,211-212,224-226,228-237,239-240,248-252,255,260-262,265-268,285,330,335-344,348
+scripts/fixtures/production-date/squash-stack.json
+  s_5c34957c951ed4::t_01f90090aa3b72 1-21
+scripts/production-date.test.py
+  s_5c34957c951ed4::t_5c28312794427f 8,10,17,62,85-93,203,231,234-244,246-253,358,363-402,510-514,516-517
+  s_5c34957c951ed4::t_9d565d6d180188 515
+  s_5c34957c951ed4::t_071780321661f4 518
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "842b8d3a0bf91b5cc1b56c165fc66cc3b7cc259b",
+  "prompts": {},
+  "sessions": {
+    "s_5c34957c951ed4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c41c75a1-94dc-432e-b46a-87c67b176f0b",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Alan Cox <acox@beakpointinsights.com>"
+    }
+  }
+}
