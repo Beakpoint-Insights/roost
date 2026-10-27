@@ -397,6 +397,62 @@ class Workflow(unittest.TestCase):
         self.assertIn("HTTP 500", result["reason"])
 
 
+class Release(unittest.TestCase):
+    def test_the_first_published_release_containing_it_dates_it(self):
+        result, _ = find(load("release"), "release", [812, 820])
+        self.assertEqual(result["status"], "dated")
+        self.assertEqual((result["date"], result["time"]), ("2026-03-03", "2026-03-03T09:30:00Z"))
+        self.assertEqual(result["deploy"], {
+            "kind": "release", "tag": "v3.21.0", "url": "https://github.com/acme/acme-api/releases/tag/v3.21.0",
+            "published_at": "2026-03-03T09:30:00Z", "matched": "compare a820...v3.21.0: ahead"})
+
+    def test_drafts_and_prereleases_dont_count(self):
+        result, gh = find(load("release"), "release", [820])
+        self.assertEqual(result["deploy"]["tag"], "v3.21.0")
+        self.assertFalse([c for c in gh.calls if "-draft" in c or "-rc." in c])
+
+    def test_releases_before_the_day_before_it_landed_arent_checked(self):
+        fx = load("release")
+        fx["releases"].append({"tag_name": "v3.19.0", "draft": False, "prerelease": False,
+                               "created_at": "2026-02-28T23:00:00Z", "published_at": "2026-02-28T23:59:00Z",
+                               "html_url": "https://github.com/acme/acme-api/releases/tag/v3.19.0"})
+        fx["tag_commits"]["v3.19.0"] = "a812"
+        _, gh = find(fx, "release", [820])
+        self.assertFalse([c for c in gh.calls if c.endswith("...v3.19.0")])
+        self.assertTrue([c for c in gh.calls if c.endswith("...v3.20.0")])
+
+    def test_releases_are_checked_by_publish_date_past_the_first_page(self):
+        # 150 releases created after #820 landed, all containing it; an older release,
+        # created first (so on the last page), was published before them all.
+        fx = load("release")
+        for i in range(150):
+            stamp = (datetime.datetime(2026, 3, 4, tzinfo=datetime.timezone.utc)
+                     + datetime.timedelta(hours=i)).strftime("%Y-%m-%dT%H:%M:%SZ")
+            fx["releases"].append({"tag_name": f"v4.{i}.0", "draft": False, "prerelease": False, "created_at": stamp,
+                                   "published_at": stamp, "html_url": f"https://github.com/acme/acme-api/releases/tag/v4.{i}.0"})
+            fx["tag_commits"][f"v4.{i}.0"] = "a822"
+        fx["releases"] = [r for r in fx["releases"] if r["tag_name"] not in ("v3.21.0", "v3.22.0")]
+        fx["releases"].append({"tag_name": "v3.21.1", "draft": False, "prerelease": False,
+                               "created_at": "2026-02-20T00:00:00Z", "published_at": "2026-03-03T20:00:00Z",
+                               "html_url": "https://github.com/acme/acme-api/releases/tag/v3.21.1"})
+        fx["tag_commits"]["v3.21.1"] = "a821"
+        result, gh = find(fx, "release", [820])
+        self.assertEqual((result["deploy"]["tag"], result["time"]), ("v3.21.1", "2026-03-03T20:00:00Z"))
+        self.assertTrue(any("releases?" in c and "page=2" in c for c in gh.calls))
+
+    def test_not_released_yet_holds_the_note(self):
+        fx = load("release")
+        fx["releases"] = fx["releases"][:3]
+        result, _ = find(fx, "release", [820])
+        self.assertEqual((result["status"], result["date"]), ("held", None))
+        self.assertIn("#820", result["reason"])
+
+    def test_releases_gh_cant_read_mean_date_not_found(self):
+        result, _ = find(load("release"), "release", [820], fail={"repos/acme/acme-api/releases": "gh: HTTP 401"})
+        self.assertEqual((result["status"], result["date"]), ("not_found", None))
+        self.assertIn("HTTP 401", result["reason"])
+
+
 class CommandLine(unittest.TestCase):
     def run_script(self, *args):
         return subprocess.run([sys.executable, SCRIPT, *args], capture_output=True, text=True)

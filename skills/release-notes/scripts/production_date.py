@@ -260,12 +260,36 @@ def first_success(repo, run, gh):
     raise NotFound(f"run {run['id']} is listed as successful, but none of its attempts succeeded")
 
 
+def by_release(repo, last, today, gh):
+    """The first published release, by publish date, whose tag contains the landing commit.
+    The API lists releases by when each was created, so every page is read and sorted here."""
+    since = (utc_day(last["landed_at"]) - datetime.timedelta(days=1)).isoformat()
+    releases, page = [], 1
+    while True:
+        batch = read(gh, f"repos/{repo}/releases?per_page={PER_PAGE}&page={page}", "the releases")
+        releases += batch
+        if len(batch) < PER_PAGE:
+            break
+        page += 1
+    published = [r for r in releases if not r["draft"] and not r["prerelease"] and r["published_at"]
+                 and since <= r["published_at"][:10] <= today.isoformat()]
+    for r in sorted(published, key=lambda r: r["published_at"]):
+        status = contains(repo, last["landing_sha"], r["tag_name"], gh)
+        if status:
+            return ({"kind": "release", "tag": r["tag_name"], "url": r["html_url"], "published_at": r["published_at"],
+                     "matched": f"compare {last['landing_sha']}...{r['tag_name']}: {status}"},
+                    r["published_at"])
+    return None, None
+
+
 def deploy_for(repo, default, production, last, today, gh):
     """(deploy, time) for the first production deploy carrying `last`, or (None, None)."""
     if production == "merge":
         return by_merge(last)
     if isinstance(production, dict) and "workflow" in production:
         return by_workflow(repo, default, production["workflow"], last, today, gh)
+    if production == "release":
+        return by_release(repo, last, today, gh)
     raise NotFound(f"unknown production: {production!r}")
 
 
