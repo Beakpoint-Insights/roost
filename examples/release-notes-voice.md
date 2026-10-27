@@ -26,7 +26,7 @@ The made-up Acme team's voice for `release-notes`, the example config's `release
 
 **Sign-off and byline**
 - Every note ends with a sign-off on its own line, then the byline on the next.
-- Sign-offs, rotated, never the same one twice in a batch of notes: "Onward!", "Happy shipping!", "Until next time."
+- Sign-offs, rotated in this order: "Onward!", "Happy shipping!", "Until next time." In a batch with more notes than sign-offs, start the rotation again, so no two notes in a row share one.
 - Byline: "— The Acme team".
 
 **Word choice**
