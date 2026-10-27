@@ -44,6 +44,10 @@ git diff --name-only "$base...$head" | while IFS= read -r path; do
   case "$path" in
     skills/roost-config/*|examples/config.example.yml|.claude-plugin/*)
       all_cases ;;
+    examples/*.md)
+      # A voice file: the release-notes cases read it through the example config.
+      cases_naming "$path"
+      cases_tagged release-notes ;;
     examples/*)
       cases_naming "$path" ;;
     skills/*/*)

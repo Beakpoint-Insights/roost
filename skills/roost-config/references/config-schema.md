@@ -142,6 +142,7 @@ The local environment the sessions run and test against. *Optional.* Leave it ou
 | Key | Meaning |
 |---|---|
 | `published_url` | *Optional.* The page where the team's published release notes live. `release-notes` fetches it to check a feature isn't already announced. Without it, or when it can't be read, the report says the repeat check wasn't done, and each note's checks say to make sure it isn't already announced. |
+| `voice` | *Optional.* A Markdown file holding the team's whole release-notes voice (titles, categories, length, word choice, sign-offs, byline), its path relative to the config file. When it's read, it's the only voice `release-notes` follows. Without it, or when it can't be read, `release-notes` uses roost's fallback voice and says so. |
 
 ## `design`
 
