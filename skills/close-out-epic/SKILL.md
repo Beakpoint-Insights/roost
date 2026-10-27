@@ -73,7 +73,8 @@ Run this part again once production runs the epic's code, and confirm that first
 - **Manual tests due after release** (`When: after release`): ask the session of the repo that owns the work each checks to run it and record a `manual run:` comment, with the steps it can't take as 🙋 **Your turn** actions ("Manual tests" in the tests adapter). Close each only on a passing run; until then it stays open, and so does the epic.
 - **Every other ticket under EPIC is Done,** at any depth (manual tests close only as above). A fix that shipped in the other repo's commit, or one that no commit names, can still sit at `tracker.statuses.ready_for_release`: close it by hand, add the version it shipped in as its fix version, and say in a comment where it shipped and how it was verified.
 - **Rewrite the epic's comments as shipped:** the Release order comment says every PR is merged and in which release, with the deploy dates, and the Close-out comment says what's in production. Add the tickets found during the rollout to the Close-out comment, under their own heading.
-- **Offer the release note.** Once production runs the epic, ask whether to draft its release notes with the `release-notes` skill (one per feature it shipped; usually one). Only offer: don't write the note unless the user asks.
+- **Offer the release note.** Once production runs the epic, ask whether to draft its release notes with the `release-notes` skill (one per feature it shipped; usually one). Only offer: don't write the note unless the user asks. Offer it even while a repo's merge is waiting for the user to confirm (above): say the note's date may change with their answer.
+
 
 ## Report
 
