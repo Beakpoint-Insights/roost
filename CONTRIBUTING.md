@@ -79,6 +79,7 @@ To use the roost skills here, copy [`.roost/config.example.yml`](.roost/config.e
 | `release-note-held-behind-flag` | A feature that shipped behind a feature flag is drafted but held, waiting on the flag's rollout, with no date yet |
 | `release-note-held-until-live` | An epic with a slice not yet deployed and a correction to past data that hasn't run gets a held note naming both waits |
 | `release-note-already-announced` | A feature the team's published notes already announce isn't announced again; the draft is dropped or flagged, naming the published post |
+| `release-note-announced-as-beta` | A post that announced only a beta of part of a feature doesn't make the finished feature a repeat: it gets a new note about what's new since, naming the post |
 | `close-out-offers-release-note` | After an epic ships, `close-out-epic` confirms production from each repo's `production` key, then offers to draft the release note instead of writing one unasked |
 
 Run them before merging a change to a skill:
