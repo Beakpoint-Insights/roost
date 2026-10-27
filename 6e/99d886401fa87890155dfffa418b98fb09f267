@@ -3,6 +3,8 @@ scripts/production-date.test.py
   s_5c34957c951ed4::t_3a1a9b9e80be82 298
 skills/release-notes/scripts/production_date.py
   s_5c34957c951ed4::t_e8ae24d7556b1f 93,99-115,117,119-139,161-163
+CONTRIBUTING.md
+  s_5c34957c951ed4::t_d9ed2effa4f821 115
 ---
 {
   "schema_version": "authorship/3.0.0",
