@@ -36,9 +36,15 @@ For each repo the feature touched, find the date production first carried that r
 | `production` | The date of a change |
 |---|---|
 | `{ workflow: <file> }` | The first run of that workflow that **succeeded**, ran on the default branch or a tag (not a pull request), and whose head commit contains the PR's landing commit. List runs from the day **before** it landed (`--created` compares UTC dates): `gh run list -R <repo> --workflow <file> --status success --limit 1000 --created "<day before it landed>..<end>" --json databaseId,headSha,headBranch,event,createdAt`, where `<end>` starts as today. `gh` returns the newest first and `--limit` drops the oldest, so if it returns exactly the limit, the first deploy may be missing: move `<end>` earlier until it returns fewer. Then, oldest first, check each candidate with `gh api repos/<repo>/compare/<landing sha>...<run head sha> --jq .status`: `ahead` or `identical` means the run contains it. Match by commit, never by date. If no run contains it, or `gh` can't read the runs, say so in the checks; don't fall back to a nearby date. |
-| `release` | The `publishedAt` of the first published release whose tag contains the landing commit: `gh release list -R <repo> --exclude-drafts --exclude-pre-releases --order asc --limit 1000 --json tagName,publishedAt`, checked oldest first with `compare` the same way. If it returns exactly the limit, say so in the checks. |
+| `release` | The publish date of the first published release whose tag contains the landing commit. List every release published from the day **before** it landed, paging through all of them (the API returns the newest first; the command is below the table). Check them oldest first with `compare` the same way. |
 | `merge` | The landing commit's date. |
 | *(missing)* | **Date not found.** Don't guess, and don't assume it deploys on merge. Say "Date not found: `<repo>` has no `production` in the config", give the evidence you do have (its last change and when it merged), and ask how the repo reaches production, or suggest setting its `production` key. |
+
+The releases for `release`, published from the day before the PR landed:
+
+```
+gh api --paginate "repos/<repo>/releases?per_page=100" --jq '.[] | select((.draft or .prerelease) | not) | select(.published_at >= "<day before it landed>") | [.tag_name, .published_at] | @tsv'
+```
 
 **One note per feature.** Most epics ship one feature and get one note. An epic that shipped separate features, each usable without the other, gets one note for each, dated and evidenced on its own from the changes that feature needed. A feature's date is the **latest** of its repos' dates: customers can use it only when every part is live. If any repo's date wasn't found, the feature's date is `[date]`.
 
