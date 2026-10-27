@@ -102,22 +102,21 @@ def landing(repo, owner, default, number, gh, branches):
         if base == default:
             return dict(entry, landing_pr=current["number"], landing_sha=current["merge_commit_sha"],
                         landed_at=current["merged_at"])
-        # On a stack: it lands with the first PR from its base branch that merged after it and
-        # whose head holds this hop's merge commit (a branch name can be reused).
+        # On a stack: it lands with the first PR from its base branch that was open when it merged
+        # into that branch, and merged after it. Matched by dates, not commits: a rebase rewrites
+        # the branch's commits, and a PR opened later from a reused branch name doesn't count.
         if base not in branches:
             branches[base] = pulls_from(repo, owner, base, gh)
-        later = sorted((p for p in branches[base] if p.get("merged_at") and p["merged_at"] >= current["merged_at"]),
-                       key=lambda p: p["merged_at"])
-        current = next((p for p in later if contains(repo, sha, p["head"]["sha"], gh)), None)
-        if current is not None:
-            # A squash merge into the next branch doesn't hold `sha` either: follow its own commit.
-            sha = current["merge_commit_sha"]
-        else:
+        merged = current["merged_at"]
+        carriers = [p for p in branches[base] if p.get("merged_at") and p["created_at"] <= merged <= p["merged_at"]]
+        if not carriers:
             if contains(repo, sha, default, gh):
                 raise NotFound(f"#{number} reached `{default}` from `{base}` without a PR, "
                                f"so when it landed isn't known")
             return dict(entry, landed=False,
                         reason=f"#{number} merged into `{base}`, and no PR has brought it onto `{default}`")
+        current = min(carriers, key=lambda p: p["merged_at"])
+        sha = current["merge_commit_sha"]
     raise NotFound(f"#{number}'s stack is deeper than {MAX_STACK} branches")
 
 

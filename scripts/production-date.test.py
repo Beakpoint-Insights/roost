@@ -222,6 +222,18 @@ class LandingCommits(unittest.TestCase):
         self.assertEqual(result["status"], "held")
         self.assertIs(result["prs"][0]["landed"], False)
 
+    def test_a_stack_branch_rebased_after_the_lower_pr_merged_still_lands(self):
+        result, _ = find(load("rebased-stack"), "merge", [81])
+        self.assertEqual(result["status"], "dated")
+        self.assertEqual((result["prs"][0]["landing_pr"], result["date"]), (80, "2026-03-04"))
+
+    def test_a_pr_opened_from_the_branch_after_the_merge_doesnt_carry_it(self):
+        # #60 reuses slice-2 and merges into main, but was opened after #46 merged into slice-2.
+        fx = load("stacked")
+        next(p for p in fx["pulls"] if p["number"] == 60)["head"]["sha"] = "w046h"
+        result, _ = find(fx, "merge", [46])
+        self.assertIs(result["prs"][0]["landed"], False)
+
     def test_a_branch_that_reached_main_without_a_pr_isnt_held_forever(self):
         result, _ = find(load("stacked"), "merge", [50])
         self.assertEqual(result["status"], "not_found")

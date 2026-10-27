@@ -1,5 +1,5 @@
 {
-  "about": "A gh stack in acme-web. #45 merged early into slice-1 (#44's branch), which landed on main later; #47 merged into slice-3, whose PR #48 merged into slice-1. #43 merged straight into main in between. #46 merged into slice-2 after #45 had already merged, so nothing brought it onto main. PRs are squash-merged: #44's commit on main (w044) has main as its only parent, and slice-1's tip when it merged (w044h) holds #45 and #48. slice-2 was later reused for #60, unrelated work merged into main. slice-5 (#50's base) reached main by a push, with no PR.",
+  "about": "A gh stack in acme-web. #45 merged early into slice-1 (#44's branch), which landed on main later; #47 merged into slice-3, whose PR #48 merged into slice-1. #43 merged straight into main in between. #46 merged into slice-2 after #45 had already merged, so nothing brought it onto main. PRs are squash-merged: #44's commit on main (w044) has main as its only parent, and slice-1's tip when it merged (w044h) holds #45 and #48. slice-2 was later reused for #60, unrelated work merged into main. slice-5 (#50's base) reached main by a push, with no PR. Each PR's created_at is when it was opened: #60 was opened on March 7, after #46 merged into slice-2.",
   "repo": "acme/acme-web",
   "default_branch": "main",
   "commits": {
@@ -67,7 +67,8 @@
       "head": {
         "ref": "slice-2",
         "sha": "w045h"
-      }
+      },
+      "created_at": "2026-02-25T09:00:00Z"
     },
     {
       "number": 47,
@@ -80,7 +81,8 @@
       "head": {
         "ref": "slice-4",
         "sha": "w047h"
-      }
+      },
+      "created_at": "2026-02-25T10:00:00Z"
     },
     {
       "number": 48,
@@ -93,7 +95,8 @@
       "head": {
         "ref": "slice-3",
         "sha": "w048h"
-      }
+      },
+      "created_at": "2026-02-25T11:00:00Z"
     },
     {
       "number": 43,
@@ -106,7 +109,8 @@
       "head": {
         "ref": "fix-header",
         "sha": "w043h"
-      }
+      },
+      "created_at": "2026-03-02T09:00:00Z"
     },
     {
       "number": 44,
@@ -119,7 +123,8 @@
       "head": {
         "ref": "slice-1",
         "sha": "w044h"
-      }
+      },
+      "created_at": "2026-02-24T09:00:00Z"
     },
     {
       "number": 46,
@@ -132,7 +137,8 @@
       "head": {
         "ref": "slice-2b",
         "sha": "w046h"
-      }
+      },
+      "created_at": "2026-03-01T12:00:00Z"
     },
     {
       "number": 49,
@@ -145,7 +151,8 @@
       "head": {
         "ref": "abandoned",
         "sha": "w000"
-      }
+      },
+      "created_at": "2026-02-20T09:00:00Z"
     },
     {
       "number": 60,
@@ -158,7 +165,8 @@
       "head": {
         "ref": "slice-2",
         "sha": "w060h"
-      }
+      },
+      "created_at": "2026-03-07T09:00:00Z"
     },
     {
       "number": 50,
@@ -171,7 +179,8 @@
       "head": {
         "ref": "slice-6",
         "sha": "w000"
-      }
+      },
+      "created_at": "2026-03-03T09:00:00Z"
     }
   ],
   "workflows": {},

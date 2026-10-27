@@ -4,18 +4,65 @@
   "default_branch": "main",
   "commits": {
     "w000": [],
-    "w070": ["w000"],
-    "w071": ["w000"],
-    "w072": ["w000"]
+    "w070": [
+      "w000"
+    ],
+    "w071": [
+      "w000"
+    ],
+    "w072": [
+      "w000"
+    ]
   },
   "pulls": [
-    {"number": 70, "state": "closed", "merged_at": "2026-03-10T09:00:00Z", "merge_commit_sha": "w070", "base": {"ref": "slice-2"}, "head": {"ref": "slice-3", "sha": "w000"}},
-    {"number": 71, "state": "closed", "merged_at": "2026-03-11T09:00:00Z", "merge_commit_sha": "w071", "base": {"ref": "slice-1"}, "head": {"ref": "slice-2", "sha": "w070"}},
-    {"number": 72, "state": "closed", "merged_at": "2026-03-12T09:00:00Z", "merge_commit_sha": "w072", "base": {"ref": "main"}, "head": {"ref": "slice-1", "sha": "w071"}}
+    {
+      "number": 70,
+      "state": "closed",
+      "merged_at": "2026-03-10T09:00:00Z",
+      "merge_commit_sha": "w070",
+      "base": {
+        "ref": "slice-2"
+      },
+      "head": {
+        "ref": "slice-3",
+        "sha": "w000"
+      },
+      "created_at": "2026-03-05T09:00:00Z"
+    },
+    {
+      "number": 71,
+      "state": "closed",
+      "merged_at": "2026-03-11T09:00:00Z",
+      "merge_commit_sha": "w071",
+      "base": {
+        "ref": "slice-1"
+      },
+      "head": {
+        "ref": "slice-2",
+        "sha": "w070"
+      },
+      "created_at": "2026-03-05T10:00:00Z"
+    },
+    {
+      "number": 72,
+      "state": "closed",
+      "merged_at": "2026-03-12T09:00:00Z",
+      "merge_commit_sha": "w072",
+      "base": {
+        "ref": "main"
+      },
+      "head": {
+        "ref": "slice-1",
+        "sha": "w071"
+      },
+      "created_at": "2026-03-05T11:00:00Z"
+    }
   ],
   "workflows": {},
   "attempts": {},
   "releases": [],
   "tags": [],
-  "branches": {"main": "w072"}
+  "branches": {
+    "main": "w072"
+  }
 }
