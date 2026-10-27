@@ -245,11 +245,57 @@ class LandingCommits(unittest.TestCase):
         result, _ = find(fx, "merge", [81])
         self.assertEqual((result["status"], result["prs"][0]["landing_pr"]), ("dated", 80))
 
+    def with_staging(self, staging_pr=None, pushed=False):
+        """rebased-stack, plus #91 from slice-1 into staging, open when #81 merged into slice-1."""
+        fx = load("rebased-stack")
+        fx["pulls"].append({"number": 91, "state": "closed", "created_at": "2026-03-01T12:00:00Z",
+                            "merged_at": "2026-03-02T12:00:00Z", "merge_commit_sha": "w091",
+                            "base": {"ref": "staging"}, "head": {"ref": "slice-1", "sha": "w081"}})
+        fx["commits"]["w091"] = ["w081"]
+        if staging_pr:
+            fx["pulls"].append(staging_pr)
+            fx["commits"][staging_pr["merge_commit_sha"]] = ["w091"]
+        if pushed:
+            fx["commits"]["w099"] = ["w080", "w091"]
+            fx["branches"]["main"] = "w099"
+        return fx
+
+    def test_the_path_that_reached_main_first_lands_it(self):
+        # staging reached main on March 20, through #92; #80 brought slice-1 to main on March 4.
+        fx = self.with_staging({"number": 92, "state": "closed", "created_at": "2026-03-02T00:00:00Z",
+                                "merged_at": "2026-03-20T09:00:00Z", "merge_commit_sha": "w092",
+                                "base": {"ref": "main"}, "head": {"ref": "staging", "sha": "w091"}})
+        result, _ = find(fx, "merge", [81])
+        self.assertEqual((result["prs"][0]["landing_pr"], result["date"]), (80, "2026-03-04"))
+
+    def test_a_branch_pushed_to_main_doesnt_stop_a_pr_that_landed_it(self):
+        result, _ = find(self.with_staging(pushed=True), "merge", [81])
+        self.assertEqual((result["status"], result["prs"][0]["landing_pr"]), ("dated", 80))
+
+    def test_a_path_too_deep_doesnt_stop_one_that_lands(self):
+        fx = self.with_staging({"number": 92, "state": "closed", "created_at": "2026-03-02T00:00:00Z",
+                                "merged_at": "2026-03-03T09:00:00Z", "merge_commit_sha": "w092",
+                                "base": {"ref": "release"}, "head": {"ref": "staging", "sha": "w091"}})
+        old, production_date.MAX_STACK = production_date.MAX_STACK, 2
+        try:
+            result, _ = find(fx, "merge", [81])
+        finally:
+            production_date.MAX_STACK = old
+        self.assertEqual((result["status"], result["prs"][0]["landing_pr"]), ("dated", 80))
+
+    def test_a_crash_keeps_the_prs_found_before_it(self):
+        fx = load("one-epic")
+        del fx["pulls"][1]["base"]
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            production_date.main(["--repo", "acme/acme-api", "--merge", "812", "820"], gh=FakeGitHub(fx))
+        self.assertEqual([p["pr"] for p in json.loads(out.getvalue())["prs"]], [812])
+
     def test_a_branch_that_reached_main_without_a_pr_isnt_held_forever(self):
         result, _ = find(load("stacked"), "merge", [50])
         self.assertEqual(result["status"], "not_found")
         self.assertIn("#50", result["reason"])
-        self.assertIn("without a PR", result["reason"])
+        self.assertIn("`slice-5` reached `main`, but not through a PR", result["reason"])
 
     def test_a_crash_isnt_hidden_as_date_not_found(self):
         fx = load("one-epic")

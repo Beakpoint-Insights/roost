@@ -90,42 +90,53 @@ def utc_day(timestamp):
 
 # Landing: where each PR's change reached the default branch.
 
-def landing(repo, owner, default, number, gh, branches):
+def landing(repo, owner, default, number, gh, branches, carried):
     """The PR that brought PR `number`'s change onto the default branch."""
     pr = read(gh, f"repos/{repo}/pulls/{number}", f"#{number}")
     entry = {"pr": number, "base": pr["base"]["ref"]}
     if not pr.get("merged_at"):
         return dict(entry, landed=False, reason=f"#{number} isn't merged")
-    found = carrier(repo, owner, default, number, pr, gh, branches, 0)
-    if not found:
-        return dict(entry, landed=False,
-                    reason=f"#{number} merged into `{pr['base']['ref']}`, and no PR has brought it onto `{default}`")
-    return dict(entry, landing_pr=found["number"], landing_sha=found["merge_commit_sha"], landed_at=found["merged_at"])
+    landed, trouble = carriers(repo, owner, default, pr, gh, branches, carried, 0)
+    if landed:
+        # More than one path can reach it (a branch merged into staging and into main): the first counts.
+        first = min(landed, key=lambda p: p["merged_at"])
+        return dict(entry, landing_pr=first["number"], landing_sha=first["merge_commit_sha"],
+                    landed_at=first["merged_at"])
+    if trouble:
+        raise NotFound(f"#{number}: " + "; ".join(sorted(set(trouble))) + ", so when it landed isn't known")
+    return dict(entry, landed=False,
+                reason=f"#{number} merged into `{pr['base']['ref']}`, and no PR has brought it onto `{default}`")
 
 
-def carrier(repo, owner, default, number, pr, gh, branches, depth):
-    """The PR, `pr` or one below it on the stack, that merged into the default branch with
-    `pr`'s change, or None."""
+def carriers(repo, owner, default, pr, gh, branches, carried, depth):
+    """(landed, trouble): every PR, `pr` or one below it on the stack, that merged into the
+    default branch with `pr`'s change, and why a path couldn't be followed."""
+    if pr["number"] in carried:
+        return carried[pr["number"]]
     base = pr["base"]["ref"]
+    landed, trouble = [], []
     if base == default:
-        return pr
-    if depth == MAX_STACK:
-        raise NotFound(f"#{number}'s stack is deeper than {MAX_STACK} branches")
-    # On a stack: it lands with a PR from its base branch that was open when it merged into
-    # that branch, and merged after it. Matched by dates, not commits: a rebase rewrites the
-    # branch's commits, and a PR opened later from a reused branch name doesn't count. Every
-    # such PR is tried, first to merge first: one may have gone to another branch instead.
-    if base not in branches:
-        branches[base] = pulls_from(repo, owner, base, gh)
-    merged = pr["merged_at"]
-    for p in sorted((p for p in branches[base] if p.get("merged_at") and p["created_at"] <= merged <= p["merged_at"]),
-                    key=lambda p: p["merged_at"]):
-        found = carrier(repo, owner, default, number, p, gh, branches, depth + 1)
-        if found:
-            return found
-    if contains(repo, pr["merge_commit_sha"], default, gh):
-        raise NotFound(f"#{number} reached `{default}` from `{base}` without a PR, so when it landed isn't known")
-    return None
+        landed = [pr]
+    elif depth >= MAX_STACK:
+        trouble = [f"its stack is deeper than {MAX_STACK} branches"]
+    else:
+        # On a stack: it lands with a PR from its base branch that was open when it merged into
+        # that branch, and merged after it. Matched by dates, not commits: a rebase rewrites the
+        # branch's commits, and a PR opened later from a reused branch name doesn't count. Every
+        # such PR is followed: one may have gone to another branch (staging) instead.
+        if base not in branches:
+            branches[base] = pulls_from(repo, owner, base, gh)
+        merged = pr["merged_at"]
+        for p in branches[base]:
+            if p.get("merged_at") and p["created_at"] <= merged <= p["merged_at"]:
+                more, why = carriers(repo, owner, default, p, gh, branches, carried, depth + 1)
+                landed += more
+                trouble += why
+        if not landed and contains(repo, pr["merge_commit_sha"], default, gh):
+            trouble.append(f"`{base}` reached `{default}`, but not through a PR open when "
+                           f"#{pr['number']} merged into it")
+    carried[pr["number"]] = (landed, trouble)
+    return landed, trouble
 
 
 def pulls_from(repo, owner, branch, gh):
@@ -147,8 +158,9 @@ def find(repo, production, prs, today, gh=gh_api):
     try:
         default = read(gh, f"repos/{repo}", repo)["default_branch"]
         owner = repo.split("/")[0]
-        branches = {}
-        result["prs"] = [landing(repo, owner, default, n, gh, branches) for n in prs]
+        branches, carried = {}, {}
+        for n in prs:
+            result["prs"].append(landing(repo, owner, default, n, gh, branches, carried))
         landed = [p for p in result["prs"] if p.get("landed") is not False]
         waiting = [p for p in result["prs"] if p.get("landed") is False]
         if landed:
