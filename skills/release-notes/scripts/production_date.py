@@ -236,8 +236,13 @@ def by_workflow(repo, default, workflow, last, today, gh):
                 if "404" not in str(e):
                     raise NotFound(f"gh couldn't read whether `{name}` is a tag: {e}")
                 obj = None
-            if obj and obj["type"] == "tag":
+            # An annotated tag can point at another annotated tag: follow them to the commit.
+            for _ in range(MAX_STACK):
+                if not obj or obj["type"] != "tag":
+                    break
                 obj = read(gh, f"repos/{repo}/git/tags/{obj['sha']}", f"the tag `{name}`")["object"]
+            else:
+                raise NotFound(f"the tag `{name}` points through more than {MAX_STACK} tags")
             tags[name] = obj["sha"] if obj else None
         return tags[name]
 

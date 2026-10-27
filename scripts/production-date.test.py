@@ -87,9 +87,11 @@ class FakeGitHub:
                 return {"ref": "refs/tags/" + name, "object": {"sha": "tagobj-" + name, "type": "tag"}}
             return {"ref": "refs/tags/" + name, "object": {"sha": self.fx["tag_commits"][name], "type": "commit"}}
         if rest[:2] == ["git", "tags"]:
-            for name, sha in self.fx.get("annotated_tags", {}).items():
+            # An annotated tag's target is a commit, or "tagobj-<name>" for another annotated tag.
+            for name, target in self.fx.get("annotated_tags", {}).items():
                 if rest[2] == "tagobj-" + name:
-                    return {"tag": name, "object": {"sha": sha, "type": "commit"}}
+                    kind = "tag" if target.startswith("tagobj-") else "commit"
+                    return {"tag": name, "object": {"sha": target, "type": kind}}
             raise GhError("gh: Not Found (HTTP 404)")
         if rest[0] == "compare":
             base, head = "/".join(rest[1:]).split("...")
@@ -459,6 +461,13 @@ class Workflow(unittest.TestCase):
     def test_a_deploy_from_an_annotated_tag_counts(self):
         fx = with_runs(load("one-epic"), run(3010, "a821", "2026-03-02T20:00:00Z", branch="v3.21.0"))
         fx["tags"], fx["annotated_tags"] = ["v3.21.0"], {"v3.21.0": "a821"}
+        result, _ = find(fx, DEPLOY, [820])
+        self.assertEqual(result["deploy"]["run_id"], 3010)
+
+    def test_a_deploy_from_a_tag_of_a_tag_counts(self):
+        # v3.21.0 is an annotated tag of the annotated tag rc, which points at a821.
+        fx = with_runs(load("one-epic"), run(3010, "a821", "2026-03-02T20:00:00Z", branch="v3.21.0"))
+        fx["tags"], fx["annotated_tags"] = ["v3.21.0"], {"v3.21.0": "tagobj-rc", "rc": "a821"}
         result, _ = find(fx, DEPLOY, [820])
         self.assertEqual(result["deploy"]["run_id"], 3010)
 
