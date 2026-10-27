@@ -283,6 +283,20 @@ class LandingCommits(unittest.TestCase):
             production_date.MAX_STACK = old
         self.assertEqual((result["status"], result["prs"][0]["landing_pr"]), ("dated", 80))
 
+    def test_a_pr_cut_off_deep_in_one_stack_is_followed_in_full_on_its_own(self):
+        # Under #81, #92 is two branches down and hits the limit; asked about directly, it's
+        # one branch down, and simply hasn't reached main.
+        fx = self.with_staging({"number": 92, "state": "closed", "created_at": "2026-03-02T00:00:00Z",
+                                "merged_at": "2026-03-03T09:00:00Z", "merge_commit_sha": "w092",
+                                "base": {"ref": "release"}, "head": {"ref": "staging", "sha": "w091"}})
+        old, production_date.MAX_STACK = production_date.MAX_STACK, 2
+        try:
+            result, _ = find(fx, "merge", [81, 91])
+        finally:
+            production_date.MAX_STACK = old
+        self.assertEqual(result["status"], "held")
+        self.assertIs(result["prs"][1]["landed"], False)
+
     def test_a_crash_keeps_the_prs_found_before_it(self):
         fx = load("one-epic")
         del fx["pulls"][1]["base"]

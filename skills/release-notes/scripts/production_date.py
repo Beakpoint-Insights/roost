@@ -39,6 +39,7 @@ PER_PAGE = 100
 SEARCH_LIMIT = 1000
 # How far down a stack to follow base branches before giving up.
 MAX_STACK = 20
+DEEP = "deeper than"
 
 
 class GhError(Exception):
@@ -118,7 +119,7 @@ def carriers(repo, owner, default, pr, gh, branches, carried, depth):
     if base == default:
         landed = [pr]
     elif depth >= MAX_STACK:
-        trouble = [f"its stack is deeper than {MAX_STACK} branches"]
+        trouble = [f"its stack is {DEEP} {MAX_STACK} branches"]
     else:
         # On a stack: it lands with a PR from its base branch that was open when it merged into
         # that branch, and merged after it. Matched by dates, not commits: a rebase rewrites the
@@ -135,7 +136,9 @@ def carriers(repo, owner, default, pr, gh, branches, carried, depth):
         if not landed and contains(repo, pr["merge_commit_sha"], default, gh):
             trouble.append(f"`{base}` reached `{default}`, but not through a PR open when "
                            f"#{pr['number']} merged into it")
-    carried[pr["number"]] = (landed, trouble)
+    # A result the depth limit cut short depends on how deep it was reached: don't reuse it.
+    if not any(DEEP in t for t in trouble):
+        carried[pr["number"]] = (landed, trouble)
     return landed, trouble
 
 
