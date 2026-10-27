@@ -1,6 +1,6 @@
 ---
 name: release-notes
-description: Draft customer-facing release notes for an epic that has shipped, ready to paste, one note per feature it shipped (usually one). Dates each note by when customers could first use the feature (the production deploy, release or merge that first carried its last change, shown in an evidence table), never by the tracker's resolution date; writes only what the slices built, listing anything cut; holds a note customers can't use yet (a feature flag, a slice not yet live, a correction to past data not yet run), saying what it waits for; checks the team's published notes so nothing is announced twice; leaves facts the evidence doesn't give as [N]; and follows roost's fallback voice. Never publishes or posts anything. Use when the user says "draft the release note for PROJ-X", "write the release notes for this epic", "what do we tell customers about PROJ-X", and from close-out-epic once production runs the epic.
+description: Draft customer-facing release notes for an epic that has shipped, ready to paste, one note per feature it shipped (usually one). Dates each note by when customers could first use the feature (the production deploy, release or merge that first carried its last change, shown in an evidence table), never by the tracker's resolution date; writes only what the slices built, listing anything cut; holds a note customers can't use yet (a feature flag, a slice not yet live, a correction to past data not yet run), saying what it waits for; checks the team's published notes so nothing is announced twice; leaves facts the evidence doesn't give as [N]; and writes in the team's voice (`release_notes.voice`), or roost's fallback voice without one. Never publishes or posts anything. Use when the user says "draft the release note for PROJ-X", "write the release notes for this epic", "what do we tell customers about PROJ-X", and from close-out-epic once production runs the epic.
 ---
 
 # Release Notes
@@ -82,9 +82,13 @@ When you have neither the page's text from the user nor a readable `release_note
 
 ## 6. The voice
 
-Follow `references/fallback-voice.md`, roost's own voice, and say in the checks, in one line, that roost's fallback voice was used.
+**The team's voice.** When the config sets `release_notes.voice`, read that file, its path relative to the config file's folder. It's the team's whole voice: follow only its rules, don't read `references/fallback-voice.md`, and add nothing from it, even where the team's file says nothing (no sign-off rule means no sign-off, not roost's).
 
-Before you send the note, check it against every rule in the voice, one by one. The ones most often missed: keep the title well inside the voice's word limit, aiming for 3 to 5 words, and count every word, numbers and short words included ("Invoices Searchable Up to 90 Days Back" is 7 words; "Search Older Invoices" is 3); put the practical number or timing the evidence gives (how soon, how many) in the closing line, not only in the body; and say what the customer doesn't have to do when the evidence says it.
+**roost's fallback voice.** Follow `references/fallback-voice.md` only when the team's voice isn't available, and say why in the checks, in one line:
+- `release_notes.voice` isn't set: "Used roost's fallback voice: the config has no `release_notes.voice`."
+- The file can't be read: "Couldn't read the voice file `<path>`: used roost's fallback voice."
+
+Before you send the note, check it against every rule in the voice, one by one. The ones most often missed: keep the title well inside the voice's word limit, aiming for its lower half, and count every word, numbers and short words included (a title like "Invoices searchable up to 90 days back" is 7 words; "Search older invoices" is 3); put the practical number or timing the evidence gives (how soon, how many) in the closing line, not only in the body; and say what the customer doesn't have to do when the evidence says it.
 
 ## 7. Write the reply
 
