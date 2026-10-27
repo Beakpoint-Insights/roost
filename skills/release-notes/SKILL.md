@@ -1,6 +1,6 @@
 ---
 name: release-notes
-description: Draft customer-facing release notes for an epic that has shipped, ready to paste, one note per feature it shipped (usually one). Dates each note by when customers could first use the feature (the production deploy, release or merge that first carried its last change, shown in an evidence table), never by the tracker's resolution date; writes only what the slices built, listing anything cut; holds a note customers can't use yet (a feature flag, a slice not yet live, a correction to past data not yet run), saying what it waits for; checks the team's published notes so nothing is announced twice; leaves facts the evidence doesn't give as [N]; and writes in the team's voice (`release_notes.voice`), or roost's fallback voice without one. Never publishes or posts anything. Use when the user says "draft the release note for PROJ-X", "write the release notes for this epic", "what do we tell customers about PROJ-X", and from close-out-epic once production runs the epic.
+description: Draft customer-facing release notes for an epic that has shipped, ready to paste, one note per feature it shipped (usually one). Dates each note by when customers could first use the feature (the production deploy, release or merge that first carried its last change, shown in an evidence table), never by the tracker's resolution date; writes only what the slices built, listing anything cut; holds a note customers can't use yet (a feature flag, a slice not yet live, a correction to past data not yet run), saying what it waits for; checks the team's published notes so nothing is announced twice; leaves facts the evidence doesn't give as [N]; and writes in the team's voice (`release_notes.voice`), or roost's fallback voice without one. Never publishes or posts anything. Also catches up on everything released since a date, each epic's note oldest first, with standalone tickets listed for the user to pick. Use when the user says "catch us up on release notes since <date>", "what shipped since our last post", "draft the release note for PROJ-X", "write the release notes for this epic", "what do we tell customers about PROJ-X", and from close-out-epic once production runs the epic.
 ---
 
 # Release Notes
@@ -9,7 +9,7 @@ A release note is public, and hard to take back once it's out. Each one has to b
 
 **First, load the team config with `roost-config`,** and read its tracker adapter.
 
-**Input:** the epic's key. Everything below calls it EPIC.
+**Input:** the epic's key. Everything below calls it EPIC. Or a date, for everything released since then: see "Catch-up since a date" at the end, which runs steps 1 to 7 for each epic it finds.
 
 **Evidence the user gives counts.** When the user has already given you facts (the tickets, the PRs, the deploy runs, a page's text), use them as read, and don't look them up again. Look up only what's missing. Whatever you couldn't read, from the user or the tools, goes in the checks (step 7), named.
 
@@ -121,5 +121,23 @@ The reply is these, in this order, and nothing else. It starts with the note its
    - each feature already announced, naming the post's title and date, or "Repeat check not done: <why>." and "check it isn't already announced" for each note (step 5);
    - the voice line, when roost's fallback voice was used (step 6).
 
-For an epic that shipped separate features, give 1 and 2 for each feature in turn, then one list of checks for them all.
+For an epic that shipped separate features, give 1 and 2 for each feature in turn, then one list of checks for them all. A catch-up's reply is laid out at its end.
+
+## Catch-up since a date
+
+When the user asks for everything released since a date ("catch us up since our last post on February 1"), call that date SINCE. Each note in a catch-up is built and checked exactly as an epic's is (steps 1 to 7): one note per feature, dated through `production_date.py`, held when customers can't use it yet, checked against the published notes, in the team's voice.
+
+1. **Find what moved.** Run the tracker adapter's search for tickets moved to `tracker.statuses.done` or `tracker.statuses.ready_for_release` since SINCE ("Common searches"), every page, and sort it with this skill's script:
+   - **Jira:** save each page as the search returns it, then `python3 <this skill's folder>/scripts/catch_up.py jira --done "<tracker.statuses.done>" --ready "<tracker.statuses.ready_for_release>" <page 1>.json <page 2>.json …`
+   - **GitHub:** `python3 <this skill's folder>/scripts/catch_up.py github --repo <tracker.github.repo> --since SINCE --ready-label "<tracker.statuses.ready_for_release>"`
+
+   It prints `epics`, `candidates` (standalone stories, tasks and bugs), `children` (slices that count toward their epic) and `dropped` (Tests, sub-tasks, whose work is their parent's, and tickets that have moved back out of done), each with a reason, `notes` (lines for the checks about tickets kept on less than full evidence), and `complete: false` with a `reason` when the search wasn't read in full. When the user gives you the tickets instead, sort them by the same rules yourself.
+2. **Each epic.** Run steps 1 to 6 for each epic in `epics`.
+3. **The cut-off.** A ticket resolved after SINCE can have reached customers before it. Give every feature's date to `python3 <this skill's folder>/scripts/catch_up.py cutoff --since SINCE`, as `[{"key": …, "status": …, "date": …}]` on stdin, from each feature's `production_date.py` result. It drops each feature live before SINCE, with the reason, and sorts the rest oldest first, held ones last. When you can't run it, apply the same rule: compare production dates, never resolution dates.
+4. **Candidates.** List every standalone story, task and bug, one line each: its key, its title and what changed for customers, for the user to pick. Draft none of them. Name only candidates there: a dropped ticket goes in the checks, never in the candidates, and with none, the list says "No candidates." A candidate the user picks gets steps 1 to 7, like an epic, dated by its own production.
+5. **The reply,** in this order and nothing else:
+   1. every note, complete, oldest first, one after another with nothing between them, rotating the voice's sign-offs as it says;
+   2. the evidence tables, in the same order;
+   3. the candidates;
+   4. one list of checks for them all (step 7's), plus each ticket dropped as moved back out of done, each feature live before SINCE and its date, the script's `notes`, and a search that wasn't read in full (its `reason`).
 
