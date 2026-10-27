@@ -1,6 +1,6 @@
 # roost's fallback voice
 
-The voice `release-notes` writes in when the team config has no `release_notes.voice`. It's generic on purpose: no team's brand, sign-offs or product names. To give your notes your own voice, copy this file into your config's repo, change it, and point `release_notes.voice` at it.
+The voice `release-notes` writes in when the team config has no `release_notes.voice`. It's generic on purpose: no team's brand, sign-offs or product names.
 
 **Title**
 - Title Case, 2 to 7 words, naming the feature or what the customer gets: "Usage Alerts by Email", "Costs from Your Cloud Bill".
