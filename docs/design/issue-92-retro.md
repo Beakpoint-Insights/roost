@@ -10,7 +10,7 @@ After a run (a slice, a bug, an epic, or any roost session the user names), `ret
 2. **Finds the run's sessions:** the orchestrator's transcript and each repo session's, on this machine.
 3. **Filters them** with a script down to the moments worth reading: corrections, refusals, errors, retries, long searches and stops.
 4. **Reads those moments** with the state file and the run's tracker comments, and writes findings in eight areas.
-5. **Shows one ranked list** at a checkpoint: each finding with its evidence, what skipping it costs, a recommendation and where the change goes. Nothing changes until the user decides.
+5. **Shows one ranked list** at a checkpoint: each finding with its evidence, what skipping it costs, a recommendation (Checked, or a Hypothesis with the check that would settle it) and where the change goes. Nothing changes until the user decides.
 6. **Gives each accepted finding its home:** a config edit for the user to make, a `cross-repo-handoff` prompt on a ticket for a repo, or a roost issue (drafted, then filed once the user approves it).
 7. **Posts a `retro:` comment** on the run's story, bug or epic listing what was accepted and where each went. The next retro starts there.
 
@@ -75,7 +75,7 @@ It also prints totals per session (turns, tool calls by tool, errors, time) so t
 | **Review rules** | Something a review let through that a standing rule should have caught | The repo's `review_focus` (team config) or its coding standards |
 | **Agent instructions** | `CLAUDE.md`/`AGENTS.md` content the agent ignored, that's too long, or belongs in standards or a check | The repo |
 | **Tool use** | Expensive or repeated calls that a script or a narrower command could replace | The repo (a script), or roost (a skill's step) |
-| **Slow steps** | A step the run waits on, every time, that could be safely skipped or safely sped up: a large data import, a full build, a stack that starts from scratch, a test suite run whole when a few tests cover the change. The finding says which, and why it's safe: for a skip, what the step checks and the evidence that nothing it depends on changed since it last passed; for a speed-up, what replaces it (a prebuilt Docker image or database snapshot the stack starts from, a cache, running only the affected tests) and what keeps that current. With no evidence it's safe, it's reported as slow, with its cost, and no recommendation to skip | The team config (`stack.test_data`, `stack.how`, a repo's `tests`), the repo (an image, a cache, a test selector), or roost (a skill that runs a step it could skip) |
+| **Slow steps** | A step the run waits on, every time, that could be safely skipped or safely sped up: a large data import, a full build, a stack that starts from scratch, a test suite run whole when a few tests cover the change. The finding says which, and why it's safe: for a skip, what the step checks and that nothing it depends on changed since it last passed; for a speed-up, what replaces it (a prebuilt Docker image or database snapshot the stack starts from, a cache, running only the affected tests) and what keeps that current. Safety is Checked or a Hypothesis with its check (decision 5) | The team config (`stack.test_data`, `stack.how`, a repo's `tests`), the repo (an image, a cache, a test selector), or roost (a skill that runs a step it could skip) |
 | **Access** | Information the agent needed and couldn't get (server logs, a read-only view of a service) | The team config (`stack.telemetry`, a read command) or a person-owned setup task |
 | **roost itself** | A skill that stopped when it shouldn't have, didn't stop when it should, guessed, or asked something it could have read | roost, as an issue |
 
@@ -85,17 +85,36 @@ It also prints totals per session (turns, tool calls by tool, errors, time) so t
 
 **Chosen:** each finding has: area, what happened, evidence (a quote and its session and time, or a state-file line), what skipping it costs with a concrete case (the shape #99 sets for every checkpoint finding), recommendation, and destination. Ranked by severity:
 
-- **High:** a wrong result shipped or nearly shipped, a trust break (the user had to check the agent's work to catch it), or a recurrence (decision 5).
+- **High:** a wrong result shipped or nearly shipped, a trust break (the user had to check the agent's work to catch it), or a recurrence (decision 6).
 - **Medium:** time lost on every run (a repeated search, a blocker, a slow step), or a skill misbehaving without a wrong result. A slow step ranks by its total across the run (a 20-minute import on each of five slices is 100 minutes), and High when it's an hour or more per run.
 - **Low:** one-off friction.
 
-A finding with no evidence in the transcripts or the tracker isn't reported.
+A finding whose problem has no evidence in the transcripts or the tracker isn't reported. Whether its fix is proven is decision 5.
 
 **Considered:** a numeric score.
 
 **Why:** three levels are enough to order a list the user reads top to bottom, and a score would look more precise than the evidence is. Matching #99 now means the retro's findings read like every other checkpoint's once #99 ships.
 
-### 5. Follow-ups live in a `retro:` comment
+### 5. A finding is Checked or a Hypothesis
+
+**Chosen:** a finding's problem always rests on evidence (decision 4). Its recommendation, though, is marked one of two ways:
+
+- **Checked:** the retro confirmed the fix is right using only what it can read: the repo, `git log`, the transcripts, the tracker, the stack's config. The finding cites that evidence. For a slow step, for example: what the step reads (a seed file, migrations, a dump URL), that `git log` shows none of it changed across the run, that its output was the same each time it ran, that nothing using its result depends on it being freshly run, and whether the stack already supports keeping the state (persistent containers, named volumes, a snapshot command in the repo).
+- **Hypothesis:** there's a strong reason to think the fix is right, but confirming it means running something. The finding then says what to run and which result confirms or refutes it, who can run it (a repo session, or only the user: production data, a signed-in service), and roughly how long the check takes compared with what the problem costs per run.
+
+At the checkpoint, a hypothesis has three choices:
+
+1. **Check it now.** The user runs the check, or tells a repo session to. The retro waits, reads the result, and the finding becomes Checked or is dropped.
+2. **Ticket the check, not the change.** A check a repo session can run becomes a ticket for that repo, through `cross-repo-handoff`. A check only the user can do becomes a person-owned task with an owner (`tracker.person_task_label`). The change waits for the result, and the next retro's follow-up check (decision 6) reads it.
+3. **Skip.**
+
+A hypothesis ranks by what it would save if true, but the label stays on it, so "saves 100 minutes, if…" never reads like a fact. The retro never runs a check itself: it stays read-only.
+
+**Considered:** reporting only what the retro could check.
+
+**Why:** the costliest fixes (a prebuilt image instead of a 20-minute import, skipping a suite) are often the ones a read-only skill can't prove. Dropping them loses the biggest savings. Reporting them as fact would recommend a skip nobody tested. Naming the check makes the hypothesis something to decide on. When #91 (guided runs) ships, "check it now" for a user-only check can hand off to it; until then the retro gives the steps inline.
+
+### 6. Follow-ups live in a `retro:` comment
 
 **Chosen:** after the checkpoint, a comment on the run's story, bug or epic starting `retro:`, with the date, the run, and one row per accepted finding: area, finding, destination and its link (ticket, handoff comment, or "config edit, for the user"). Rejected findings are listed by title only, so a recurrence can be recognised. The next retro searches the tracker for the team's most recent `retro:` comments and checks each accepted row: done (the ticket closed, the config has the change, the check exists), still open (its ticket), or dropped (the reason, if the user gave one). A finding that matches an earlier accepted or rejected one, unaddressed, ranks one level higher and says how many runs it has come back on.
 
@@ -103,7 +122,7 @@ A finding with no evidence in the transcripts or the tracker isn't reported.
 
 **Why:** the state directory is one machine's. The comment is shared, lives with the run it came from, and the tracker adapters already know how to search comments.
 
-### 6. Redaction uses the team config as its list of private details
+### 7. Redaction uses the team config as its list of private details
 
 **Chosen:** before any quote leaves the session (into the checkpoint, a ticket, a handoff, the `retro:` comment or a roost issue), the script redacts:
 
@@ -116,13 +135,13 @@ A draft bound for roost's tracker goes further: the team's names (team, product,
 
 **Why:** roost's tracker is public, and a team's config is exactly the list of what's private to it. Generic patterns alone would leak a tracker site or cloud ID into a public issue.
 
-### 7. A roost issue is drafted, then filed once the user approves it
+### 8. A roost issue is drafted, then filed once the user approves it
 
 **Chosen:** a "roost itself" finding the user accepts becomes a draft in roost's format: a bug (skill, what happened, steps to reproduce, roost version, coding agent, as in `.github/ISSUE_TEMPLATE/bug_report.yml`), or, for a missing capability, an epic with a Real-World Failure Case Study filled in from the evidence. The user sees the redacted draft; once they approve it, the retro files it with `gh` in Beakpoint-Insights/roost and links it in the `retro:` comment. Findings about the team's own setup are never filed in roost.
 
 **Why:** filing for the user saves a copy-paste, and approval of the exact text is the guard, since the issue is public the moment it's filed.
 
-### 8. The skill and where it's offered
+### 9. The skill and where it's offered
 
 **Chosen:** `skills/retro/SKILL.md`, plus `references/finding-areas.md` (decision 3's table with examples of each area). Offered at the end of `slice-handoff`, `run-bug` and `close-out-epic` as one line ("Run a retro on this run?"), and run on request ("retro on PROJ-X", "retro on this session"). No new config section.
 
