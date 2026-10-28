@@ -87,9 +87,11 @@ class FakeGitHub:
                 return {"ref": "refs/tags/" + name, "object": {"sha": "tagobj-" + name, "type": "tag"}}
             return {"ref": "refs/tags/" + name, "object": {"sha": self.fx["tag_commits"][name], "type": "commit"}}
         if rest[:2] == ["git", "tags"]:
-            for name, sha in self.fx.get("annotated_tags", {}).items():
+            # An annotated tag's target is a commit, or "tagobj-<name>" for another annotated tag.
+            for name, target in self.fx.get("annotated_tags", {}).items():
                 if rest[2] == "tagobj-" + name:
-                    return {"tag": name, "object": {"sha": sha, "type": "commit"}}
+                    kind = "tag" if target.startswith("tagobj-") else "commit"
+                    return {"tag": name, "object": {"sha": target, "type": kind}}
             raise GhError("gh: Not Found (HTTP 404)")
         if rest[0] == "compare":
             base, head = "/".join(rest[1:]).split("...")
@@ -228,6 +230,19 @@ class LandingCommits(unittest.TestCase):
         result, _ = find(load("rebased-stack"), "merge", [81])
         self.assertEqual(result["status"], "dated")
         self.assertEqual((result["prs"][0]["landing_pr"], result["date"]), (80, "2026-03-04"))
+
+    def test_a_reused_branch_cut_from_main_after_the_change_got_there_doesnt_carry_it(self):
+        # slice-5 reached main by a push (w061 holds #50's w050). Later a new slice-5 is cut
+        # from main for #70: its head holds #50's change only because main already did.
+        fx = load("stacked")
+        fx["commits"]["w070h"] = ["w061"]
+        fx["commits"]["w070"] = ["w061"]
+        fx["pulls"].append({"number": 70, "state": "closed", "created_at": "2026-03-15T09:00:00Z",
+                            "merged_at": "2026-03-21T09:00:00Z", "merge_commit_sha": "w070",
+                            "base": {"ref": "main", "sha": "w061"}, "head": {"ref": "slice-5", "sha": "w070h"}})
+        result, _ = find(fx, "merge", [50])
+        self.assertEqual((result["status"], result["date"]), ("not_found", None))
+        self.assertIn("`slice-5` reached `main`", result["reason"])
 
     def test_a_continued_branchs_later_pr_carries_it(self):
         # #491 was opened after #486 merged into the kept branch, and its head holds #486.
@@ -462,6 +477,13 @@ class Workflow(unittest.TestCase):
         result, _ = find(fx, DEPLOY, [820])
         self.assertEqual(result["deploy"]["run_id"], 3010)
 
+    def test_a_deploy_from_a_tag_of_a_tag_counts(self):
+        # v3.21.0 is an annotated tag of the annotated tag rc, which points at a821.
+        fx = with_runs(load("one-epic"), run(3010, "a821", "2026-03-02T20:00:00Z", branch="v3.21.0"))
+        fx["tags"], fx["annotated_tags"] = ["v3.21.0"], {"v3.21.0": "tagobj-rc", "rc": "a821"}
+        result, _ = find(fx, DEPLOY, [820])
+        self.assertEqual(result["deploy"]["run_id"], 3010)
+
     def test_a_branch_named_like_a_tag_isnt_a_tag_deploy(self):
         # A branch v3.21.0 at a821, beside a tag v3.21.0 at an older commit.
         fx = with_runs(load("one-epic"), run(3010, "a821", "2026-03-02T20:00:00Z", branch="v3.21.0"))
@@ -492,6 +514,16 @@ class Workflow(unittest.TestCase):
         self.assertEqual(result["status"], "dated")
         self.assertEqual((result["deploy"]["run_id"], result["deploy"]["attempt"], result["time"]),
                          (3003, 1, "2026-03-03T10:12:40Z"))
+
+    def test_a_deploy_being_rerun_still_dates_it(self):
+        # 3003 deployed on attempt 1; a re-run is in progress, so the run isn't completed.
+        r, attempts = run(3003, "a821", "2026-03-03T10:00:15Z", attempts=[
+            {"conclusion": "success", "updated_at": "2026-03-03T10:12:40Z"},
+            {"conclusion": None, "updated_at": "2026-03-05T09:00:00Z"}])
+        r.update(status="in_progress", conclusion=None)
+        result, _ = find(with_runs(load("one-epic"), (r, attempts), replace=True), DEPLOY, [820])
+        self.assertEqual((result["status"], result["deploy"]["run_id"], result["time"]),
+                         ("dated", 3003, "2026-03-03T10:12:40Z"))
 
     def test_a_rerun_that_finished_after_a_later_run_doesnt_date_it(self):
         # 3010 started first but succeeded only on a re-run, the next day; 3011 finished first.
@@ -552,6 +584,14 @@ class Workflow(unittest.TestCase):
         self.assertIsNone(result["date"])
         self.assertIn("#820", result["reason"])
         self.assertIn("2026-03-10", result["reason"])
+
+    def test_a_workflow_whose_only_deploy_was_rerun_and_failed_has_deployed(self):
+        # 3001 deployed #812 on attempt 1 on February 28; a re-run failed. #820 hasn't deployed.
+        fx = with_runs(load("one-epic"), run(3001, "a813", "2026-02-28T09:00:02Z", conclusion="failure", attempts=[
+            {"conclusion": "success", "updated_at": "2026-02-28T09:11:40Z"},
+            {"conclusion": "failure", "updated_at": "2026-03-01T08:00:00Z"}]), replace=True)
+        result, _ = find(fx, DEPLOY, [820])
+        self.assertEqual((result["status"], result["date"]), ("held", None))
 
     def test_a_workflow_that_has_never_deployed_means_date_not_found(self):
         fx = with_runs(load("one-epic"), run(3010, "a821", "2026-03-03T10:00:00Z", conclusion="failure"),

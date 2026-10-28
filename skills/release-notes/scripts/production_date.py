@@ -135,8 +135,8 @@ def carriers(repo, owner, default, pr, gh, branches, carried, depth):
     else:
         # On a stack: it lands with a PR from its base branch that merged after it and either
         # was open when it merged into that branch (a rebase rewrites the branch's commits) or
-        # has a head that holds it (the branch was kept and a PR opened from it later). A PR
-        # from a reused branch name passes neither. Every such PR is followed: one may have
+        # has a head that holds it, where its own base didn't already (the branch was kept and a
+        # PR opened from it later). A PR from a reused branch name passes neither. Every such PR is followed: one may have
         # gone to another branch (staging) instead.
         if base not in branches:
             branches[base] = pulls_from(repo, owner, base, gh)
@@ -144,17 +144,26 @@ def carriers(repo, owner, default, pr, gh, branches, carried, depth):
         for p in branches[base]:
             if not p.get("merged_at") or p["merged_at"] < merged:
                 continue
-            if p["created_at"] <= merged or contains(repo, pr["merge_commit_sha"], p["head"]["sha"], gh):
+            if p["created_at"] <= merged or head_carries(repo, pr["merge_commit_sha"], p, gh):
                 more, why = carriers(repo, owner, default, p, gh, branches, carried, depth + 1)
                 landed += more
                 trouble += why
         if not landed and contains(repo, pr["merge_commit_sha"], default, gh):
-            trouble.append(f"`{base}` reached `{default}`, but not through a PR open when "
-                           f"#{pr['number']} merged into it")
+            trouble.append(f"`{base}` reached `{default}`, but not through a PR that carried "
+                           f"#{pr['number']} there")
     # A result the depth limit cut short depends on how deep it was reached: don't reuse it.
     if not any(DEEP in t for t in trouble):
         carried[pr["number"]] = (landed, trouble)
     return landed, trouble
+
+
+def head_carries(repo, sha, p, gh):
+    """Whether PR `p` brought commit `sha` with it: its head holds it, and the branch it merged
+    into didn't already (`base.sha` is that branch as it was when `p` merged). A branch cut from
+    main after the change got there holds it without carrying it."""
+    if not contains(repo, sha, p["head"]["sha"], gh):
+        return False
+    return not (p["base"].get("sha") and contains(repo, sha, p["base"]["sha"], gh))
 
 
 def pulls_from(repo, owner, branch, gh):
@@ -236,8 +245,13 @@ def by_workflow(repo, default, workflow, last, today, gh):
                 if "404" not in str(e):
                     raise NotFound(f"gh couldn't read whether `{name}` is a tag: {e}")
                 obj = None
-            if obj and obj["type"] == "tag":
+            # An annotated tag can point at another annotated tag: follow them to the commit.
+            for _ in range(MAX_STACK):
+                if not obj or obj["type"] != "tag":
+                    break
                 obj = read(gh, f"repos/{repo}/git/tags/{obj['sha']}", f"the tag `{name}`")["object"]
+            if obj and obj["type"] == "tag":
+                raise NotFound(f"the tag `{name}` points through more than {MAX_STACK} tags")
             tags[name] = obj["sha"] if obj else None
         return tags[name]
 
@@ -294,11 +308,12 @@ def by_workflow(repo, default, workflow, last, today, gh):
 
 
 def list_runs(repo, workflow, created, gh):
-    """(runs, capped): a workflow's completed runs, every page; capped when GitHub has
-    more than one search returns (it reports the true total_count). Completed, not only
-    successful: a run that deployed and was then re-run and failed is listed as failed."""
+    """(runs, capped): a workflow's runs, every page; capped when GitHub has more than one
+    search returns (it reports the true total_count). All of them, not only successful
+    ones: GitHub gives a run its latest attempt's status, so a run that deployed and was
+    then re-run is listed as failed, or as queued or in progress while the re-run goes."""
     runs = []
-    for body in pages(gh, f"repos/{repo}/actions/workflows/{workflow}/runs?status=completed{created}",
+    for body in pages(gh, f"repos/{repo}/actions/workflows/{workflow}/runs?{created.lstrip('&')}",
                       f"`{workflow}`'s runs"):
         if body["total_count"] > SEARCH_LIMIT:
             return runs, True
@@ -307,15 +322,19 @@ def list_runs(repo, workflow, created, gh):
 
 
 def ever_deployed(repo, workflow, deploys, gh):
-    """Whether any successful run, ever, ran on the default branch or a tag."""
-    total = 0
-    for body in pages(gh, f"repos/{repo}/actions/workflows/{workflow}/runs?status=success", f"`{workflow}`'s runs"):
+    """Whether any run, ever, deployed: an attempt succeeded, on the default branch or a tag.
+    Listed with no status filter, since a run that deployed and was then re-run and failed is
+    listed as failed."""
+    total = seen = 0
+    for body in pages(gh, f"repos/{repo}/actions/workflows/{workflow}/runs", f"`{workflow}`'s runs"):
         total = body["total_count"]
-        if any(map(deploys, body["workflow_runs"])):
-            return True
-    if total > SEARCH_LIMIT:
-        raise NotFound(f"page limit: none of `{workflow}`'s newest {SEARCH_LIMIT} successful runs ran on the "
-                       f"default branch or a tag, and GitHub lists no more")
+        seen += len(body["workflow_runs"])
+        for run in body["workflow_runs"]:
+            if deploys(run) and (run["conclusion"] == "success" or first_success(repo, run, gh)[0]):
+                return True
+    if seen < total:
+        raise NotFound(f"page limit: none of the {seen} `{workflow}` runs GitHub lists deployed, "
+                       f"and it lists no more of its {total}")
     return False
 
 
