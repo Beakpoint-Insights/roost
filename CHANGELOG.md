@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.1](https://github.com/Beakpoint-Insights/roost/compare/roost-v1.3.0...roost-v1.3.1) (2026-10-28)
+
+
+### Bug Fixes
+
+* **#101:** no "already announced" line for a post that covers only part of a feature ([#102](https://github.com/Beakpoint-Insights/roost/issues/102)) ([9770e89](https://github.com/Beakpoint-Insights/roost/commit/9770e89cb9f1600df137c3ad91af197792051a38))
+
 ## [1.3.0](https://github.com/Beakpoint-Insights/roost/compare/roost-v1.2.0...roost-v1.3.0) (2026-10-28)
 
 
