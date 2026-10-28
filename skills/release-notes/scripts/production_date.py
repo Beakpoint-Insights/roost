@@ -204,7 +204,7 @@ def find(repo, production, prs, today, gh=gh_api):
             except NotFound as e:
                 if not waiting:
                     raise
-                lookup_failed = str(e)  # the note is held for the waiting PRs either way
+                lookup_failed = f"date not found either: {e}"  # held for the waiting PRs either way
         if waiting:
             result["status"] = "held"
             result["reason"] = "; ".join([p["reason"] for p in waiting]

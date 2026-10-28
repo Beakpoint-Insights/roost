@@ -608,6 +608,7 @@ class Workflow(unittest.TestCase):
         self.assertEqual(result["status"], "held")
         self.assertIn("#46 merged into `slice-2`", result["reason"])
         self.assertIn("no successful `deploy-production.yml` runs", result["reason"])
+        self.assertIn("date not found either", result["reason"])
 
     def test_a_missing_workflow_file_means_date_not_found(self):
         result, _ = find(load("one-epic"), {"workflow": "deploy-prod.yml"}, [820])
