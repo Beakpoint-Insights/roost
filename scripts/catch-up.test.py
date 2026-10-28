@@ -508,6 +508,13 @@ class Cli(unittest.TestCase):
         self.assertFalse(r["complete"])
         self.assertIn("403", r["reason"])
 
+    def test_an_unexpected_error_still_prints_json(self):
+        code, r = self.main(["cutoff", "--since", "2026-02-01"],
+                            json.dumps([{"key": "A", "status": "dated", "date": None}]))
+        self.assertEqual(code, 1)
+        self.assertFalse(r["complete"])
+        self.assertIn("TypeError", r["reason"])
+
     def test_cutoff_reads_stdin(self):
         code, r = self.main(["cutoff", "--since", "2026-02-01"],
                             json.dumps([{"key": "A", "status": "dated", "date": "2026-01-02"}]))

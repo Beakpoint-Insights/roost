@@ -380,13 +380,26 @@ def main(argv=None):
     c = sub.add_parser("cutoff")
     c.add_argument("--since", required=True)
     args = p.parse_args(argv)
+    try:
+        out, code = run(args)
+    except Exception as e:  # anything unexpected still gets JSON the skill can report
+        out, code = result(), 1
+        out["complete"], out["reason"] = False, f"catch_up.py {args.command} failed: {type(e).__name__}: {e}"
+    if out is not None:
+        print(json.dumps(out, indent=2))
+    return code
+
+
+def run(args):
+    """Runs the parsed command; returns (output, exit code), output None when
+    there's nothing to print."""
     code = 0
     if args.command == "jira":
         email, token = os.environ.get("JIRA_EMAIL"), os.environ.get("JIRA_API_TOKEN")
         if not (email and token):
             print("catch_up.py jira needs JIRA_EMAIL and JIRA_API_TOKEN set: "
                   "set both and run it again", file=sys.stderr)
-            return 2
+            return None, 2
         try:
             out = search_jira(args.site, args.project, args.since, done=args.done,
                               ready=args.ready, email=email, token=token, post=post,
@@ -403,8 +416,7 @@ def main(argv=None):
             out["complete"], out["reason"] = False, str(e)
     else:
         out = cut_off(json.load(sys.stdin), since=args.since)
-    print(json.dumps(out, indent=2))
-    return code
+    return out, code
 
 
 if __name__ == "__main__":
