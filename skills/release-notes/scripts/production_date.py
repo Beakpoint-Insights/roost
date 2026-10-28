@@ -250,7 +250,7 @@ def by_workflow(repo, default, workflow, last, today, gh):
                 if not obj or obj["type"] != "tag":
                     break
                 obj = read(gh, f"repos/{repo}/git/tags/{obj['sha']}", f"the tag `{name}`")["object"]
-            else:
+            if obj and obj["type"] == "tag":
                 raise NotFound(f"the tag `{name}` points through more than {MAX_STACK} tags")
             tags[name] = obj["sha"] if obj else None
         return tags[name]
