@@ -51,6 +51,7 @@ A key is `<tracker.jira.project>-1234`, written the same way in text, branch nam
 - Linked open tickets: `issue in linkedIssues(<KEY>) AND statusCategory != Done`.
 - Created during a window: `project = <project> AND created >= "<start>" AND (parent = <EPIC> OR text ~ "<KEY>")`.
 - Roadmap epics: `project = <project> AND type = Epic AND labels = roadmap AND statusCategory != Done ORDER BY created ASC`.
+- Moved to a status since a date: `project = <project> AND status CHANGED TO ("<tracker.statuses.done>", "<tracker.statuses.ready_for_release>") AFTER "<date>" ORDER BY updated ASC`, keeping each issue's `summary`, `issuetype`, `status`, `resolution` and `parent`. It pages at 100, following `nextPageToken`. It also returns Tests, sub-tasks and tickets that have since moved back (to To Do, say). For a release-notes catch-up, `release-notes`' `scripts/catch_up.py jira` runs this search itself through REST with the API token, reads every page, and drops those.
 
 `statusCategory != Done` treats Cancelled, Won't Do and other closed statuses as closed.
 

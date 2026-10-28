@@ -45,6 +45,8 @@ jobs:
         run: scripts/eval-cases.test.sh
       - name: Test the production-date script
         run: python3 scripts/production-date.test.py
+      - name: Test the catch-up script
+        run: python3 scripts/catch-up.test.py
 
   private-details:
     runs-on: ubuntu-latest
