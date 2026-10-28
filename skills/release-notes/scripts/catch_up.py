@@ -28,7 +28,9 @@ Both print one JSON object:
   candidates  [{key, type, title}] standalone stories, tasks and bugs
   children    [{key, epic}] slices whose work counts toward their epic
   dropped     [{key, reason}] Tests, sub-tasks, and tickets moved back out
-              of done, with the reason, for the checks
+              of done, with the reason, for the checks. An epic moved back to
+              a to-do status is dropped with its slices; one reopened to work
+              on is kept, with a note
   notes       lines for the checks about tickets kept on less than full
               evidence
 
@@ -38,7 +40,8 @@ cutoff:  give it each feature's production_date.py result with its key,
          and dropped, the features live before the date, with the reason.
 
 Exit 0 whatever it finds; 2 for bad arguments or no Jira token, and 1 when
-`gh` or Jira fails (still with the JSON, complete false, naming the error).
+`gh` or Jira fails, or anything else goes wrong (still with the JSON, complete
+false, naming the error).
 """
 import argparse
 import base64
@@ -135,11 +138,20 @@ def sort_jira(pages, done, ready=None, wont_do=None):
         return (status.get("name", "").lower() in kept
                 or status.get("statusCategory", {}).get("key") == "done")
 
-    # Only an epic closed without shipping takes its slices with it. A reopened epic
-    # is listed like one still in progress, and the skill's holds decide.
-    cancelled = {i["key"] for i in issues
-                 if is_epic(i.get("fields", {}).get("issuetype", {}))
-                 and unshipped(i.get("fields", {}))}
+    def withdrawn(f):
+        """Why an epic takes its slices with it: closed without shipping, or moved
+        back to a to-do status. None for a done epic, or one reopened to work on."""
+        if unshipped(f):
+            return "was closed without shipping"
+        status = f.get("status", {})
+        if not still_done(f) and status.get("statusCategory", {}).get("key") == "new":
+            return f"moved back to {status.get('name', '')}"
+        return None
+
+    # A reopened epic (back in progress) is listed like one still in progress, and
+    # the skill's holds decide.
+    gone = {i["key"]: withdrawn(i.get("fields", {})) for i in issues
+            if is_epic(i.get("fields", {}).get("issuetype", {})) and withdrawn(i.get("fields", {}))}
     for issue in issues:
         key = issue["key"]
         f = issue.get("fields", {})
@@ -149,7 +161,7 @@ def sort_jira(pages, done, ready=None, wont_do=None):
         parent_fields = parent.get("fields", {}) if parent else {}
         parent_kind = parent_fields.get("issuetype", {})
         if parent and unshipped(parent_fields):
-            cancelled.add(parent["key"])
+            gone[parent["key"]] = "was closed without shipping"
         if kind.get("name", "").lower() in TEST_TYPES:
             r["dropped"].append({"key": key, "reason": f"a {kind['name']}, not customer work"})
         elif kind.get("subtask"):
@@ -157,6 +169,8 @@ def sort_jira(pages, done, ready=None, wont_do=None):
             r["dropped"].append({"key": key, "reason": f"sub-task of {p}: its work is part of {p}"})
         elif unshipped(f):
             r["dropped"].append({"key": key, "reason": f"closed as {unshipped(f)}, not shipped"})
+        elif is_epic(kind) and key in gone:
+            r["dropped"].append({"key": key, "reason": f"{gone[key]}"})
         elif is_epic(kind):
             if not still_done(f):
                 r["notes"].append(f"{key} moved back to {status.get('name', '')} after it was done: "
@@ -164,8 +178,8 @@ def sort_jira(pages, done, ready=None, wont_do=None):
             add_epic(r, key, f.get("summary", ""))
         elif not still_done(f):
             r["dropped"].append({"key": key, "reason": f"moved back to {status.get('name', '')}"})
-        elif parent and is_epic(parent_kind) and parent["key"] in cancelled:
-            r["dropped"].append({"key": key, "reason": f"its epic, {parent['key']}, was closed without shipping"})
+        elif parent and is_epic(parent_kind) and parent["key"] in gone:
+            r["dropped"].append({"key": key, "reason": f"its epic, {parent['key']}, {gone[parent['key']]}"})
         elif parent and is_epic(parent_kind):
             add_epic(r, parent["key"], parent["fields"].get("summary", ""))
             r["children"].append({"key": key, "epic": parent["key"]})
@@ -338,7 +352,7 @@ def search_github(repo, since, today, ready_label=None, gh=gh):
             p = f"#{parent['number']}"
             r["dropped"].append({"key": key, "reason": f"sub-task of {p}: its work is part of {p}"})
         else:
-            if parent and kind != "bug":
+            if parent and parent_kind(parent["number"]) not in ("story", "task", "bug"):
                 p = f"#{parent['number']}"
                 r["notes"].append(f"{key} is under {p}, which isn't marked as an epic, story, task or bug: "
                                   f"check whether {key} is part of {p}'s work")

@@ -144,6 +144,13 @@ class Jira(unittest.TestCase):
         self.assertNotIn("P-1", reasons(r))
         self.assertTrue(any("P-1" in n and "In Progress" in n for n in r["notes"]))
 
+    def test_an_epic_moved_back_to_to_do_drops_its_slices(self):
+        r = self.sort(self.page(self.issue("P-2", parent=("P-1", "Epic", 1)),
+                                self.issue("P-1", kind="Epic", level=1, status="To Do", category="new")))
+        self.assertEqual(r["epics"], [])
+        self.assertIn("P-1", reasons(r)["P-2"])
+        self.assertIn("To Do", reasons(r)["P-1"])
+
     def test_a_slice_of_an_epic_closed_without_shipping_is_dropped(self):
         r = self.sort(self.page(self.issue("P-2", parent=("P-1", "Epic", 1)),
                                 self.issue("P-1", kind="Epic", level=1, status="Won't Do")))
@@ -317,6 +324,14 @@ class GitHub(unittest.TestCase):
         r = self.run_github(FakeGh(fx))
         self.assertIn("#120", keys(r["candidates"]))
         self.assertNotIn("#120", reasons(r))
+
+    def test_a_bug_under_a_parent_of_unknown_kind_is_a_candidate_with_a_note(self):
+        fx = load("github")
+        fx["issues"]["91"].update(labels=[], issueType=None)
+        fx["closed"][2]["labels"] = [{"name": "bug"}]
+        r = self.run_github(FakeGh(fx))
+        self.assertIn("#93", keys(r["candidates"]))
+        self.assertTrue(any("#93" in n and "#91" in n for n in r["notes"]))
 
     def test_a_sub_issue_of_a_story_is_dropped(self):
         r = self.run_github(FakeGh(load("github")))
