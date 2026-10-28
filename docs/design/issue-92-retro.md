@@ -9,7 +9,7 @@ After a run (a slice, a bug, an epic, or any roost session the user names), `ret
 1. **Checks the last retro's follow-ups:** each suggestion it accepted is done (with the evidence), still open (with its ticket), or dropped (with the reason).
 2. **Finds the run's sessions:** the orchestrator's transcript and each repo session's, on this machine.
 3. **Filters them** with a script down to the moments worth reading: corrections, refusals, errors, retries, long searches and stops.
-4. **Reads those moments** with the state file and the run's tracker comments, and writes findings in seven areas.
+4. **Reads those moments** with the state file and the run's tracker comments, and writes findings in eight areas.
 5. **Shows one ranked list** at a checkpoint: each finding with its evidence, what skipping it costs, a recommendation and where the change goes. Nothing changes until the user decides.
 6. **Gives each accepted finding its home:** a config edit for the user to make, a `cross-repo-handoff` prompt on a ticket for a repo, or a roost issue (drafted, then filed once the user approves it).
 7. **Posts a `retro:` comment** on the run's story, bug or epic listing what was accepted and where each went. The next retro starts there.
@@ -24,7 +24,7 @@ flowchart LR
   T --> M[retro_moments.py: moments + metadata]
   M --> R[Redact]
   S --> A
-  R --> A[Findings, 7 areas]
+  R --> A[Findings, 8 areas]
   F --> K
   A --> K[Ranked list: checkpoint]
   K -->|accepted| C[Team config edit]
@@ -56,7 +56,7 @@ flowchart LR
 | `error` | A tool result marked as an error, with the command or tool and its first lines |
 | `retry` | The same tool call (same tool, same input) repeated within a few turns |
 | `search` | A run of reads and searches before the first edit or answer, with its count and duration |
-| `slow` | A tool call or gap between turns over a threshold |
+| `slow` | A command or tool call over a threshold, or a gap between turns. Commands are grouped across the run's sessions (same command, same repo), with each run's duration, how many times it ran and the total, so a 20-minute import run on every slice shows as one moment |
 | `stop` | A turn that ended waiting on the user, with what it asked |
 | `blocked` | A known blocker: commit signing (`vcs.signing_errors`), a usage limit, a sign-in |
 
@@ -66,7 +66,7 @@ It also prints totals per session (turns, tool calls by tool, errors, time) so t
 
 **Why:** transcripts are large (the roost repo's nine are 73 MB, and one session runs past 2 MB) and mostly tool output. A script is free to run, testable with fixtures in `scripts/fixtures/`, and gives the model the same moments every time. The transcript format is Claude Code's and isn't documented, so the script reads only the fields it needs (record type, timestamp, message content blocks, `is_error`) and reports records it can't parse instead of failing.
 
-### 3. Seven areas, each with its kind of fix
+### 3. Eight areas, each with its kind of fix
 
 | Area | What counts | Where the fix goes |
 |---|---|---|
@@ -75,6 +75,7 @@ It also prints totals per session (turns, tool calls by tool, errors, time) so t
 | **Review rules** | Something a review let through that a standing rule should have caught | The repo's `review_focus` (team config) or its coding standards |
 | **Agent instructions** | `CLAUDE.md`/`AGENTS.md` content the agent ignored, that's too long, or belongs in standards or a check | The repo |
 | **Tool use** | Expensive or repeated calls that a script or a narrower command could replace | The repo (a script), or roost (a skill's step) |
+| **Slow steps** | A step the run waits on, every time, that could be safely skipped or safely sped up: a large data import, a full build, a stack that starts from scratch, a test suite run whole when a few tests cover the change. The finding says which, and why it's safe: for a skip, what the step checks and the evidence that nothing it depends on changed since it last passed; for a speed-up, what replaces it (a prebuilt Docker image or database snapshot the stack starts from, a cache, running only the affected tests) and what keeps that current. With no evidence it's safe, it's reported as slow, with its cost, and no recommendation to skip | The team config (`stack.test_data`, `stack.how`, a repo's `tests`), the repo (an image, a cache, a test selector), or roost (a skill that runs a step it could skip) |
 | **Access** | Information the agent needed and couldn't get (server logs, a read-only view of a service) | The team config (`stack.telemetry`, a read command) or a person-owned setup task |
 | **roost itself** | A skill that stopped when it shouldn't have, didn't stop when it should, guessed, or asked something it could have read | roost, as an issue |
 
@@ -85,7 +86,7 @@ It also prints totals per session (turns, tool calls by tool, errors, time) so t
 **Chosen:** each finding has: area, what happened, evidence (a quote and its session and time, or a state-file line), what skipping it costs with a concrete case (the shape #99 sets for every checkpoint finding), recommendation, and destination. Ranked by severity:
 
 - **High:** a wrong result shipped or nearly shipped, a trust break (the user had to check the agent's work to catch it), or a recurrence (decision 5).
-- **Medium:** time lost on every run (a repeated search or blocker), or a skill misbehaving without a wrong result.
+- **Medium:** time lost on every run (a repeated search, a blocker, a slow step), or a skill misbehaving without a wrong result. A slow step ranks by its total across the run (a 20-minute import on each of five slices is 100 minutes), and High when it's an hour or more per run.
 - **Low:** one-off friction.
 
 A finding with no evidence in the transcripts or the tracker isn't reported.
@@ -127,7 +128,7 @@ A draft bound for roost's tracker goes further: the team's names (team, product,
 
 **Considered:** a `retro` config section (thresholds, which areas to check).
 
-**Why:** the thresholds live in the script with sensible defaults, and every team needs all seven areas. A key can be added when a real team needs one.
+**Why:** the thresholds live in the script with sensible defaults, and every team needs all eight areas. A key can be added when a real team needs one.
 
 ## Changes elsewhere
 
