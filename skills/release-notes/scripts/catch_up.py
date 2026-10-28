@@ -97,9 +97,8 @@ def sort_jira(pages, done, ready=None):
     r = result()
     for n, page in enumerate(pages, 1):
         if n == len(pages) and page.get("nextPageToken") and not page.get("isLast"):
-            r["complete"] = False
-            r["reason"] = (f"page {n} has a nextPageToken: the search wasn't read "
-                           "to its last page")
+            incomplete(r, f"page {n} has a nextPageToken: the search wasn't read "
+                          "to its last page")
     kept = {s.lower() for s in (done, ready) if s}
     issues, seen = [], set()
     for page in pages:
@@ -107,6 +106,10 @@ def sort_jira(pages, done, ready=None):
             if issue["key"] not in seen:
                 seen.add(issue["key"])
                 issues.append(issue)
+    totals = [page["total"] for page in pages if isinstance(page.get("total"), int)]
+    if totals and len(issues) < max(totals):
+        incomplete(r, f"the pages hold {len(issues)} of {max(totals)} issues: "
+                      "the search wasn't read in full")
 
     def is_epic(kind):
         return kind.get("name", "").lower() == "epic" or kind.get("hierarchyLevel") == 1

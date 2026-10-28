@@ -137,6 +137,18 @@ class Jira(unittest.TestCase):
         self.assertEqual(r["epics"], [])
         self.assertIn("P-1", reasons(r)["P-2"])
 
+    def test_pages_short_of_their_total_are_incomplete(self):
+        pages = [{"startAt": 0, "maxResults": 2, "total": 3,
+                  "issues": [self.issue("P-1", kind="Bug"), self.issue("P-2", kind="Bug")]}]
+        r = self.sort(pages)
+        self.assertFalse(r["complete"])
+        self.assertIn("2 of 3", r["reason"])
+
+    def test_pages_that_reach_their_total_are_complete(self):
+        pages = [{"startAt": 0, "maxResults": 1, "total": 2, "issues": [self.issue("P-1", kind="Bug")]},
+                 {"startAt": 1, "maxResults": 1, "total": 2, "issues": [self.issue("P-2", kind="Bug")]}]
+        self.assertTrue(self.sort(pages)["complete"])
+
     def test_a_status_outside_done_is_moved_back(self):
         r = self.sort(self.page(self.issue("P-1", kind="Bug", status="In Review", category="indeterminate")))
         self.assertIn("moved back to In Review", reasons(r)["P-1"])
