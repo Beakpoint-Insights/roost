@@ -3,7 +3,8 @@
 live before the date.
 
 Usage:
-  catch_up.py jira --done NAME [--ready NAME] PAGE.json [PAGE.json ...]
+  catch_up.py jira --site SITE --project KEY --since YYYY-MM-DD --done NAME
+                   [--ready NAME]
   catch_up.py github --repo OWNER/NAME --since YYYY-MM-DD [--ready-label NAME]
                      [--today YYYY-MM-DD]
   catch_up.py cutoff --since YYYY-MM-DD < features.json
@@ -11,9 +12,10 @@ Usage:
 jira:    a ticket counts as still done when its status is one of the names
          given or in Jira's done category, unless its status or resolution
          closed it without shipping (Won't Do, Duplicate, Cancelled, ...).
-         Give it every page the Jira search for tickets moved to done or ready
-         for release since the date returned, in order, each as saved from
-         the search (its `issues`, and `nextPageToken` or `isLast`).
+         It runs the search for tickets moved to done or ready for release
+         since the date itself, through Jira's REST API with JIRA_EMAIL and
+         JIRA_API_TOKEN from the environment, and reads every page. Without
+         them it stops (exit 2) and says to set them.
 github:  it runs the searches itself with `gh`: issues closed as completed
          since the date, and issues labelled ready for release since then.
 
@@ -34,14 +36,18 @@ cutoff:  give it each feature's production_date.py result with its key,
          notes oldest first (held and not-found ones after the dated ones),
          and dropped, the features live before the date, with the reason.
 
-Exit 0 whatever it finds; 2 for bad arguments, and 1 when `gh` fails (still
-with the JSON, complete false, naming the error).
+Exit 0 whatever it finds; 2 for bad arguments or no Jira token, and 1 when
+`gh` or Jira fails (still with the JSON, complete false, naming the error).
 """
 import argparse
+import base64
 import datetime
 import json
+import os
 import subprocess
 import sys
+import urllib.error
+import urllib.request
 
 LIMIT = 1000  # GitHub's search returns at most this many results
 KINDS = ("epic", "story", "task", "bug", "test")
@@ -161,6 +167,61 @@ def sort_jira(pages, done, ready=None):
             r["candidates"].append({"key": key, "type": kind.get("name", "").lower(),
                                     "title": f.get("summary", "")})
     return r
+
+
+JIRA_FIELDS = ["summary", "issuetype", "status", "resolution", "parent"]
+PAGE_SIZE = 100  # the most Jira's search returns in one page
+
+
+class JiraError(Exception):
+    """Jira's search failed; the message says how, never with the token."""
+
+
+def post(url, body, headers):
+    """POSTs body as JSON to Jira and returns the parsed reply."""
+    req = urllib.request.Request(url, data=json.dumps(body).encode(), method="POST",
+                                 headers=dict(headers, **{"Content-Type": "application/json",
+                                                          "Accept": "application/json"}))
+    try:
+        with urllib.request.urlopen(req, timeout=60) as reply:
+            return json.load(reply)
+    except urllib.error.HTTPError as e:
+        hint = ": check JIRA_EMAIL and JIRA_API_TOKEN" if e.code in (401, 403) else ""
+        raise JiraError(f"Jira said {e.code} {e.reason}{hint}")
+    except (urllib.error.URLError, OSError) as e:
+        raise JiraError(f"can't reach {url}: {getattr(e, 'reason', e)}")
+    except ValueError:
+        raise JiraError(f"{url} didn't return JSON")
+
+
+def quoted(name):
+    return '"' + name.replace("\\", "\\\\").replace('"', '\\"') + '"'
+
+
+def search_jira(site, project, since, done, ready, email, token, post=post):
+    """Reads every page of Jira's search for tickets moved to done or ready
+    for release since the date, and sorts them as sort_jira does."""
+    host = site.removeprefix("https://").removeprefix("http://").rstrip("/")
+    url = f"https://{host}/rest/api/3/search/jql"
+    statuses = ", ".join(quoted(s) for s in (done, ready) if s)
+    jql = (f"project = {quoted(project)} AND status CHANGED TO ({statuses}) "
+           f"AFTER {quoted(since)} ORDER BY updated ASC")
+    auth = base64.b64encode(f"{email}:{token}".encode()).decode()
+    headers = {"Authorization": f"Basic {auth}"}
+    pages, tokens = [], set()
+    body = {"jql": jql, "fields": JIRA_FIELDS, "maxResults": PAGE_SIZE}
+    while True:
+        try:
+            page = post(url, body, headers)
+        except JiraError as e:
+            raise JiraError(f"the Jira search failed after {len(pages)} pages: {e}")
+        pages.append(page)
+        nxt = page.get("nextPageToken")
+        if not nxt or page.get("isLast") or nxt in tokens:
+            break  # a token Jira already gave would only repeat; sort_jira says it wasn't read
+        tokens.add(nxt)
+        body = dict(body, nextPageToken=nxt)
+    return sort_jira(pages, done=done, ready=ready)
 
 
 # ---------- GitHub ----------
@@ -296,9 +357,11 @@ def main(argv=None):
     p = argparse.ArgumentParser(description="Sort a release-notes catch-up's tickets.")
     sub = p.add_subparsers(dest="command", required=True)
     j = sub.add_parser("jira")
+    j.add_argument("--site", required=True)
+    j.add_argument("--project", required=True)
+    j.add_argument("--since", required=True)
     j.add_argument("--done", required=True)
     j.add_argument("--ready")
-    j.add_argument("pages", nargs="+")
     g = sub.add_parser("github")
     g.add_argument("--repo", required=True)
     g.add_argument("--since", required=True)
@@ -310,11 +373,17 @@ def main(argv=None):
     args = p.parse_args(argv)
     code = 0
     if args.command == "jira":
-        pages = []
-        for path in args.pages:
-            with open(path, encoding="utf-8") as f:
-                pages.append(json.load(f))
-        out = sort_jira(pages, done=args.done, ready=args.ready)
+        email, token = os.environ.get("JIRA_EMAIL"), os.environ.get("JIRA_API_TOKEN")
+        if not (email and token):
+            print("catch_up.py jira needs JIRA_EMAIL and JIRA_API_TOKEN set: "
+                  "set both and run it again", file=sys.stderr)
+            return 2
+        try:
+            out = search_jira(args.site, args.project, args.since, done=args.done,
+                              ready=args.ready, email=email, token=token, post=post)
+        except JiraError as e:
+            out, code = result(), 1
+            out["complete"], out["reason"] = False, str(e)
     elif args.command == "github":
         try:
             out = search_github(args.repo, since=args.since, today=args.today,

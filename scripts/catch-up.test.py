@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-"""Tests skills/release-notes/scripts/catch_up.py with no network: Jira pages
-come from a recorded fixture, and a fake `gh` answers the GitHub searches from
-another, returning at most --limit results the way `gh issue list` does.
+"""Tests skills/release-notes/scripts/catch_up.py with no network: a fake Jira
+answers the REST search from a recorded fixture, one page per nextPageToken,
+and a fake `gh` answers the GitHub searches from another, returning at most
+--limit results the way `gh issue list` does.
 
 Run: python3 scripts/catch-up.test.py
 """
@@ -11,13 +12,16 @@ import io
 import json
 import os
 import sys
-import tempfile
 import unittest
+import urllib.error
+from unittest import mock
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SCRIPT = os.path.join(ROOT, "skills", "release-notes", "scripts", "catch_up.py")
 FIXTURES = os.path.join(ROOT, "scripts", "fixtures", "catch-up")
 sys.path.insert(0, os.path.dirname(SCRIPT))
+
+import base64  # noqa: E402
 
 import catch_up  # noqa: E402
 
@@ -153,6 +157,84 @@ class Jira(unittest.TestCase):
         r = self.sort(self.page(self.issue("P-1", kind="Bug", status="In Review", category="indeterminate")))
         self.assertIn("moved back to In Review", reasons(r)["P-1"])
 
+
+class FakeJira:
+    """Answers catch_up's post(url, body, headers) calls from the Jira pages
+    fixture: the first page for a request with no nextPageToken, and the page
+    after the one that handed out the token otherwise."""
+
+    def __init__(self, pages, error=None):
+        self.pages = pages
+        self.error = error
+        self.calls = []
+
+    def __call__(self, url, body, headers):
+        self.calls.append({"url": url, "body": body, "headers": headers})
+        if self.error:
+            raise catch_up.JiraError(self.error)
+        token = body.get("nextPageToken")
+        if not token:
+            return copy.deepcopy(self.pages[0])
+        for n, page in enumerate(self.pages):
+            if page.get("nextPageToken") == token:
+                return copy.deepcopy(self.pages[n + 1])
+        raise AssertionError(f"unknown nextPageToken: {token}")
+
+
+class JiraRest(unittest.TestCase):
+    def search(self, fake, site="acme.atlassian.net"):
+        return catch_up.search_jira(site, "PROJ", "2026-02-01", done="Done",
+                                    ready="Ready for Release", email="dev@acme.example",
+                                    token="t0ken", post=fake)
+
+    def test_every_page_is_read(self):
+        fake = FakeJira(load("jira-two-pages")["pages"])
+        r = self.search(fake)
+        self.assertEqual(len(fake.calls), 2)
+        self.assertEqual(fake.calls[1]["body"]["nextPageToken"], "page-2")
+        self.assertEqual(keys(r["epics"]), ["PROJ-2470", "PROJ-2480"])
+        self.assertEqual(keys(r["candidates"]), ["PROJ-2501", "PROJ-2510"])
+        self.assertTrue(r["complete"])
+
+    def test_the_search_asks_for_moves_since_the_date_and_only_the_fields_it_uses(self):
+        fake = FakeJira(load("jira-two-pages")["pages"])
+        self.search(fake, site="https://acme.atlassian.net/")
+        call = fake.calls[0]
+        self.assertEqual(call["url"], "https://acme.atlassian.net/rest/api/3/search/jql")
+        self.assertEqual(call["body"]["jql"],
+                         'project = "PROJ" AND status CHANGED TO ("Done", "Ready for Release") '
+                         'AFTER "2026-02-01" ORDER BY updated ASC')
+        self.assertEqual(sorted(call["body"]["fields"]),
+                         ["issuetype", "parent", "resolution", "status", "summary"])
+        self.assertEqual(call["body"]["maxResults"], 100)
+        self.assertEqual(call["headers"]["Authorization"],
+                         "Basic " + base64.b64encode(b"dev@acme.example:t0ken").decode())
+
+    def test_a_repeated_page_token_stops_the_search_as_incomplete(self):
+        pages = load("jira-two-pages")["pages"]
+        pages[1]["nextPageToken"] = "page-2"
+        pages[1].pop("isLast")
+        fake = FakeJira(pages)
+        r = self.search(fake)
+        self.assertEqual(len(fake.calls), 2)
+        self.assertFalse(r["complete"])
+        self.assertIn("nextPageToken", r["reason"])
+
+    def test_a_refused_search_says_so_without_the_token(self):
+        with self.assertRaises(catch_up.JiraError) as e:
+            self.search(FakeJira([], error="Jira said 401 Unauthorized"))
+        self.assertIn("401", str(e.exception))
+        self.assertNotIn("t0ken", str(e.exception))
+
+
+    def test_a_401_from_jira_says_to_check_the_token(self):
+        refused = urllib.error.HTTPError("https://acme.atlassian.net/rest/api/3/search/jql",
+                                         401, "Unauthorized", {}, None)
+        with mock.patch("urllib.request.urlopen", side_effect=refused), \
+                self.assertRaises(catch_up.JiraError) as e:
+            catch_up.post("https://acme.atlassian.net/rest/api/3/search/jql", {}, {})
+        self.assertIn("401", str(e.exception))
+        self.assertIn("JIRA_API_TOKEN", str(e.exception))
 
 class FakeGh:
     """Answers catch_up's gh(args) calls from the github fixture. A search
@@ -342,18 +424,40 @@ class Cli(unittest.TestCase):
             sys.stdin = old
         return code, json.loads(out.getvalue())
 
-    def test_jira_reads_page_files(self):
-        pages = load("jira-two-pages")["pages"]
-        with tempfile.TemporaryDirectory() as d:
-            paths = []
-            for i, p in enumerate(pages):
-                path = os.path.join(d, f"p{i}.json")
-                with open(path, "w") as f:
-                    json.dump(p, f)
-                paths.append(path)
-            code, r = self.main(["jira", "--done", "Done", "--ready", "Ready for Release"] + paths)
+    JIRA = ["jira", "--site", "acme.atlassian.net", "--project", "PROJ", "--since", "2026-02-01",
+            "--done", "Done", "--ready", "Ready for Release"]
+
+    def test_jira_searches_with_the_token_from_the_environment(self):
+        fake = FakeJira(load("jira-two-pages")["pages"])
+        env = {"JIRA_EMAIL": "dev@acme.example", "JIRA_API_TOKEN": "t0ken"}
+        with mock.patch.dict(os.environ, env), mock.patch.object(catch_up, "post", fake):
+            code, r = self.main(self.JIRA)
         self.assertEqual(code, 0)
         self.assertEqual(keys(r["epics"]), ["PROJ-2470", "PROJ-2480"])
+
+    def test_jira_without_a_token_stops_and_says_what_to_set(self):
+        fake = FakeJira(load("jira-two-pages")["pages"])
+        err = io.StringIO()
+        with mock.patch.dict(os.environ, {}, clear=True), mock.patch.object(catch_up, "post", fake), \
+                contextlib.redirect_stderr(err), contextlib.redirect_stdout(io.StringIO()):
+            code = catch_up.main(self.JIRA)
+        self.assertEqual(code, 2)
+        self.assertEqual(fake.calls, [])
+        self.assertIn("JIRA_EMAIL", err.getvalue())
+        self.assertIn("JIRA_API_TOKEN", err.getvalue())
+
+    def test_jira_no_longer_takes_page_files(self):
+        with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+            catch_up.main(["jira", "--done", "Done", "p1.json"])
+
+    def test_a_failed_jira_search_exits_1(self):
+        env = {"JIRA_EMAIL": "dev@acme.example", "JIRA_API_TOKEN": "t0ken"}
+        with mock.patch.dict(os.environ, env), \
+                mock.patch.object(catch_up, "post", FakeJira([], error="Jira said 403 Forbidden")):
+            code, r = self.main(self.JIRA)
+        self.assertEqual(code, 1)
+        self.assertFalse(r["complete"])
+        self.assertIn("403", r["reason"])
 
     def test_cutoff_reads_stdin(self):
         code, r = self.main(["cutoff", "--since", "2026-02-01"],
