@@ -97,6 +97,7 @@ Why: checks that give the same answer every time and cost nothing run on every c
 | `release-note-sparse-team-voice` | A team voice that sets only a few rules is still the whole voice: no fallback rule, such as the title word limit, is inherited |
 | `release-notes-catch-up` | Catching up since a date drafts each epic customers got since then, oldest first, in one message with rotating sign-offs; leaves out an epic live before the date, saying why; and lists standalone bugs as candidates, not drafts |
 | `release-notes-catch-up-filters` | Catching up keeps only tickets still done or ready for release, drops Tests and sub-tasks, and names a ticket that moved back |
+| `release-notes-catch-up-lookback` | Catching up includes work marked done before the date that reached production after it, searching back to the newest earlier post, and leaves out what was live before the date |
 | `close-out-offers-release-note` | After an epic ships, `close-out-epic` confirms production from each repo's `production` key, then offers to draft the release note instead of writing one unasked |
 | `setup-asks-production-and-voice` | `setup` recommends each repo's `production` from its workflows or host, asks for the published notes and the voice, and saves no voice rules the user hasn't seen |
 
