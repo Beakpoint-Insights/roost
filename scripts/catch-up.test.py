@@ -276,6 +276,14 @@ class GitHub(unittest.TestCase):
         views = [c for c in fake.calls if c[:2] == ["issue", "view"]]
         self.assertTrue(all("stateReason" in c[c.index("--json") + 1] for c in views))
 
+    def test_a_story_under_a_parent_of_unknown_kind_is_a_candidate(self):
+        fx = load("github")
+        fx["issues"]["91"].update(labels=[], issueType=None)
+        r = self.run_github(FakeGh(fx))
+        self.assertIn("#93", keys(r["candidates"]))
+        self.assertNotIn("#93", reasons(r))
+        self.assertTrue(any("#93" in n and "#91" in n for n in r["notes"]))
+
     def test_both_halves_limit_reasons_are_kept(self):
         big = {"closed:2026-02-01..2026-02-02 reason:completed": 1000,
                "closed:2026-02-01..2026-02-01 reason:completed": 1000,

@@ -265,10 +265,14 @@ def search_github(repo, since, today, ready_label=None, gh=gh):
         elif parent and parent_kind(parent["number"]) == "epic":
             add_epic(r, f"#{parent['number']}", parents[parent["number"]]["title"])
             r["children"].append({"key": key, "epic": f"#{parent['number']}"})
-        elif parent:
+        elif parent and parent_kind(parent["number"]) in ("story", "task", "bug"):
             p = f"#{parent['number']}"
             r["dropped"].append({"key": key, "reason": f"sub-task of {p}: its work is part of {p}"})
         else:
+            if parent:
+                p = f"#{parent['number']}"
+                r["notes"].append(f"{key} is under {p}, which isn't marked as an epic, story, task or bug: "
+                                  f"check whether {key} is part of {p}'s work")
             r["candidates"].append({"key": key, "type": kind, "title": issue["title"]})
     return r
 
