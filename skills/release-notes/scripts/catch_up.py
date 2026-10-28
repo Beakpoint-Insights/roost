@@ -194,6 +194,14 @@ def closed_since(repo, start, end, gh):
     return left + right, "; ".join(w for w in (why_l, why_r) if w) or None
 
 
+def unfinished(issue):
+    """How a closed issue was closed when it wasn't completed (not planned,
+    duplicate), or None for an open or completed one."""
+    if issue.get("state") == "CLOSED" and issue.get("stateReason") != "COMPLETED":
+        return (issue.get("stateReason") or "not completed").lower().replace("_", " ")
+    return None
+
+
 def labelled_at(repo, number, label, gh):
     """When the label was last added to the issue, from its timeline, or None."""
     pages = gh(["api", "--paginate", "--slurp", f"repos/{repo}/issues/{number}/timeline"])
@@ -218,10 +226,9 @@ def search_github(repo, since, today, ready_label=None, gh=gh):
         for issue in ready:
             if issue["number"] in numbers:
                 continue
-            if issue.get("state") == "CLOSED" and issue.get("stateReason") != "COMPLETED":
-                how = (issue.get("stateReason") or "not completed").lower().replace("_", " ")
+            if unfinished(issue):
                 r["dropped"].append({"key": f"#{issue['number']}",
-                                     "reason": f"closed as {how}, though still labelled "
+                                     "reason": f"closed as {unfinished(issue)}, though still labelled "
                                                f"{ready_label}"})
                 continue
             at = labelled_at(repo, issue["number"], ready_label, gh)
@@ -238,7 +245,7 @@ def search_github(repo, since, today, ready_label=None, gh=gh):
     def parent_kind(number):
         if number not in parents:
             parents[number] = gh(["issue", "view", str(number), "-R", repo,
-                                  "--json", "number,title,issueType,labels"])
+                                  "--json", "number,title,state,stateReason,issueType,labels"])
         return kind_of(parents[number])
 
     for issue in issues:
@@ -248,6 +255,10 @@ def search_github(repo, since, today, ready_label=None, gh=gh):
             r["dropped"].append({"key": key, "reason": f"a {shown}, not customer work"})
         elif kind == "epic":
             add_epic(r, key, issue["title"])
+        elif parent and parent_kind(parent["number"]) == "epic" and unfinished(parents[parent["number"]]):
+            p = f"#{parent['number']}"
+            r["dropped"].append({"key": key, "reason": f"its epic, {p}, was closed as "
+                                                       f"{unfinished(parents[parent['number']])}"})
         elif parent and parent_kind(parent["number"]) == "epic":
             add_epic(r, f"#{parent['number']}", parents[parent["number"]]["title"])
             r["children"].append({"key": key, "epic": f"#{parent['number']}"})

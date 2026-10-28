@@ -254,6 +254,16 @@ class GitHub(unittest.TestCase):
         self.assertIn("duplicate", reasons(r)["#96"])
         self.assertNotIn({"key": "#96", "epic": "#97"}, r["children"])
 
+    def test_a_story_of_an_epic_closed_as_not_planned_is_dropped(self):
+        fx = load("github")
+        fx["issues"]["97"].update(state="CLOSED", stateReason="NOT_PLANNED")
+        fake = FakeGh(fx)
+        r = self.run_github(fake)
+        self.assertNotIn("#97", keys(r["epics"]))
+        self.assertIn("#97", reasons(r)["#96"])
+        views = [c for c in fake.calls if c[:2] == ["issue", "view"]]
+        self.assertTrue(all("stateReason" in c[c.index("--json") + 1] for c in views))
+
     def test_both_halves_limit_reasons_are_kept(self):
         big = {"closed:2026-02-01..2026-02-02 reason:completed": 1000,
                "closed:2026-02-01..2026-02-01 reason:completed": 1000,
