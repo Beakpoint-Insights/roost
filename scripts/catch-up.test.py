@@ -135,9 +135,18 @@ class Jira(unittest.TestCase):
         self.assertEqual(r["candidates"], [])
         self.assertEqual(len(r["dropped"]), 4)
 
-    def test_a_slice_of_an_epic_that_moved_back_doesnt_bring_it_back(self):
+    def test_a_reopened_epic_keeps_its_shipped_slices(self):
         r = self.sort(self.page(self.issue("P-2", parent=("P-1", "Epic", 1)),
-                                self.issue("P-1", kind="Epic", level=1, status="To Do", category="new")))
+                                self.issue("P-1", kind="Epic", level=1, status="In Progress",
+                                           category="indeterminate")))
+        self.assertEqual(keys(r["epics"]), ["P-1"])
+        self.assertIn({"key": "P-2", "epic": "P-1"}, r["children"])
+        self.assertNotIn("P-1", reasons(r))
+        self.assertTrue(any("P-1" in n and "In Progress" in n for n in r["notes"]))
+
+    def test_a_slice_of_an_epic_closed_without_shipping_is_dropped(self):
+        r = self.sort(self.page(self.issue("P-2", parent=("P-1", "Epic", 1)),
+                                self.issue("P-1", kind="Epic", level=1, status="Won't Do")))
         self.assertEqual(r["epics"], [])
         self.assertIn("P-1", reasons(r)["P-2"])
 

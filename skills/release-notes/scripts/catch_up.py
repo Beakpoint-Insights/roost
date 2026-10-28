@@ -135,9 +135,11 @@ def sort_jira(pages, done, ready=None, wont_do=None):
         return (status.get("name", "").lower() in kept
                 or status.get("statusCategory", {}).get("key") == "done")
 
-    moved_back = {i["key"] for i in issues
-                  if is_epic(i.get("fields", {}).get("issuetype", {}))
-                  and not still_done(i.get("fields", {}))}
+    # Only an epic closed without shipping takes its slices with it. A reopened epic
+    # is listed like one still in progress, and the skill's holds decide.
+    cancelled = {i["key"] for i in issues
+                 if is_epic(i.get("fields", {}).get("issuetype", {}))
+                 and unshipped(i.get("fields", {}))}
     for issue in issues:
         key = issue["key"]
         f = issue.get("fields", {})
@@ -147,7 +149,7 @@ def sort_jira(pages, done, ready=None, wont_do=None):
         parent_fields = parent.get("fields", {}) if parent else {}
         parent_kind = parent_fields.get("issuetype", {})
         if parent and unshipped(parent_fields):
-            moved_back.add(parent["key"])
+            cancelled.add(parent["key"])
         if kind.get("name", "").lower() in TEST_TYPES:
             r["dropped"].append({"key": key, "reason": f"a {kind['name']}, not customer work"})
         elif kind.get("subtask"):
@@ -155,12 +157,15 @@ def sort_jira(pages, done, ready=None, wont_do=None):
             r["dropped"].append({"key": key, "reason": f"sub-task of {p}: its work is part of {p}"})
         elif unshipped(f):
             r["dropped"].append({"key": key, "reason": f"closed as {unshipped(f)}, not shipped"})
+        elif is_epic(kind):
+            if not still_done(f):
+                r["notes"].append(f"{key} moved back to {status.get('name', '')} after it was done: "
+                                  "its note waits for any slice still being built")
+            add_epic(r, key, f.get("summary", ""))
         elif not still_done(f):
             r["dropped"].append({"key": key, "reason": f"moved back to {status.get('name', '')}"})
-        elif is_epic(kind):
-            add_epic(r, key, f.get("summary", ""))
-        elif parent and is_epic(parent_kind) and parent["key"] in moved_back:
-            r["dropped"].append({"key": key, "reason": f"its epic, {parent['key']}, isn't done or was closed without shipping"})
+        elif parent and is_epic(parent_kind) and parent["key"] in cancelled:
+            r["dropped"].append({"key": key, "reason": f"its epic, {parent['key']}, was closed without shipping"})
         elif parent and is_epic(parent_kind):
             add_epic(r, parent["key"], parent["fields"].get("summary", ""))
             r["children"].append({"key": key, "epic": parent["key"]})
