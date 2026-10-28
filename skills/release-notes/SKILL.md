@@ -89,7 +89,7 @@ A held note is still drafted in full. Its date is `[date]`, the day it's live fo
 
 Check the team's published notes, so nothing is announced twice. Fetch `release_notes.published_url`, or use the page's text if the user gave it: pasted text counts as fetched. Compare each feature with the posts by what it does for the customer, not by title: a post called "Spend Alerts by Email" announces a feature called "Know right away when spending jumps".
 
-When a post already covers a feature, don't present its note as new. Still give the note, so the reply keeps its shape, with "[Already announced: <post title>, <date>]" on its own line under the date line, or under the title when the voice has no date line (under the held line, if it has one), for the user to decide, and name the post in the checks. When a post covers only part of it (a beta, one slice), the note is new: write about what's new since that post, and name the post in the checks.
+When a post already covers a feature, don't present its note as new. Still give the note, so the reply keeps its shape, with "[Already announced: <post title>, <date>]" on its own line under the date line, or under the title when the voice has no date line (under the held line, if it has one), for the user to decide, and name the post in the checks. When a post covers only part of it (a beta, one slice), the note is new: write about what's new since that post, and name the post in the checks. A post that covers only part of the feature never gets the [Already announced] line, partial or not.
 
 If the page shows only the newest posts (one page of a longer changelog), check what it shows, and say in the checks how far back it goes.
 
