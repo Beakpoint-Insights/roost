@@ -135,9 +135,25 @@ class Jira(unittest.TestCase):
         self.assertEqual(r["candidates"], [])
         self.assertEqual(len(r["dropped"]), 4)
 
-    def test_a_slice_of_an_epic_that_moved_back_doesnt_bring_it_back(self):
+    def test_a_reopened_epic_keeps_its_shipped_slices(self):
+        r = self.sort(self.page(self.issue("P-2", parent=("P-1", "Epic", 1)),
+                                self.issue("P-1", kind="Epic", level=1, status="In Progress",
+                                           category="indeterminate")))
+        self.assertEqual(keys(r["epics"]), ["P-1"])
+        self.assertIn({"key": "P-2", "epic": "P-1"}, r["children"])
+        self.assertNotIn("P-1", reasons(r))
+        self.assertTrue(any("P-1" in n and "In Progress" in n for n in r["notes"]))
+
+    def test_an_epic_moved_back_to_to_do_drops_its_slices(self):
         r = self.sort(self.page(self.issue("P-2", parent=("P-1", "Epic", 1)),
                                 self.issue("P-1", kind="Epic", level=1, status="To Do", category="new")))
+        self.assertEqual(r["epics"], [])
+        self.assertIn("P-1", reasons(r)["P-2"])
+        self.assertIn("To Do", reasons(r)["P-1"])
+
+    def test_a_slice_of_an_epic_closed_without_shipping_is_dropped(self):
+        r = self.sort(self.page(self.issue("P-2", parent=("P-1", "Epic", 1)),
+                                self.issue("P-1", kind="Epic", level=1, status="Won't Do")))
         self.assertEqual(r["epics"], [])
         self.assertIn("P-1", reasons(r)["P-2"])
 
@@ -298,6 +314,24 @@ class GitHub(unittest.TestCase):
         fx["issues"]["90"]["issueType"] = {"name": "Feature"}
         r = self.run_github(FakeGh(fx))
         self.assertIn({"key": "#91", "epic": "#90"}, r["children"])
+
+    def test_a_bug_filed_under_a_story_is_a_candidate(self):
+        fx = load("github")
+        fx["closed"].append({"number": 120, "title": "Export drops emoji", "state": "CLOSED",
+                             "stateReason": "COMPLETED", "closedAt": "2026-02-05T10:00:00Z",
+                             "issueType": None, "labels": [{"name": "bug"}],
+                             "parent": {"number": 91, "title": "x", "state": "CLOSED"}})
+        r = self.run_github(FakeGh(fx))
+        self.assertIn("#120", keys(r["candidates"]))
+        self.assertNotIn("#120", reasons(r))
+
+    def test_a_bug_under_a_parent_of_unknown_kind_is_a_candidate_with_a_note(self):
+        fx = load("github")
+        fx["issues"]["91"].update(labels=[], issueType=None)
+        fx["closed"][2]["labels"] = [{"name": "bug"}]
+        r = self.run_github(FakeGh(fx))
+        self.assertIn("#93", keys(r["candidates"]))
+        self.assertTrue(any("#93" in n and "#91" in n for n in r["notes"]))
 
     def test_a_sub_issue_of_a_story_is_dropped(self):
         r = self.run_github(FakeGh(load("github")))
@@ -488,6 +522,24 @@ class Cli(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertFalse(r["complete"])
         self.assertIn("403", r["reason"])
+
+    def test_an_unexpected_error_still_prints_json(self):
+        code, r = self.main(["cutoff", "--since", "2026-02-01"],
+                            json.dumps([{"key": "A", "status": "dated", "date": None}]))
+        self.assertEqual(code, 1)
+        self.assertFalse(r["complete"])
+        self.assertIn("TypeError", r["reason"])
+
+    def test_a_since_that_isnt_a_yyyy_mm_dd_date_is_refused(self):
+        commands = {"cutoff": ["cutoff"],
+                    "github": ["github", "--repo", "acme/acme-skills"],
+                    "jira": ["jira", "--site", "acme.atlassian.net", "--project", "PROJ", "--done", "Done"]}
+        for name, argv in commands.items():
+            with self.subTest(command=name), mock.patch.object(catch_up, "run") as run, \
+                    contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit) as e:
+                catch_up.main(argv + ["--since", "2026-2-1"])
+            self.assertEqual(e.exception.code, 2)
+            run.assert_not_called()
 
     def test_cutoff_reads_stdin(self):
         code, r = self.main(["cutoff", "--since", "2026-02-01"],

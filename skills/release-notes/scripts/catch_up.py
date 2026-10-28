@@ -28,7 +28,9 @@ Both print one JSON object:
   candidates  [{key, type, title}] standalone stories, tasks and bugs
   children    [{key, epic}] slices whose work counts toward their epic
   dropped     [{key, reason}] Tests, sub-tasks, and tickets moved back out
-              of done, with the reason, for the checks
+              of done, with the reason, for the checks. An epic moved back to
+              a to-do status is dropped with its slices; one reopened to work
+              on is kept, with a note
   notes       lines for the checks about tickets kept on less than full
               evidence
 
@@ -38,7 +40,8 @@ cutoff:  give it each feature's production_date.py result with its key,
          and dropped, the features live before the date, with the reason.
 
 Exit 0 whatever it finds; 2 for bad arguments or no Jira token, and 1 when
-`gh` or Jira fails (still with the JSON, complete false, naming the error).
+`gh` or Jira fails, or anything else goes wrong (still with the JSON, complete
+false, naming the error).
 """
 import argparse
 import base64
@@ -135,9 +138,20 @@ def sort_jira(pages, done, ready=None, wont_do=None):
         return (status.get("name", "").lower() in kept
                 or status.get("statusCategory", {}).get("key") == "done")
 
-    moved_back = {i["key"] for i in issues
-                  if is_epic(i.get("fields", {}).get("issuetype", {}))
-                  and not still_done(i.get("fields", {}))}
+    def withdrawn(f):
+        """Why an epic takes its slices with it: closed without shipping, or moved
+        back to a to-do status. None for a done epic, or one reopened to work on."""
+        if unshipped(f):
+            return "was closed without shipping"
+        status = f.get("status", {})
+        if not still_done(f) and status.get("statusCategory", {}).get("key") == "new":
+            return f"moved back to {status.get('name', '')}"
+        return None
+
+    # A reopened epic (back in progress) is listed like one still in progress, and
+    # the skill's holds decide.
+    gone = {i["key"]: withdrawn(i.get("fields", {})) for i in issues
+            if is_epic(i.get("fields", {}).get("issuetype", {})) and withdrawn(i.get("fields", {}))}
     for issue in issues:
         key = issue["key"]
         f = issue.get("fields", {})
@@ -147,7 +161,7 @@ def sort_jira(pages, done, ready=None, wont_do=None):
         parent_fields = parent.get("fields", {}) if parent else {}
         parent_kind = parent_fields.get("issuetype", {})
         if parent and unshipped(parent_fields):
-            moved_back.add(parent["key"])
+            gone[parent["key"]] = "was closed without shipping"
         if kind.get("name", "").lower() in TEST_TYPES:
             r["dropped"].append({"key": key, "reason": f"a {kind['name']}, not customer work"})
         elif kind.get("subtask"):
@@ -155,12 +169,17 @@ def sort_jira(pages, done, ready=None, wont_do=None):
             r["dropped"].append({"key": key, "reason": f"sub-task of {p}: its work is part of {p}"})
         elif unshipped(f):
             r["dropped"].append({"key": key, "reason": f"closed as {unshipped(f)}, not shipped"})
+        elif is_epic(kind) and key in gone:
+            r["dropped"].append({"key": key, "reason": f"{gone[key]}"})
+        elif is_epic(kind):
+            if not still_done(f):
+                r["notes"].append(f"{key} moved back to {status.get('name', '')} after it was done: "
+                                  "its note waits for any slice still being built")
+            add_epic(r, key, f.get("summary", ""))
         elif not still_done(f):
             r["dropped"].append({"key": key, "reason": f"moved back to {status.get('name', '')}"})
-        elif is_epic(kind):
-            add_epic(r, key, f.get("summary", ""))
-        elif parent and is_epic(parent_kind) and parent["key"] in moved_back:
-            r["dropped"].append({"key": key, "reason": f"its epic, {parent['key']}, isn't done or was closed without shipping"})
+        elif parent and is_epic(parent_kind) and parent["key"] in gone:
+            r["dropped"].append({"key": key, "reason": f"its epic, {parent['key']}, {gone[parent['key']]}"})
         elif parent and is_epic(parent_kind):
             add_epic(r, parent["key"], parent["fields"].get("summary", ""))
             r["children"].append({"key": key, "epic": parent["key"]})
@@ -328,11 +347,12 @@ def search_github(repo, since, today, ready_label=None, gh=gh):
         elif parent and parent_kind(parent["number"]) == "epic":
             add_epic(r, f"#{parent['number']}", parents[parent["number"]]["title"])
             r["children"].append({"key": key, "epic": f"#{parent['number']}"})
-        elif parent and parent_kind(parent["number"]) in ("story", "task", "bug"):
+        elif kind != "bug" and parent and parent_kind(parent["number"]) in ("story", "task", "bug"):
+            # A bug is filed under its story (tracker-github.md), but it's its own fix.
             p = f"#{parent['number']}"
             r["dropped"].append({"key": key, "reason": f"sub-task of {p}: its work is part of {p}"})
         else:
-            if parent:
+            if parent and parent_kind(parent["number"]) not in ("story", "task", "bug"):
                 p = f"#{parent['number']}"
                 r["notes"].append(f"{key} is under {p}, which isn't marked as an epic, story, task or bug: "
                                   f"check whether {key} is part of {p}'s work")
@@ -355,32 +375,55 @@ def cut_off(features, since):
     return {"notes": notes + rest, "dropped": dropped}
 
 
+def day(text):
+    """A YYYY-MM-DD date, kept as text: the scripts compare dates as strings."""
+    try:
+        if datetime.date.fromisoformat(text).isoformat() == text:
+            return text
+    except ValueError:
+        pass
+    raise argparse.ArgumentTypeError(f"{text!r} isn't a YYYY-MM-DD date")
+
+
 def main(argv=None):
     p = argparse.ArgumentParser(description="Sort a release-notes catch-up's tickets.")
     sub = p.add_subparsers(dest="command", required=True)
     j = sub.add_parser("jira")
     j.add_argument("--site", required=True)
     j.add_argument("--project", required=True)
-    j.add_argument("--since", required=True)
+    j.add_argument("--since", required=True, type=day)
     j.add_argument("--done", required=True)
     j.add_argument("--ready")
     j.add_argument("--wont-do")
     g = sub.add_parser("github")
     g.add_argument("--repo", required=True)
-    g.add_argument("--since", required=True)
+    g.add_argument("--since", required=True, type=day)
     g.add_argument("--ready-label")
     # GitHub's closed: qualifier compares UTC dates.
-    g.add_argument("--today", default=datetime.datetime.now(datetime.timezone.utc).date().isoformat())
+    g.add_argument("--today", type=day, default=datetime.datetime.now(datetime.timezone.utc).date().isoformat())
     c = sub.add_parser("cutoff")
-    c.add_argument("--since", required=True)
+    c.add_argument("--since", required=True, type=day)
     args = p.parse_args(argv)
+    try:
+        out, code = run(args)
+    except Exception as e:  # anything unexpected still gets JSON the skill can report
+        out, code = result(), 1
+        out["complete"], out["reason"] = False, f"catch_up.py {args.command} failed: {type(e).__name__}: {e}"
+    if out is not None:
+        print(json.dumps(out, indent=2))
+    return code
+
+
+def run(args):
+    """Runs the parsed command; returns (output, exit code), output None when
+    there's nothing to print."""
     code = 0
     if args.command == "jira":
         email, token = os.environ.get("JIRA_EMAIL"), os.environ.get("JIRA_API_TOKEN")
         if not (email and token):
             print("catch_up.py jira needs JIRA_EMAIL and JIRA_API_TOKEN set: "
                   "set both and run it again", file=sys.stderr)
-            return 2
+            return None, 2
         try:
             out = search_jira(args.site, args.project, args.since, done=args.done,
                               ready=args.ready, email=email, token=token, post=post,
@@ -397,8 +440,7 @@ def main(argv=None):
             out["complete"], out["reason"] = False, str(e)
     else:
         out = cut_off(json.load(sys.stdin), since=args.since)
-    print(json.dumps(out, indent=2))
-    return code
+    return out, code
 
 
 if __name__ == "__main__":
