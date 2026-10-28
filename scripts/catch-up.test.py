@@ -153,6 +153,16 @@ class Jira(unittest.TestCase):
                  {"startAt": 1, "maxResults": 1, "total": 2, "issues": [self.issue("P-2", kind="Bug")]}]
         self.assertTrue(self.sort(pages)["complete"])
 
+    def test_the_teams_wont_do_status_is_dropped_for_tickets_and_parents(self):
+        r = catch_up.sort_jira(self.page(
+            self.issue("P-1", kind="Bug", status="Discarded"),
+            self.issue("P-3", parent=("P-2", "Epic", 1), parent_status="discarded")),
+            done="Done", ready="Ready for Release", wont_do="Discarded")
+        self.assertEqual(r["candidates"], [])
+        self.assertEqual(r["epics"], [])
+        self.assertIn("Discarded", reasons(r)["P-1"])
+        self.assertIn("P-2", reasons(r)["P-3"])
+
     def test_a_status_outside_done_is_moved_back(self):
         r = self.sort(self.page(self.issue("P-1", kind="Bug", status="In Review", category="indeterminate")))
         self.assertIn("moved back to In Review", reasons(r)["P-1"])
@@ -444,6 +454,16 @@ class Cli(unittest.TestCase):
             code, r = self.main(self.JIRA)
         self.assertEqual(code, 0)
         self.assertEqual(keys(r["epics"]), ["PROJ-2470", "PROJ-2480"])
+
+    def test_jira_passes_the_wont_do_status_on(self):
+        page = {"isLast": True, "issues": [{"key": "P-1", "fields": {
+            "summary": "P-1", "issuetype": {"name": "Bug"},
+            "status": {"name": "Discarded", "statusCategory": {"key": "done"}}}}]}
+        env = {"JIRA_EMAIL": "dev@acme.example", "JIRA_API_TOKEN": "t0ken"}
+        with mock.patch.dict(os.environ, env), mock.patch.object(catch_up, "post", FakeJira([page])):
+            code, r = self.main(self.JIRA + ["--wont-do", "Discarded"])
+        self.assertEqual(r["candidates"], [])
+        self.assertIn("P-1", reasons(r))
 
     def test_jira_without_a_token_stops_and_says_what_to_set(self):
         fake = FakeJira(load("jira-two-pages")["pages"])

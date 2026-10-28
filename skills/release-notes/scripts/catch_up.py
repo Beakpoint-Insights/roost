@@ -4,14 +4,15 @@ live before the date.
 
 Usage:
   catch_up.py jira --site SITE --project KEY --since YYYY-MM-DD --done NAME
-                   [--ready NAME]
+                   [--ready NAME] [--wont-do NAME]
   catch_up.py github --repo OWNER/NAME --since YYYY-MM-DD [--ready-label NAME]
                      [--today YYYY-MM-DD]
   catch_up.py cutoff --since YYYY-MM-DD < features.json
 
 jira:    a ticket counts as still done when its status is one of the names
          given or in Jira's done category, unless its status or resolution
-         closed it without shipping (Won't Do, Duplicate, Cancelled, ...).
+         closed it without shipping (Won't Do, Duplicate, Cancelled, ..., or
+         the team's own --wont-do status).
          It runs the search for tickets moved to done or ready for release
          since the date itself, through Jira's REST API with JIRA_EMAIL and
          JIRA_API_TOKEN from the environment, and reads every page. Without
@@ -98,7 +99,7 @@ def add_epic(r, key, title):
 
 # ---------- Jira ----------
 
-def sort_jira(pages, done, ready=None):
+def sort_jira(pages, done, ready=None, wont_do=None):
     """Sorts a Jira search's pages into epics, candidates, children and dropped."""
     r = result()
     for n, page in enumerate(pages, 1):
@@ -123,7 +124,7 @@ def sort_jira(pages, done, ready=None):
     def unshipped(f):
         """The status or resolution name that closed it without shipping, or None."""
         for name in (f.get("status", {}).get("name", ""), (f.get("resolution") or {}).get("name", "")):
-            if name.lower() in NOT_SHIPPED:
+            if name.lower() in NOT_SHIPPED or (wont_do and name.lower() == wont_do.lower()):
                 return name
         return None
 
@@ -198,7 +199,7 @@ def quoted(name):
     return '"' + name.replace("\\", "\\\\").replace('"', '\\"') + '"'
 
 
-def search_jira(site, project, since, done, ready, email, token, post=post):
+def search_jira(site, project, since, done, ready, email, token, post=post, wont_do=None):
     """Reads every page of Jira's search for tickets moved to done or ready
     for release since the date, and sorts them as sort_jira does."""
     host = site.removeprefix("https://").removeprefix("http://").rstrip("/")
@@ -221,7 +222,7 @@ def search_jira(site, project, since, done, ready, email, token, post=post):
             break  # a token Jira already gave would only repeat; sort_jira says it wasn't read
         tokens.add(nxt)
         body = dict(body, nextPageToken=nxt)
-    return sort_jira(pages, done=done, ready=ready)
+    return sort_jira(pages, done=done, ready=ready, wont_do=wont_do)
 
 
 # ---------- GitHub ----------
@@ -363,6 +364,7 @@ def main(argv=None):
     j.add_argument("--since", required=True)
     j.add_argument("--done", required=True)
     j.add_argument("--ready")
+    j.add_argument("--wont-do")
     g = sub.add_parser("github")
     g.add_argument("--repo", required=True)
     g.add_argument("--since", required=True)
@@ -381,7 +383,8 @@ def main(argv=None):
             return 2
         try:
             out = search_jira(args.site, args.project, args.since, done=args.done,
-                              ready=args.ready, email=email, token=token, post=post)
+                              ready=args.ready, email=email, token=token, post=post,
+                              wont_do=args.wont_do)
         except JiraError as e:
             out, code = result(), 1
             out["complete"], out["reason"] = False, str(e)
