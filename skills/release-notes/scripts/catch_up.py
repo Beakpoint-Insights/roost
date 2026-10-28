@@ -240,21 +240,23 @@ def kind_of(issue):
     return ""
 
 
-def closed_since(repo, start, end, gh):
-    """Issues closed as completed from start to end, split by date at the limit.
-    Returns (issues, reason), reason set when a single day is still at the limit."""
-    search = f"closed:{start}..{end} reason:completed"
-    found = gh(["issue", "list", "-R", repo, "--state", "closed", "--limit", str(LIMIT),
+def split_search(repo, query, state, start, end, gh):
+    """Issues matching query, with RANGE replaced by start..end, split by date at
+    the limit. Returns (issues, reason), reason set when a single day is still
+    at the limit."""
+    search = query.replace("RANGE", f"{start}..{end}")
+    found = gh(["issue", "list", "-R", repo, "--state", state, "--limit", str(LIMIT),
                 "--search", search, "--json", FIELDS])
     if len(found) < LIMIT:
         return found, None
     a, b = datetime.date.fromisoformat(start), datetime.date.fromisoformat(end)
     if a == b:
-        return found, (f"the search for issues closed on {start} returned its limit "
-                       f"of {LIMIT}, and a day can't be split further")
+        return found, (f"the search {search} returned its limit of {LIMIT}, "
+                       "and a day can't be split further")
     mid = a + (b - a) // 2
-    left, why_l = closed_since(repo, start, mid.isoformat(), gh)
-    right, why_r = closed_since(repo, (mid + datetime.timedelta(days=1)).isoformat(), end, gh)
+    left, why_l = split_search(repo, query, state, start, mid.isoformat(), gh)
+    right, why_r = split_search(repo, query, state,
+                                (mid + datetime.timedelta(days=1)).isoformat(), end, gh)
     return left + right, "; ".join(w for w in (why_l, why_r) if w) or None
 
 
@@ -277,15 +279,14 @@ def labelled_at(repo, number, label, gh):
 def search_github(repo, since, today, ready_label=None, gh=gh):
     """Sorts issues closed as completed, or labelled ready for release, since the date."""
     r = result()
-    issues, why = closed_since(repo, since, today, gh)
+    issues, why = split_search(repo, "closed:RANGE reason:completed", "closed", since, today, gh)
     if why:
         incomplete(r, why)
     if ready_label:
-        search = f'label:"{ready_label}" updated:>={since}'
-        ready = gh(["issue", "list", "-R", repo, "--state", "all", "--limit", str(LIMIT),
-                    "--search", search, "--json", FIELDS])
-        if len(ready) >= LIMIT:
-            incomplete(r, f"the search for {search} returned its limit of {LIMIT}")
+        ready, why = split_search(repo, f'label:"{ready_label}" updated:RANGE', "all",
+                                  since, today, gh)
+        if why:
+            incomplete(r, why)
         numbers = {i["number"] for i in issues}
         for issue in ready:
             if issue["number"] in numbers:

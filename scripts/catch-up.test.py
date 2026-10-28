@@ -265,7 +265,7 @@ class FakeGh:
             return copy.deepcopy(self.fx["issues"][args[2]])
         if args[0] == "api":
             n = args[-1].split("/")[-2]
-            return copy.deepcopy(self.fx["timelines"][n])
+            return copy.deepcopy(self.fx["timelines"].get(n, [[]]))
         raise AssertionError(f"unexpected gh call: {args}")
 
 
@@ -316,11 +316,21 @@ class GitHub(unittest.TestCase):
         self.assertIn("closed:2026-02-01..2026-02-15 reason:completed", searches)
         self.assertIn("closed:2026-02-16..2026-03-01 reason:completed", searches)
 
+    def test_a_ready_search_at_its_limit_is_split_by_date(self):
+        big = {'label:"Ready for Release" updated:2026-02-01..2026-03-01': 1000,
+               'label:"Ready for Release" updated:2026-02-01..2026-02-15': 400,
+               'label:"Ready for Release" updated:2026-02-16..2026-03-01': 300}
+        fake = FakeGh(load("github"), big=big)
+        r = self.run_github(fake)
+        self.assertTrue(r["complete"], r["reason"])
+        searches = [c[c.index("--search") + 1] for c in fake.calls if c[:2] == ["issue", "list"]]
+        self.assertIn('label:"Ready for Release" updated:2026-02-16..2026-03-01', searches)
+
     def test_the_ready_search_is_bounded_by_the_date(self):
         fake = FakeGh(load("github"))
         self.run_github(fake)
         searches = [c[c.index("--search") + 1] for c in fake.calls if c[:2] == ["issue", "list"]]
-        self.assertIn('label:"Ready for Release" updated:>=2026-02-01', searches)
+        self.assertIn('label:"Ready for Release" updated:2026-02-01..2026-03-01', searches)
 
     def test_a_ready_issue_with_no_labelled_event_is_noted(self):
         fx = load("github")
@@ -330,7 +340,7 @@ class GitHub(unittest.TestCase):
 
     def test_both_limit_reasons_are_kept(self):
         big = {"closed:2026-02-01..2026-02-01 reason:completed": 1000,
-               'label:"Ready for Release" updated:>=2026-02-01': 1000}
+               'label:"Ready for Release" updated:2026-02-01..2026-02-01': 1000}
         r = self.run_github(FakeGh(load("github"), big=big), today="2026-02-01")
         self.assertIn("2026-02-01", r["reason"])
         self.assertIn("label", r["reason"])
