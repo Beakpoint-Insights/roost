@@ -1,0 +1,19 @@
+docs/design/issue-92-retro.md
+  s_f4aa5bb5335c47::t_16de5888a9170f 13,78,88,92,98-117,125,138,144
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0645e5b016733b304f7dd0fdaf220711b138bdaa",
+  "prompts": {},
+  "sessions": {
+    "s_f4aa5bb5335c47": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "40e81a18-5036-4177-9c50-2e7fc31d2454",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Alan Cox <acox@beakpointinsights.com>"
+    }
+  }
+}
