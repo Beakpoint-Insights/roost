@@ -196,14 +196,19 @@ def find(repo, production, prs, today, gh=gh_api):
         if production is None:
             raise NotFound("; ".join([f"{repo} has no `production` in the config"]
                                      + [p["reason"] for p in waiting]))
+        time, lookup_failed = None, None
         if landed:
-            deploy, time = deploy_for(repo, default, production, result["last_change"], today, gh)
-            result["deploy"] = deploy
-        else:
-            time = None
+            try:
+                deploy, time = deploy_for(repo, default, production, result["last_change"], today, gh)
+                result["deploy"] = deploy
+            except NotFound as e:
+                if not waiting:
+                    raise
+                lookup_failed = str(e)  # the note is held for the waiting PRs either way
         if waiting:
             result["status"] = "held"
-            result["reason"] = "; ".join(p["reason"] for p in waiting)
+            result["reason"] = "; ".join([p["reason"] for p in waiting]
+                                         + ([lookup_failed] if lookup_failed else []))
         elif time is None:
             result["status"] = "held"
             result["reason"] = held_reason(production, result["last_change"], today)

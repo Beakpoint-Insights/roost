@@ -600,6 +600,15 @@ class Workflow(unittest.TestCase):
         self.assertEqual(result["status"], "not_found")
         self.assertIn("no successful `deploy-production.yml` runs", result["reason"])
 
+    def test_a_waiting_pr_still_holds_when_the_deploy_lookup_fails(self):
+        fx = load("stacked")
+        fx["workflows"] = {"deploy-production.yml": []}  # never deployed
+        fx.setdefault("attempts", {})
+        result, _ = find(fx, DEPLOY, [43, 46])
+        self.assertEqual(result["status"], "held")
+        self.assertIn("#46 merged into `slice-2`", result["reason"])
+        self.assertIn("no successful `deploy-production.yml` runs", result["reason"])
+
     def test_a_missing_workflow_file_means_date_not_found(self):
         result, _ = find(load("one-epic"), {"workflow": "deploy-prod.yml"}, [820])
         self.assertEqual(result["status"], "not_found")
