@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.3.0](https://github.com/Beakpoint-Insights/roost/compare/roost-v1.2.0...roost-v1.3.0) (2026-10-28)
+
+
+### Features
+
+* **#60:** release notes for one epic, dated by production ([#71](https://github.com/Beakpoint-Insights/roost/issues/71)) ([e9b7c4f](https://github.com/Beakpoint-Insights/roost/commit/e9b7c4f28b6d340f7772229d5b83e6e1b579df03))
+* **#61:** hold what customers can't use yet, and skip what's announced ([#74](https://github.com/Beakpoint-Insights/roost/issues/74)) ([47c5175](https://github.com/Beakpoint-Insights/roost/commit/47c5175127eb24fe77feb229669a69999ff64ab4))
+* **#62:** release notes in the team's own voice ([#76](https://github.com/Beakpoint-Insights/roost/issues/76)) ([026f562](https://github.com/Beakpoint-Insights/roost/commit/026f56272ada946b0636ab263f30c10de0fbb3b8))
+* **#63:** catch up on release notes since a date ([#86](https://github.com/Beakpoint-Insights/roost/issues/86)) ([fe7bbe6](https://github.com/Beakpoint-Insights/roost/commit/fe7bbe6a467d1aa3588d746f2d62dc1f08692b73))
+* **#72:** date production with a tested script, and run evals only when asked ([#79](https://github.com/Beakpoint-Insights/roost/issues/79)) ([599bb58](https://github.com/Beakpoint-Insights/roost/commit/599bb58c8540a98ae4f0dd34a7a06976bb619425))
+
+
+### Bug Fixes
+
+* **#56:** whole-epic review fixes for release notes ([#98](https://github.com/Beakpoint-Insights/roost/issues/98)) ([6011678](https://github.com/Beakpoint-Insights/roost/commit/601167882505e90a93dde2da51073fdc0cc9119c))
+* **#72:** production date reads re-runs and nested tags, and skips reused branches ([#85](https://github.com/Beakpoint-Insights/roost/issues/85)) ([e72091c](https://github.com/Beakpoint-Insights/roost/commit/e72091cb9757e709e13ab0297b1b818af76679c4))
+
 ## [1.2.0](https://github.com/Beakpoint-Insights/roost/compare/roost-v1.1.1...roost-v1.2.0) (2026-10-26)
 
 
