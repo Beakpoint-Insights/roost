@@ -45,7 +45,7 @@ flowchart LR
 
 **Also:** `run-slice` finds a session's last turn as "the newest transcript in the repo's project folder" (`skills/run-slice/SKILL.md:128`), which picks the wrong file when two sessions share a repo. It changes to the same lookup, through the same script.
 
-### 2. A script filters transcripts first: `scripts/retro_moments.py`
+### 2. A script filters transcripts first: `skills/retro/scripts/retro_moments.py`
 
 **Chosen:** a Python script (Python, per #72's decision) that takes transcripts and a time window and prints a short JSON list of moments, each with its session, time, record id, kind and a trimmed excerpt:
 
@@ -64,7 +64,7 @@ It also prints totals per session (turns, tool calls by tool, errors, time) so t
 
 **Considered:** having the model read the transcripts directly.
 
-**Why:** transcripts are large (the roost repo's nine are 73 MB, and one session runs past 2 MB) and mostly tool output. A script is free to run, testable with fixtures in `scripts/fixtures/`, and gives the model the same moments every time. The transcript format is Claude Code's and isn't documented, so the script reads only the fields it needs (record type, timestamp, message content blocks, `is_error`) and reports records it can't parse instead of failing.
+**Why:** transcripts are large (the roost repo's nine are 73 MB, and one session runs past 2 MB) and mostly tool output. A script is free to run, tested by `scripts/retro-moments.test.py` with fixtures in `scripts/fixtures/retro-moments/`, and gives the model the same moments every time. The transcript format is Claude Code's and isn't documented, so the script reads only the fields it needs (record type, timestamp, message content blocks, `is_error`) and reports records it can't parse instead of failing.
 
 ### 3. Eight areas, each with its kind of fix
 
@@ -129,7 +129,7 @@ A hypothesis ranks by what it would save if true, but the label stays on it, so 
 - generic secrets: tokens and keys by pattern, connection strings, private keys, `Authorization` headers, email addresses;
 - every identifying value in the loaded team config and its overrides: the tracker site and IDs, hostnames, URLs, IP addresses, the test account pattern.
 
-A draft bound for roost's tracker goes further: the team's names (team, product, repos, ticket keys) become roost's example names (Acme, `PROJ-1234`, `acme-api`), and the draft is checked with `scripts/check-private-details.sh`'s matching against the same list before it's shown. If a value can't be redacted with confidence, the quote is dropped and the finding cites its session and time instead.
+A draft bound for roost's tracker goes further: the team's names (team, product, repos, ticket keys) become roost's example names (Acme, `PROJ-1234`, `acme-api`), and the draft is checked against the same list before it's shown, by the script, with the same matching as `scripts/check-private-details.sh` (case-insensitive fixed strings, reporting an entry by number, never its text). If a value can't be redacted with confidence, the quote is dropped and the finding cites its session and time instead.
 
 **Considered:** generic patterns only.
 
@@ -153,7 +153,9 @@ A draft bound for roost's tracker goes further: the team's names (team, product,
 
 | Where | Change |
 |---|---|
-| `scripts/retro_moments.py`, `scripts/retro_moments.test.py`, `scripts/fixtures/` | The filter and redaction, with transcript fixtures (including planted secrets) |
+| `skills/retro/scripts/retro_moments.py`, `scripts/retro-moments.test.py`, `scripts/fixtures/retro-moments/` | The filter, the session lookup, redaction, the roost-draft check and `retro:` comment parsing, with synthetic transcript fixtures (including planted secrets). The script lives in the skill's folder, so it runs wherever the skill does (`CONTRIBUTING.md`) |
+| `.github/workflows/pr-checks.yml`, `CONTRIBUTING.md` | Run `scripts/retro-moments.test.py` and `scripts/retro-offers.test.py` on every PR |
+| `scripts/retro-offers.test.py` | Fails if `slice-handoff`, `run-bug` or `close-out-epic` stops offering a retro in its report |
 | `skills/run-slice/SKILL.md` | Step "How to talk to the sessions": find a session's last turn by the orchestrator's messages, through the script, not the newest file |
 | `skills/slice-handoff/SKILL.md`, `skills/run-bug/SKILL.md`, `skills/close-out-epic/SKILL.md` | Offer a retro in their report |
 | `skills/roost-config/references/tracker-github.md`, `tracker-jira.md` | A "Find `retro:` comments" search |
