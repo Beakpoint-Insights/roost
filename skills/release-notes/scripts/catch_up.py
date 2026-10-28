@@ -361,24 +361,34 @@ def cut_off(features, since):
     return {"notes": notes + rest, "dropped": dropped}
 
 
+def day(text):
+    """A YYYY-MM-DD date, kept as text: the scripts compare dates as strings."""
+    try:
+        if datetime.date.fromisoformat(text).isoformat() == text:
+            return text
+    except ValueError:
+        pass
+    raise argparse.ArgumentTypeError(f"{text!r} isn't a YYYY-MM-DD date")
+
+
 def main(argv=None):
     p = argparse.ArgumentParser(description="Sort a release-notes catch-up's tickets.")
     sub = p.add_subparsers(dest="command", required=True)
     j = sub.add_parser("jira")
     j.add_argument("--site", required=True)
     j.add_argument("--project", required=True)
-    j.add_argument("--since", required=True)
+    j.add_argument("--since", required=True, type=day)
     j.add_argument("--done", required=True)
     j.add_argument("--ready")
     j.add_argument("--wont-do")
     g = sub.add_parser("github")
     g.add_argument("--repo", required=True)
-    g.add_argument("--since", required=True)
+    g.add_argument("--since", required=True, type=day)
     g.add_argument("--ready-label")
     # GitHub's closed: qualifier compares UTC dates.
-    g.add_argument("--today", default=datetime.datetime.now(datetime.timezone.utc).date().isoformat())
+    g.add_argument("--today", type=day, default=datetime.datetime.now(datetime.timezone.utc).date().isoformat())
     c = sub.add_parser("cutoff")
-    c.add_argument("--since", required=True)
+    c.add_argument("--since", required=True, type=day)
     args = p.parse_args(argv)
     try:
         out, code = run(args)

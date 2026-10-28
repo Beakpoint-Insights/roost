@@ -515,6 +515,17 @@ class Cli(unittest.TestCase):
         self.assertFalse(r["complete"])
         self.assertIn("TypeError", r["reason"])
 
+    def test_a_since_that_isnt_a_yyyy_mm_dd_date_is_refused(self):
+        commands = {"cutoff": ["cutoff"],
+                    "github": ["github", "--repo", "acme/acme-skills"],
+                    "jira": ["jira", "--site", "acme.atlassian.net", "--project", "PROJ", "--done", "Done"]}
+        for name, argv in commands.items():
+            with self.subTest(command=name), mock.patch.object(catch_up, "run") as run, \
+                    contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit) as e:
+                catch_up.main(argv + ["--since", "2026-2-1"])
+            self.assertEqual(e.exception.code, 2)
+            run.assert_not_called()
+
     def test_cutoff_reads_stdin(self):
         code, r = self.main(["cutoff", "--since", "2026-02-01"],
                             json.dumps([{"key": "A", "status": "dated", "date": "2026-01-02"}]))
