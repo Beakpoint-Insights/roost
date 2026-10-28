@@ -299,6 +299,16 @@ class GitHub(unittest.TestCase):
         r = self.run_github(FakeGh(fx))
         self.assertIn({"key": "#91", "epic": "#90"}, r["children"])
 
+    def test_a_bug_filed_under_a_story_is_a_candidate(self):
+        fx = load("github")
+        fx["closed"].append({"number": 120, "title": "Export drops emoji", "state": "CLOSED",
+                             "stateReason": "COMPLETED", "closedAt": "2026-02-05T10:00:00Z",
+                             "issueType": None, "labels": [{"name": "bug"}],
+                             "parent": {"number": 91, "title": "x", "state": "CLOSED"}})
+        r = self.run_github(FakeGh(fx))
+        self.assertIn("#120", keys(r["candidates"]))
+        self.assertNotIn("#120", reasons(r))
+
     def test_a_sub_issue_of_a_story_is_dropped(self):
         r = self.run_github(FakeGh(load("github")))
         self.assertIn("sub-task of #91", reasons(r)["#93"])

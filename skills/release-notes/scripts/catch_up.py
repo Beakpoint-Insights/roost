@@ -328,11 +328,12 @@ def search_github(repo, since, today, ready_label=None, gh=gh):
         elif parent and parent_kind(parent["number"]) == "epic":
             add_epic(r, f"#{parent['number']}", parents[parent["number"]]["title"])
             r["children"].append({"key": key, "epic": f"#{parent['number']}"})
-        elif parent and parent_kind(parent["number"]) in ("story", "task", "bug"):
+        elif kind != "bug" and parent and parent_kind(parent["number"]) in ("story", "task", "bug"):
+            # A bug is filed under its story (tracker-github.md), but it's its own fix.
             p = f"#{parent['number']}"
             r["dropped"].append({"key": key, "reason": f"sub-task of {p}: its work is part of {p}"})
         else:
-            if parent:
+            if parent and kind != "bug":
                 p = f"#{parent['number']}"
                 r["notes"].append(f"{key} is under {p}, which isn't marked as an epic, story, task or bug: "
                                   f"check whether {key} is part of {p}'s work")
