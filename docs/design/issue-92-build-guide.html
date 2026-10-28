@@ -1,0 +1,338 @@
+<meta charset="utf-8">
+<title>retro Build Guide</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a single reading column; a vertical rail of slice cards, each with the same file map of roost, then a coverage matrix of free tests, evals and PR checks. */
+:root {
+  --bg: #f6f8f7;
+  --surface: #ffffff;
+  --fg: #1d3443;
+  --muted: #5b6f78;
+  --line: #d9e2e1;
+  --accent: #d9591f;      /* Winston's orange */
+  --amber: #f0a23a;
+  --teal: #2f857c;
+  --teal-soft: #e1f0ee;
+  --orange-soft: #fbe7dc;
+  --ghost: #eef2f1;
+  --display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #10202a; --surface: #172b36; --fg: #e6eeed; --muted: #9db0b5; --line: #29424e;
+    --accent: #f07a43; --amber: #f3b25a; --teal: #6cc2b7; --teal-soft: #1b3a3c; --orange-soft: #3a2a22; --ghost: #1b313c;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #10202a; --surface: #172b36; --fg: #e6eeed; --muted: #9db0b5; --line: #29424e;
+  --accent: #f07a43; --amber: #f3b25a; --teal: #6cc2b7; --teal-soft: #1b3a3c; --orange-soft: #3a2a22; --ghost: #1b313c;
+  color-scheme: dark;
+}
+body { background: var(--bg); color: var(--fg); font: 15px/1.55 var(--body); }
+.wrap { max-width: 980px; margin: 0 auto; padding-block: 40px 64px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 40px; }
+h1, h2, h3 { font-family: var(--display); text-wrap: balance; margin: 0; line-height: 1.15; }
+h1 { font-size: clamp(28px, 4.4vw, 40px); }
+h2 { font-size: 24px; }
+h3 { font-size: 19px; }
+p { margin: 0; max-width: 68ch; }
+code, .mono { font-family: var(--mono); font-size: 0.86em; }
+a { color: var(--teal); }
+a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.eyebrow { font: 600 12px/1 var(--body); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+
+header { display: grid; gap: 14px; }
+.meta { display: flex; flex-wrap: wrap; gap: 8px 18px; color: var(--muted); font-size: 14px; }
+.meta a { font-weight: 500; }
+
+.legend { display: flex; flex-wrap: wrap; gap: 10px 18px; font-size: 13px; color: var(--muted); align-items: center; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.sw { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+.sw.new { background: var(--accent); }
+.sw.changed { background: var(--amber); }
+.sw.same { background: var(--line); }
+.sw.none { border: 1px dashed var(--muted); }
+
+/* Rail */
+.rail { display: grid; gap: 28px; position: relative; }
+.slice { display: grid; grid-template-columns: 44px 1fr; gap: 16px; }
+.dot { width: 44px; height: 44px; border-radius: 50%; background: var(--fg); color: var(--bg); display: grid; place-items: center; font: 700 18px var(--display); position: relative; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 20px; display: grid; gap: 16px; min-width: 0; }
+.card-head { display: grid; gap: 6px; }
+.card-head .key { font: 500 13px var(--mono); color: var(--muted); }
+.adds { display: grid; gap: 6px; padding-left: 18px; margin: 0; }
+.adds li { max-width: 68ch; }
+.cols { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 18px; }
+@media (max-width: 760px) { .cols { grid-template-columns: 1fr; } }
+
+/* File map */
+.map { display: grid; gap: 10px; font-family: var(--mono); font-size: 12.5px; }
+.group { display: grid; gap: 4px; }
+.group .eyebrow { font-family: var(--body); font-size: 11px; }
+.file { display: flex; align-items: center; gap: 8px; padding: 4px 8px; border-radius: 5px; min-width: 0; }
+.file .path { overflow-wrap: anywhere; min-width: 0; }
+.file .tag { margin-left: auto; font: 600 10.5px var(--body); letter-spacing: 0.06em; text-transform: uppercase; white-space: nowrap; }
+.file.new { background: var(--orange-soft); color: var(--fg); box-shadow: inset 3px 0 0 var(--accent); }
+.file.new .tag { color: var(--accent); }
+.file.changed { background: color-mix(in srgb, var(--amber) 18%, var(--surface)); box-shadow: inset 3px 0 0 var(--amber); }
+.file.changed .tag { color: var(--fg); }
+.file.same { color: var(--muted); }
+.file.none { color: var(--muted); opacity: 0.55; border: 1px dashed var(--line); }
+
+/* Tests */
+.tests { display: grid; gap: 8px; align-content: start; }
+.pills { display: flex; flex-wrap: wrap; gap: 6px; }
+.pill { font: 500 12px var(--mono); padding: 4px 9px; border-radius: 999px; background: var(--teal-soft); color: var(--fg); border: 1px solid color-mix(in srgb, var(--teal) 40%, transparent); overflow-wrap: anywhere; }
+.observe { font-size: 14px; color: var(--muted); }
+
+/* Sample note */
+.sample { border: 1px solid var(--line); border-radius: 8px; padding: 16px; display: grid; gap: 8px; background: var(--bg); }
+.sample .t { font: 700 18px var(--display); }
+.sample .d { font-size: 13px; color: var(--muted); }
+.sample ul { margin: 0; padding-left: 18px; display: grid; gap: 2px; }
+.ph { font-family: var(--mono); background: var(--orange-soft); padding: 0 4px; border-radius: 3px; }
+.evidence { border-collapse: collapse; font-size: 13px; width: 100%; font-variant-numeric: tabular-nums; }
+.evidence th, .evidence td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.evidence th { font-weight: 600; color: var(--muted); }
+.scroll { overflow-x: auto; }
+
+/* Matrix */
+.matrix { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+.matrix th, .matrix td { padding: 8px 10px; border-bottom: 1px solid var(--line); text-align: center; white-space: nowrap; }
+.matrix th:first-child, .matrix td:first-child { text-align: left; }
+.matrix td:first-child { font-family: var(--mono); font-size: 12.5px; }
+.matrix thead th { color: var(--muted); font-weight: 600; }
+.mark { display: inline-block; width: 22px; height: 22px; border-radius: 50%; background: var(--teal); color: var(--surface); font: 700 12px/22px var(--body); }
+.mark.cc { background: var(--accent); }
+.dep { color: var(--muted); }
+.note { font-size: 13.5px; color: var(--muted); }
+
+.decisions { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+.decision { border-top: 2px solid var(--fg); padding-top: 10px; display: grid; gap: 4px; }
+.decision b { font-family: var(--display); font-size: 16px; }
+.decision span { font-size: 14px; color: var(--muted); }
+
+@media (prefers-reduced-motion: no-preference) { .file { transition: background 0.2s; } }
+</style>
+<style>
+/* Additions for #92: test kinds (free script tests, paid evals, checked on the PR) and the sample retro list. */
+.pill { text-decoration: none; }
+a.pill:hover { border-color: var(--teal); }
+.pill.paid { background: var(--orange-soft); border-color: color-mix(in srgb, var(--accent) 45%, transparent); }
+.pill.pr { background: transparent; border: 1px dashed var(--line); color: var(--muted); font-family: var(--body); }
+.kinds { display: flex; flex-wrap: wrap; gap: 10px 18px; font-size: 13px; color: var(--muted); align-items: center; }
+.kinds span { display: inline-flex; align-items: center; gap: 6px; }
+.kinds .pill { padding: 2px 8px; }
+.findings { border-collapse: collapse; width: 100%; font-size: 13px; }
+.findings th, .findings td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.findings th { font-weight: 600; color: var(--muted); }
+.findings td:first-child { font-variant-numeric: tabular-nums; color: var(--muted); }
+.sev, .rec { display: inline-block; font: 600 10.5px/1 var(--body); letter-spacing: 0.06em; text-transform: uppercase; padding: 4px 6px; border-radius: 4px; white-space: nowrap; }
+.sev.high { background: var(--accent); color: var(--surface); }
+.sev.med { background: color-mix(in srgb, var(--amber) 35%, var(--surface)); color: var(--fg); }
+.sev.low { background: var(--ghost); color: var(--muted); }
+.rec.checked { background: var(--teal-soft); color: var(--fg); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--teal) 45%, transparent); }
+.rec.hyp { background: transparent; color: var(--fg); border: 1px dashed var(--amber); padding: 3px 5px; }
+.findings .why { display: block; color: var(--muted); margin-top: 3px; }
+.kind-cell { font: 500 12px var(--body); color: var(--muted); }
+</style>
+
+<div class="wrap">
+  <header>
+    <span class="eyebrow">Build guide · roost epic #92</span>
+    <h1>retro: carry each run's lessons into the setup</h1>
+    <p>After a slice, a bug or an epic, a <code>retro</code> skill reads the sessions that took part and suggests changes to the setup they ran in, most severe first: the team config, each repo's instructions and checks, and roost itself. The user decides each one at a checkpoint, and the next retro starts by checking what came of them.</p>
+    <div class="meta">
+      <a href="https://github.com/Beakpoint-Insights/roost/issues/92">Epic #92</a>
+      <a href="https://github.com/Beakpoint-Insights/roost/pull/110">Design doc (#110)</a>
+      <span>One repo: roost</span>
+      <span>5 slices · 4 eval cases · 19 script tests</span>
+    </div>
+  </header>
+
+  <section style="display:grid;gap:14px">
+    <h2>Decisions the slices build on</h2>
+    <div class="decisions">
+      <div class="decision"><b>Transcripts from what the orchestrator sent</b><span>A session is found by the orchestrator's messages in its transcript, so past runs work too.</span></div>
+      <div class="decision"><b>A script reads first</b><span><code>skills/retro/scripts/retro_moments.py</code> turns megabytes of transcript into a short list of moments.</span></div>
+      <div class="decision"><b>Eight areas, eight homes</b><span>A mechanical rule becomes a check; a review miss binds the reviewer; a slow step gets skipped or sped up only when that's safe.</span></div>
+      <div class="decision"><b>Checked or Hypothesis</b><span>Every fix is proven read-only, or comes with the check that would settle it and who can run it.</span></div>
+      <div class="decision"><b>Ranked by cost and recurrence</b><span>High, Medium, Low; a finding that keeps coming back moves up a level.</span></div>
+      <div class="decision"><b>A <code>retro:</code> comment</b><span>On the run's story, bug or epic. The next retro opens with what came of it.</span></div>
+      <div class="decision"><b>The config is the private list</b><span>Quotes are redacted of secrets and of every identifying value in the team's config.</span></div>
+      <div class="decision"><b>roost issues wait for approval</b><span>Drafted in roost's format, with example names, filed only once the user approves the text.</span></div>
+      <div class="decision"><b>Offered after every run</b><span><code>slice-handoff</code>, <code>run-bug</code> and <code>close-out-epic</code> offer one. No new config section.</span></div>
+    </div>
+  </section>
+
+  <section style="display:grid;gap:16px">
+    <h2>Slices</h2>
+    <div class="legend">
+      <span><i class="sw new"></i>New in this slice</span>
+      <span><i class="sw changed"></i>Changed in this slice</span>
+      <span><i class="sw same"></i>Done in an earlier slice</span>
+      <span><i class="sw none"></i>Not yet</span>
+    </div>
+    <div class="kinds">
+      <span><span class="pill">script test</span>Free, every PR</span>
+      <span><span class="pill paid">eval case</span>Paid, run when it matters</span>
+      <span><span class="pill pr">on the PR</span>Checked by hand, with evidence</span>
+    </div>
+    <div class="rail" id="rail"></div>
+  </section>
+
+  <section style="display:grid;gap:14px">
+    <h2>Test coverage</h2>
+    <p class="note">Each test against the slice where it can first pass. Orange marks a test that needs more than one slice: it's tagged with the last one. Everything is drafted in each story's <code>evals:</code> comment and committed first, test-first, in its PR. Logic with one right answer is in the script, so only four cases need a model.</p>
+    <div class="scroll"><table class="matrix" id="matrix"></table></div>
+    <p class="note">The real-transcript checks (a retro on the #56 and #72 runs) can't be committed, since transcripts are private, so they're checked on each PR with the redacted result pasted in.</p>
+  </section>
+</div>
+
+<script>
+const REPO = "https://github.com/Beakpoint-Insights/roost/issues/";
+const EVALS = { 111: "6477180446", 112: "6477180829", 113: "6477181249", 114: "6477181682", 115: "6477182070" };
+const evalsLink = k => `${REPO}${k}#issuecomment-${EVALS[k]}`;
+
+const FILES = [
+  ["The skill", [
+    ["skills/retro/SKILL.md", {111:"new",112:"changed",113:"changed",114:"changed"}],
+    ["skills/retro/references/finding-areas.md", {111:"new"}],
+    ["skills/retro/scripts/retro_moments.py", {111:"new",112:"changed",113:"changed",114:"changed"}],
+  ]],
+  ["Other skills", [
+    ["skills/run-slice/SKILL.md", {112:"changed"}],
+    ["skills/roost-config/references/tracker-github.md", {114:"changed"}],
+    ["skills/roost-config/references/tracker-jira.md", {114:"changed"}],
+    ["skills/slice-handoff/SKILL.md", {115:"changed"}],
+    ["skills/run-bug/SKILL.md", {115:"changed"}],
+    ["skills/close-out-epic/SKILL.md", {115:"changed"}],
+  ]],
+  ["Tests and CI", [
+    ["scripts/retro-moments.test.py", {111:"new",112:"changed",113:"changed",114:"changed"}],
+    ["scripts/fixtures/retro-moments/", {111:"new",112:"changed",113:"changed",114:"changed"}],
+    ["scripts/retro-offers.test.py", {115:"new"}],
+    [".github/workflows/pr-checks.yml", {111:"changed",115:"changed"}],
+    ["evals/ (cases below)", {111:"changed",113:"changed",114:"changed"}],
+  ]],
+  ["Docs", [
+    ["README.md", {111:"changed"}],
+    ["CONTRIBUTING.md", {111:"changed",113:"changed",114:"changed",115:"changed"}],
+  ]],
+];
+const ORDER = [111, 112, 113, 114, 115];
+const EXISTING = new Set(["skills/run-slice/SKILL.md","skills/roost-config/references/tracker-github.md","skills/roost-config/references/tracker-jira.md","skills/slice-handoff/SKILL.md","skills/run-bug/SKILL.md","skills/close-out-epic/SKILL.md",".github/workflows/pr-checks.yml","evals/ (cases below)","README.md","CONTRIBUTING.md"]);
+
+const SLICES = [
+  { n: 1, key: 111, title: "Retro on one session", deps: "Depends on nothing",
+    adds: [
+      "<code>retro_moments.py</code>: corrections, refusals, errors, retries, long searches, slow steps (grouped, with totals), stops and blockers, from one transcript.",
+      "Redaction of secrets and the team config's own values before any quote leaves the script.",
+      "Findings in eight areas, ranked High, Medium, Low; each Checked or a Hypothesis with its check.",
+      "A checkpoint, then homes for what's accepted: a config edit for the user, a repo ticket with a <code>cross-repo-handoff</code> prompt, a person-owned task for a check only the user can run.",
+    ],
+    observe: "A retro on the “Roosting #56” session finds at least 6 of the 8 problems the user logged by hand while watching it.",
+    sample: true,
+    tests: [["script","moment kinds"],["script","slow-step grouping"],["script","totals"],["script","unparseable records"],["script","window"],["script","redaction"],["paid","retro-ranks-and-routes"],["paid","retro-ticket-the-check"],["pr","#56 session: 6 of 8"]] },
+  { n: 2, key: 112, title: "Retro on a run: story, bug or epic", deps: "Depends on #111",
+    adds: [
+      "The run's window from the state file, or from the kickoff and checkpoint comments without one.",
+      "The orchestrator's and each repo session's transcripts, found by the orchestrator's messages in them; two sessions in one repo told apart.",
+      "The state file, checkpoint comments and Carry-over as evidence.",
+      "<code>run-slice</code> finds a session's last turn the same way, not by “newest file”.",
+    ],
+    observe: "“Retro on #72” finds the orchestrator's and roost-4e's transcripts, and at least 3 of the 5 lessons that stayed in #72's state file.",
+    tests: [["script","window from state file"],["script","window from comments"],["script","sessions from messages"],["script","two sessions, one repo"],["script","missing sessions"],["script","last-turn lookup"],["pr","#72 run: 3 of 5"]] },
+  { n: 3, key: 113, title: "File roost issues from a retro", deps: "Depends on #111",
+    adds: [
+      "A “roost itself” finding becomes a draft in roost's bug format, or an epic with its failure case filled in.",
+      "The team's names swapped for roost's example names; the draft checked against the private list before it's shown.",
+      "Filed with <code>gh</code> only once the user approves that exact text. Findings about the team's own setup never go to roost.",
+    ],
+    observe: "#72 being auto-closed by its own merge becomes a redacted draft, filed in roost once approved.",
+    tests: [["script","example names"],["script","private-details check"],["paid","retro-roost-draft-waits"]] },
+  { n: 4, key: 114, title: "Follow-ups between retros", deps: "Depends on #111 and #112",
+    adds: [
+      "A <code>retro:</code> comment on the run's ticket: accepted findings with their links, rejected ones by title.",
+      "Each retro opens with the last one's accepted findings: done, still open, or dropped; a check ticket's result settles its hypothesis.",
+      "A finding that comes back unaddressed ranks one level higher and says how many runs it has recurred on.",
+    ],
+    observe: "A second retro opens with the first one's findings and their states, and puts a repeat of a rejected finding at the top.",
+    tests: [["script","parse retro: comments"],["script","done, open, dropped"],["script","first retro"],["script","render the comment"],["paid","retro-recurring-ranks-up"]] },
+  { n: 5, key: 115, title: "Offered after slices, bugs and epics", deps: "Depends on #112",
+    adds: [
+      "One line at the end of <code>slice-handoff</code>, <code>run-bug</code> and <code>close-out-epic</code>: “Run a retro on this run?”",
+      "Yes runs the retro on that run without asking which; no changes nothing.",
+    ],
+    observe: "Each of the three reports ends with the offer, and a test fails if one stops.",
+    tests: [["script","offers in three reports"],["pr","accept and decline"]] },
+];
+
+function stateFor(path, map, key) {
+  const idx = ORDER.indexOf(key);
+  if (map[key]) return map[key];
+  if (ORDER.slice(0, idx).some(k => map[k]) || EXISTING.has(path)) return "same";
+  return "none";
+}
+const LABEL = { new: "New", changed: "Changed", same: "", none: "Not yet" };
+const pill = ([kind, name], key) => kind === "pr"
+  ? `<span class="pill pr">${name}</span>`
+  : `<a class="pill${kind === "paid" ? " paid" : ""}" href="${evalsLink(key)}">${name}</a>`;
+
+function sampleList() {
+  return `<div class="sample" aria-label="Example checkpoint from slice 1">
+    <span class="eyebrow">What slice 1 shows at its checkpoint</span>
+    <div class="scroll"><table class="findings">
+      <thead><tr><th>#</th><th>Finding</th><th>Fix</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td><span class="sev high">High</span> <code>GET /api/usage</code> shipped unpaged; review passed it<span class="why">acme-api, Mar 3 15:40</span></td><td><span class="rec checked">Checked</span> “list endpoints are paged” in acme-api's <code>review_focus</code><span class="why">Team config</span></td></tr>
+        <tr><td>2</td><td><span class="sev med">Medium</span> <code>npm run seed</code>: 5 runs, 101 minutes, same output<span class="why">acme-api, 5 runs</span></td><td><span class="rec hyp">Hypothesis</span> start from a snapshot. Check: <code>git log</code> on the seed's inputs, then time a restore<span class="why">acme-api · you or the session</span></td></tr>
+        <tr><td>3</td><td><span class="sev med">Medium</span> <code>moment</code> imported again; corrected three times<span class="why">acme-api, Mar 2 11:14</span></td><td><span class="rec checked">Checked</span> ESLint <code>no-restricted-imports</code>, not a <code>CLAUDE.md</code> line<span class="why">acme-api</span></td></tr>
+        <tr><td>4</td><td><span class="sev low">Low</span> 14 searches for where the OpenAPI spec is built<span class="why">acme-api, Mar 3 10:02</span></td><td><span class="rec checked">Checked</span> point to <code>scripts/openapi/build.ts</code><span class="why">acme-api instructions</span></td></tr>
+      </tbody>
+    </table></div>
+    <p class="note">Decide each: yes, no, or for a hypothesis, check it now, ticket the check, or skip.</p>
+  </div>`;
+}
+
+document.getElementById("rail").innerHTML = SLICES.map(s => `
+  <article class="slice" id="slice-${s.n}">
+    <div class="dot" aria-hidden="true">${s.n}</div>
+    <div class="card">
+      <div class="card-head">
+        <span class="key"><a href="${REPO}${s.key}">#${s.key}</a> · Slice ${s.n} · ${s.deps}</span>
+        <h3>${s.title}</h3>
+      </div>
+      <ul class="adds">${s.adds.map(a => `<li>${a}</li>`).join("")}</ul>
+      <div class="cols">
+        <div class="map" aria-label="Files in roost after slice ${s.n}">
+          ${FILES.map(([g, files]) => `<div class="group"><span class="eyebrow">${g}</span>
+            ${files.map(([p, m]) => { const st = stateFor(p, m, s.key); return `<div class="file ${st}"><span class="path">${p}</span>${LABEL[st] ? `<span class="tag">${LABEL[st]}</span>` : ""}</div>`; }).join("")}
+          </div>`).join("")}
+        </div>
+        <div class="tests">
+          <span class="eyebrow">Passes after this slice</span>
+          <div class="pills">${s.tests.map(t => pill(t, s.key)).join("")}</div>
+          <span class="eyebrow" style="margin-top:8px">What you can observe</span>
+          <p class="observe">${s.observe}</p>
+        </div>
+      </div>
+      ${s.sample ? sampleList() : ""}
+    </div>
+  </article>`).join("");
+
+const CC = { "retro-recurring-ranks-up": "needs #111 and #112", "parse retro: comments": "", "last-turn lookup": "run-slice" };
+const KIND = { script: "Script, free", paid: "Eval, paid", pr: "On the PR" };
+const rows = SLICES.flatMap(s => s.tests.map(t => [t, s.key]));
+document.getElementById("matrix").innerHTML =
+  `<thead><tr><th>Test</th><th>Kind</th>${SLICES.map(s => `<th>#${s.key}</th>`).join("")}<th>Note</th></tr></thead><tbody>` +
+  rows.map(([[kind, name], k]) => {
+    const cc = name === "retro-recurring-ranks-up";
+    return `<tr><td>${name}</td><td class="kind-cell">${KIND[kind]}</td>${SLICES.map(s => `<td>${s.key === k ? `<span class="mark${cc ? " cc" : ""}" aria-label="first passes">✓</span>` : ""}</td>`).join("")}<td class="dep">${CC[name] || ""}</td></tr>`;
+  }).join("") + "</tbody>";
+</script>
