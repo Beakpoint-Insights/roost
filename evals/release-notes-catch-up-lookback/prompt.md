@@ -19,7 +19,7 @@ I saved two runs of the search for tickets moved to Done or Ready for Release, w
 
 **Since January 12, 2026:**
 
-- **PROJ-2460** (epic) "Know who changed what". Moved to Ready for Release January 28. Slice PROJ-2461, an activity log in Settings › Activity: acme/acme-api#795 and acme/acme-web#436. acme-api's production run that included #795 succeeded January 29; acme-web#436 merged January 28.
+- **PROJ-2460** (epic) "Know who changed what". Moved to Ready for Release January 30. Slice PROJ-2461, an activity log in Settings › Activity: acme/acme-api#795 and acme/acme-web#436. acme-api's production run that included #795 succeeded January 31; acme-web#436 merged January 30.
 - **PROJ-2465** (epic) "Invoices you can file". Moved to Ready for Release January 31. Slice PROJ-2466, download any invoice as a PDF from Settings › Billing: acme/acme-api#798 and acme/acme-web#438. acme-api's production run that included #798 succeeded February 3; acme-web#438 merged January 31.
 - **PROJ-2470** (epic) "Pay the way your finance team wants". Moved to Done February 20. Slice PROJ-2471, pay by invoice instead of card, from Settings › Billing: acme/acme-api#801 and acme/acme-web#440. acme-api's production run that included #801 succeeded February 20; acme-web#440 merged February 19.
 
