@@ -1,0 +1,19 @@
+docs/design/issue-92-build-guide.html
+  s_f4aa5bb5335c47::t_6fb5135f83c8f1 1-338
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9ce16cf738d2e159027f18c6e0a4d1fb6262d23d",
+  "prompts": {},
+  "sessions": {
+    "s_f4aa5bb5335c47": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "40e81a18-5036-4177-9c50-2e7fc31d2454",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Alan Cox <acox@beakpointinsights.com>"
+    }
+  }
+}
