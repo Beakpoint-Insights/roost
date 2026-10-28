@@ -218,9 +218,10 @@ def search_github(repo, since, today, ready_label=None, gh=gh):
         for issue in ready:
             if issue["number"] in numbers:
                 continue
-            if issue.get("stateReason") == "NOT_PLANNED":
+            if issue.get("state") == "CLOSED" and issue.get("stateReason") != "COMPLETED":
+                how = (issue.get("stateReason") or "not completed").lower().replace("_", " ")
                 r["dropped"].append({"key": f"#{issue['number']}",
-                                     "reason": "closed as not planned, though still labelled "
+                                     "reason": f"closed as {how}, though still labelled "
                                                f"{ready_label}"})
                 continue
             at = labelled_at(repo, issue["number"], ready_label, gh)

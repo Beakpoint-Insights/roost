@@ -247,6 +247,13 @@ class GitHub(unittest.TestCase):
         r = self.run_github(FakeGh(fx))
         self.assertIn("not planned", reasons(r)["#96"])
 
+    def test_a_ready_issue_closed_as_a_duplicate_is_dropped(self):
+        fx = load("github")
+        fx["ready"][0].update(state="CLOSED", stateReason="DUPLICATE")
+        r = self.run_github(FakeGh(fx))
+        self.assertIn("duplicate", reasons(r)["#96"])
+        self.assertNotIn({"key": "#96", "epic": "#97"}, r["children"])
+
     def test_both_halves_limit_reasons_are_kept(self):
         big = {"closed:2026-02-01..2026-02-02 reason:completed": 1000,
                "closed:2026-02-01..2026-02-01 reason:completed": 1000,
