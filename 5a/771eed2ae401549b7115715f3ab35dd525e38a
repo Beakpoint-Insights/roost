@@ -1,0 +1,20 @@
+skills/retro/scripts/retro_moments.py
+  s_317ca7d8caddc7::t_9218c5b67031d8 543-544
+  s_317ca7d8caddc7::t_abdbc4ad80bd4e 7-12,51-71,472-542,545-594,618,629,642-643,645-646,671-677
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5a771eed2ae401549b7115715f3ab35dd525e38a",
+  "prompts": {},
+  "sessions": {
+    "s_317ca7d8caddc7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "42bf6ed7-c0ea-476a-a622-d52d0b8672e1",
+        "model": "unknown"
+      },
+      "human_author": "Alan Cox <acox@beakpointinsights.com>"
+    }
+  }
+}
