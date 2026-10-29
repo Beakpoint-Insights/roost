@@ -9,7 +9,7 @@ After a run (a slice, a bug, an epic, or any roost session the user names), `ret
 1. **Checks the last retro's follow-ups:** each suggestion it accepted is done (with the evidence), still open (with its ticket), or dropped (with the reason).
 2. **Finds the run's sessions:** the orchestrator's transcript and each repo session's, on this machine.
 3. **Filters them** with a script down to the moments worth reading: corrections, refusals, errors, retries, long searches and stops.
-4. **Reads those moments** with the state file and the run's tracker comments, and writes findings in eight areas.
+4. **Reads those moments** with the state file and the run's tracker comments, and writes findings in nine areas.
 5. **Shows one ranked list** at a checkpoint: each finding with its evidence, what skipping it costs, a recommendation (Checked, or a Hypothesis with the check that would settle it) and where the change goes. Nothing changes until the user decides.
 6. **Gives each accepted finding its home:** a config edit for the user to make, a `cross-repo-handoff` prompt on a ticket for a repo, or a roost issue (drafted, then filed once the user approves it).
 7. **Posts a `retro:` comment** on the run's story, bug or epic listing what was accepted and where each went. The next retro starts there.
@@ -24,7 +24,7 @@ flowchart LR
   T --> M[retro_moments.py: moments + metadata]
   M --> R[Redact]
   S --> A
-  R --> A[Findings, 8 areas]
+  R --> A[Findings, 9 areas]
   F --> K
   A --> K[Ranked list: checkpoint]
   K -->|accepted| C[Team config edit]
@@ -66,7 +66,7 @@ It also prints totals per session (turns, tool calls by tool, errors, time) so t
 
 **Why:** transcripts are large (the roost repo's nine are 73 MB, and one session runs past 2 MB) and mostly tool output. A script is free to run, tested by `scripts/retro-moments.test.py` with fixtures in `scripts/fixtures/retro-moments/`, and gives the model the same moments every time. The transcript format is Claude Code's and isn't documented, so the script reads only the fields it needs (record type, timestamp, message content blocks, `is_error`) and reports records it can't parse instead of failing.
 
-### 3. Eight areas, each with its kind of fix
+### 3. Nine areas, each with its kind of fix
 
 | Area | What counts | Where the fix goes |
 |---|---|---|
@@ -77,6 +77,7 @@ It also prints totals per session (turns, tool calls by tool, errors, time) so t
 | **Tool use** | Expensive or repeated calls that a script or a narrower command could replace | The repo (a script), or roost (a skill's step) |
 | **Slow steps** | A step the run waits on, every time, that could be safely skipped or safely sped up: a large data import, a full build, a stack that starts from scratch, a test suite run whole when a few tests cover the change. The finding says which, and why it's safe: for a skip, what the step checks and that nothing it depends on changed since it last passed; for a speed-up, what replaces it (a prebuilt Docker image or database snapshot the stack starts from, a cache, running only the affected tests) and what keeps that current. Safety is Checked or a Hypothesis with its check (decision 5) | The team config (`stack.test_data`, `stack.how`, a repo's `tests`), the repo (an image, a cache, a test selector), or roost (a skill that runs a step it could skip) |
 | **Access** | Information the agent needed and couldn't get (server logs, a read-only view of a service) | The team config (`stack.telemetry`, a read command) or a person-owned setup task |
+| **Permissions and auto mode** | A call auto mode stopped (`refusal` with `how` `automode-blocked` or `automode-unavailable`) that the work needed. The moment names the `tool` and quotes the block, not the command | The user's Claude Code permission settings: an allow rule in the repo's `.claude/settings.json` or the user's own settings, which the user writes from the finding's tool, session and time (the retro never copies the command from the transcript). When a roost skill asked for the blocked action, it's **roost itself** instead |
 | **roost itself** | A skill that stopped when it shouldn't have, didn't stop when it should, guessed, or asked something it could have read | roost: listed in the retro's report "for roost", with its evidence. Drafting and filing a roost issue waits for #113, which swaps the team's names and checks the draft for private details first |
 
 **Why:** the fix decides who has to act, and the epic's goal 3 is that a mechanical rule becomes a check and a review miss binds the reviewer, not the writer. A finding names its area, so its destination follows from it.
@@ -147,7 +148,7 @@ A draft bound for roost's tracker goes further: the team's names (team, product,
 
 **Considered:** a `retro` config section (thresholds, which areas to check).
 
-**Why:** the thresholds live in the script with sensible defaults, and every team needs all eight areas. A key can be added when a real team needs one.
+**Why:** the thresholds live in the script with sensible defaults, and every team needs all nine areas. A key can be added when a real team needs one.
 
 ## Changes elsewhere
 
