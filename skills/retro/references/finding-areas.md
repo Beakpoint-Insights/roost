@@ -2,7 +2,7 @@
 
 What `retro` uses to turn moments into findings. Every finding names one area; its destination follows from the area.
 
-## The eight areas
+## The nine areas
 
 | Area | What counts | Where the fix goes |
 |---|---|---|
@@ -13,6 +13,7 @@ What `retro` uses to turn moments into findings. Every finding names one area; i
 | **Tool use** | Expensive or repeated calls that a script or a narrower command could replace | The repo (a script), or roost (a skill's step) |
 | **Slow steps** | A step the run waits on, every time, that could be safely skipped or safely sped up: a large data import, a full build, a stack that starts from scratch, a test suite run whole when a few tests cover the change | The team config (`stack.test_data`, `stack.how`, a repo's `tests`), the repo (an image, a cache, a test selector), or roost (a skill that runs a step it could skip) |
 | **Access** | Information the agent needed and couldn't get (server logs, a read-only view of a service) | The team config (`stack.telemetry`, a read command) or a person-owned setup task |
+| **Permissions and auto mode** | A call auto mode stopped (`refusal` with `how` `automode-blocked` or `automode-unavailable`) that the work needed. The moment names the `tool` and quotes the block, not the command | The user's Claude Code permission settings: an allow rule in the repo's `.claude/settings.json` or the user's own settings. The finding names the tool and the moment's session and time, and the user writes the rule for the command; the retro never copies the command from the transcript. When a roost skill asked for the blocked action, it's **roost itself** instead |
 | **roost itself** | A skill that stopped when it shouldn't have, didn't stop when it should, guessed, or asked something it could have read | roost: listed in the report "for roost", with its evidence; never drafted or filed as an issue (roost's tracker is public) |
 
 A mechanical mistake becomes a check, and a review miss becomes a review rule, so the fix binds whoever can enforce it. Neither is ever only a new line in `CLAUDE.md` or `AGENTS.md`: the agent that made the mistake had instructions already.
@@ -26,6 +27,7 @@ A mechanical mistake becomes a check, and a review miss becomes a review rule, s
 - **Tool use:** the agent read the same 4,000-line migration log five times to find one table. Fix: a script in acme-api that prints a table's migrations.
 - **Slow steps:** acme-web's full Storybook build ran before every test run, 6 times at about 12 minutes. Fix (a Hypothesis until checked): build Storybook only when a component changed.
 - **Access:** the agent couldn't read the API's logs and asked the user to paste them three times. Fix: a read-only log command in `stack.telemetry`.
+- **Permissions and auto mode:** auto mode blocked `npm run db:reset` on the local stack four times, and each slice waited for the user to run it. Fix: the user adds an allow rule for that `Bash` command (here `Bash(npm run db:reset)`) to acme-api's `.claude/settings.json`.
 - **roost itself:** `run-slice` stopped to ask which branch to use, when the kickoff comment named it. Fix: listed in the report for roost, with its evidence.
 
 ## Each finding's parts
