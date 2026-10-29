@@ -654,9 +654,14 @@ def unsure(text):
 
 
 def whole_word(value):
-    """A pattern for the value as a word of its own. A letter at its edge mustn't touch another letter,
-    and a digit another digit; `_`, digits next to letters and anything else are word breaks. So host
-    acmedb is found in ACMEDB_HOST, acmedb2 and acmedb_replica, but not in acmedbx, and 4821 not in 48210."""
+    """A pattern for the value as a word of its own. A value made only of digits mustn't touch a letter or
+    a digit on either side, so board id 4821 is found in `board 4821`, `id=4821` and `board_4821` but not
+    inside a commit SHA; redact() also leaves it alone as a group of a UUID (a session id). Otherwise a letter at its edge mustn't touch another letter, and
+    a digit another digit; `_`, digits next to letters and anything else are word breaks. So host acmedb
+    is found in ACMEDB_HOST, acmedb2 and acmedb_replica, but not in acmedbx."""
+    if value.isdigit():
+        return r"(?<![A-Za-z0-9])%s(?![A-Za-z0-9])" % re.escape(value)
+
     def edge(c, look):
         if c.isascii() and c.isalpha():
             return "(?%s[A-Za-z])" % look
@@ -669,7 +674,12 @@ def redact(text, private):
     for pattern, replacement in SECRET_PATTERNS:
         text = pattern.sub(replacement, text)
     for value, label in private:
-        text = re.sub(whole_word(value), "[config: %s]" % label, text, flags=re.I)
+        if value.isdigit():  # never a group of a session id or other UUID
+            uuids = [m.span() for m in UUID.finditer(text)]
+            text = re.sub(whole_word(value), lambda m: m.group(0) if any(a <= m.start() < b for a, b in uuids)
+                          else "[config: %s]" % label, text)
+        else:
+            text = re.sub(whole_word(value), "[config: %s]" % label, text, flags=re.I)
     why = unsure(text)
     return (None, why) if why else (text, None)
 

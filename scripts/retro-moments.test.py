@@ -749,12 +749,26 @@ class Redaction(TempDir):
         out = self.redacted("run postgres, not postgresql or mypostgres", ("--config", config))
         self.assertEqual(out, "run [config: database.host], not postgresql or mypostgres")
 
+    def test_a_number_from_the_config_is_found_only_as_a_number_of_its_own(self):
+        config = os.path.join(self.tmp, "nums.yml")
+        with open(config, "w") as f:
+            f.write("tracker:\n  jira:\n    board_id: 4821\n")
+        configs = ("--config", config)
+        for text in ("board 4821", "id=4821", "4821.", "board_4821"):
+            with self.subTest(text=text):
+                self.assertNotIn("4821", self.redacted(text, configs))
+        for text in ("git show 3f2a4821c0ffee0123456789abcdef0123456789",
+                     "session 7d3f4821-5b6c-4e8d-9f01-23456789abcd", "build4821x",
+                     "session 3f2a1b9c-4821-4e8d-9f01-23456789abcd"):
+            with self.subTest(text=text):
+                self.assertEqual(self.redacted(text, configs), text)
+
     def test_config_values_next_to_an_underscore_or_a_digit_are_replaced(self):
         config = os.path.join(self.tmp, "words.yml")
         with open(config, "w") as f:
             f.write("stack:\n  database:\n    host: acmedb\n  jira:\n    board_id: 4821\n")
         configs = ("--config", config)
-        for text in ("ACMEDB_HOST=x", "acmedb2 is up", "acmedb_replica lags", "use 2acmedb", "board4821"):
+        for text in ("ACMEDB_HOST=x", "acmedb2 is up", "acmedb_replica lags", "use 2acmedb", "board_4821"):
             with self.subTest(text=text):
                 out = self.redacted(text, configs)
                 self.assertNotIn("acmedb", out.lower())
