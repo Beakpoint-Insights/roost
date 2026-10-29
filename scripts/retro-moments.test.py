@@ -28,9 +28,10 @@ SID = "00000000-0000-0000-0000-0000000000{:02d}"
 
 
 def rec(kind, t, uid, **fields):
-    """One record in Claude Code's shape: type, timestamp, uuid, sessionId, cwd, plus fields."""
+    """One record in Claude Code's shape: type, timestamp, uuid, sessionId, cwd, plus fields. The default
+    cwd's user (quinn) is a word found nowhere else, since every session's username is redacted."""
     return {"type": kind, "timestamp": t, "uuid": uid, "sessionId": fields.pop("sid", SID.format(1)),
-            "cwd": fields.pop("cwd", "/home/acme/src/acme-api"), **fields}
+            "cwd": fields.pop("cwd", "/home/quinn/src/acme-api"), **fields}
 
 
 def human(t, uid, text, **kw):
@@ -413,7 +414,7 @@ class Slow(TempDir):
 
     def test_the_repo_comes_from_repo_of(self):
         paths = two_sessions_with_seed_runs(self.tmp)
-        slow = self.slow(*paths, extra=("--repo-of", "/home/acme/src/acme-api=api"))
+        slow = self.slow(*paths, extra=("--repo-of", "/home/quinn/src/acme-api=api"))
         self.assertEqual(slow[0]["repo"], "api")
 
     def test_a_long_turn_is_slow_and_a_gap_between_turns_isnt(self):
@@ -698,6 +699,49 @@ class Home(TempDir):
         for cwd in ("/Users/acme", "/home/acme", "/mnt/c/Users/acme", "/var/home/acme", "C:\\Users\\acme"):
             with self.subTest(cwd=cwd):
                 self.assertEqual(retro_moments.repo_of(cwd, []), "[home]")  # the folder's name is a username
+
+    def test_the_username_is_redacted_everywhere(self):
+        cwd = {"cwd": "/home/zephyrine/src/acme-api"}
+        recs = [{"type": "custom-title", "customTitle": "work for Zephyrine", "sessionId": SID.format(2)},
+                human("2026-03-02T09:00:00Z", "a", "Go", **cwd),
+                human("2026-03-02T09:01:00Z", "b", "ask zephyrine, not zephyrines or zephyrine2x", **cwd)]
+        folder = os.path.join(self.tmp, "-home-zephyrine-src-acme-api")
+        os.makedirs(folder)
+        code, out = run("moments", write(folder, SID.format(2) + ".jsonl", recs))
+        self.assertEqual(out["sessions"][0]["session"], "work for [user]")
+        self.assertEqual(out["moments"][0]["excerpt"], "ask [user], not zephyrines or [user]2x")
+        # with no cwd at all, the project folder's name gives the username
+        other = os.path.join(self.tmp, "-Users-quillon-src-x")
+        os.makedirs(other)
+        code, out = run("moments", write(other, SID.format(3) + ".jsonl", [
+            {"type": "custom-title", "customTitle": "quillon's run", "sessionId": SID.format(3)}]),
+            os.path.join(other, "gone.jsonl"))
+        self.assertNotIn("quillon", json.dumps(out).lower())
+
+    def test_a_username_cut_by_the_excerpt_limit_is_still_redacted(self):
+        cwd = {"cwd": "/home/zephyrine/src/x"}
+        path = write(self.tmp, "cut.jsonl", [human("2026-03-02T09:00:00Z", "a", "Go", **cwd),
+            human("2026-03-02T09:01:00Z", "b", "x" * 290 + " zephyrine about it", **cwd)])
+        code, out = run("moments", path)
+        self.assertNotIn("zephyrin", json.dumps(out))
+
+    def test_a_dotted_username_is_replaced_whole(self):
+        folder = os.path.join(self.tmp, "-Users-quillon-zephyrine-src-x")
+        os.makedirs(folder)
+        cwd = {"cwd": "/Users/quillon.zephyrine/src/x"}
+        path = write(folder, SID.format(4) + ".jsonl", [human("2026-03-02T09:00:00Z", "a", "Go", **cwd),
+            human("2026-03-02T09:01:00Z", "b", "git log --author quillon.zephyrine", **cwd)])
+        code, out = run("moments", path)
+        self.assertEqual(out["moments"][0]["excerpt"], "git log --author [user]")
+
+    def test_a_shared_account_name_isnt_a_username(self):
+        self.assertEqual(retro_moments.usernames({"/home/node/app", "/home/runner/work/x", "/home/ubuntu/x",
+                                                  "/Users/Shared/x", "/home/ec2-user/x"}, []), [])
+        cwd = {"cwd": "/home/node/app"}
+        path = write(self.tmp, "node.jsonl", [human("2026-03-02T09:00:00Z", "a", "Go", **cwd),
+            human("2026-03-02T09:01:00Z", "b", "run node scripts/x.js", **cwd)])
+        code, out = run("moments", path)
+        self.assertEqual(out["moments"][0]["excerpt"], "run node scripts/x.js")
 
     def test_an_error_names_no_full_path(self):
         code, out = run("moments", "/home/acme/x.jsonl", "--config", "/home/acme/missing.yml")
