@@ -531,6 +531,58 @@ class Redaction(TempDir):
                     self.assertIsNone(out["text"])
                     self.assertTrue(out["reason"])
 
+    def redacted(self, text, configs=CONFIGS):
+        code, out = run("redact", *configs, stdin=text)
+        return out["text"]
+
+    def test_secret_names_inside_env_vars_and_json_are_redacted(self):
+        for text in ("PGPASSWORD=s3cr3t-pw psql", "export DB_PASSWORD=s3cr3t-pw", "GITHUB_TOKEN=abc123xyz gh pr",
+                     '{"password": "s3cr3t-pw"}', '"apiKey": "Zx9_k2abc"', '"Authorization": "Bearer abcdefgh"',
+                     "client_secret: 'abc123xyz'"):
+            with self.subTest(text=text):
+                out = self.redacted(text)
+                for secret in ("s3cr3t-pw", "abc123xyz", "Zx9_k2abc", "abcdefgh"):
+                    self.assertNotIn(secret, out or "")
+                self.assertIn("[redacted]", out)
+
+    def test_the_password_in_a_config_url_is_private(self):
+        self.assertNotIn("hunter2", self.redacted("the password is hunter2"))
+
+    def test_hostnames_anywhere_in_the_config_are_private(self):
+        config = os.path.join(self.tmp, "hosts.yml")
+        with open(config, "w") as f:
+            f.write("stack:\n  frontend_host: app.zephyr-corp.com\n"
+                    "  database:\n    local: the shared db at db2.zephyr-corp.internal:5432\n"
+                    "  how: >-\n    Start it, then open\n    https://bastion.zephyr-corp.io/login\n"
+                    "  note: see config.example.yml\n")
+        values = dict(retro_moments.private_values([config]))
+        for host in ("app.zephyr-corp.com", "db2.zephyr-corp.internal", "bastion.zephyr-corp.io"):
+            self.assertIn(host, values)
+        self.assertNotIn("config.example.yml", values)
+
+    def test_hex_keys_and_hyphenated_tokens_drop_the_quote(self):
+        for text in ("X-Api-Key 3f9a1c2b4d5e6f708192a3b4c5d6e7f8", "abcd1234efgh5678-ijkl9012mnop3456-qrst7890"):
+            with self.subTest(text=text):
+                self.assertIsNone(self.redacted(text))
+
+    def test_file_names_ids_and_shas_are_kept(self):
+        for text in ("Read src/components/UsageTableReport2024Final.tsx",
+                     "session 7d3f2a11-5b6c-4e8d-9f01-23456789abce/subagents",
+                     "git show 3f9a1c2e7b4d8f0a6c5e1b9d2f7a3c8e4b6d0f1a", "the tokens = 12"):
+            with self.subTest(text=text):
+                self.assertEqual(self.redacted(text), text)
+
+    def test_a_withheld_command_is_listed_as_dropped(self):
+        token = "Zx8Kq2Lm9Np4Rt7Vw1Yb3Cd6Fg0Hj5Ks8Mn2Pq4St7Uv9Wx1"
+        path = write(self.tmp, "slow.jsonl", [human("2026-03-02T09:00:00Z", "a", "Go"),
+            tool_use("2026-03-02T09:01:00Z", "b", "t1", "Bash", {"command": "curl -s https://x.test/" + token}),
+            tool_result("2026-03-02T09:05:00Z", "c", "t1", "ok")])
+        code, out = run("moments", path)
+        slow = [m for m in out["moments"] if m["kind"] == "slow"][0]
+        self.assertEqual(slow["command"], "[withheld]")
+        self.assertNotIn(token, json.dumps(out))
+        self.assertEqual([d["kind"] for d in out["redaction"]["dropped"]], ["slow"])
+
     def test_private_values_reads_the_config_shapes(self):
         config = write(self.tmp, "c.yml", [])
         with open(config, "w") as f:
