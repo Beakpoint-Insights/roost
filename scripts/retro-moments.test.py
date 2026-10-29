@@ -274,6 +274,19 @@ class Kinds(TempDir):
         self.assertEqual([(m["kind"], m["id"]) for m in self.output(path)["moments"]],
                          [("refusal", "c"), ("correction", "f")])
 
+    def test_an_interruption_after_an_automatic_block_or_in_other_words_still_counts(self):
+        def run_after(denial, words):
+            path = write(self.tmp, "ab.jsonl", [human("2026-03-02T09:00:00Z", "a", "Go"),
+                tool_use("2026-03-02T09:01:00Z", "b", "t1", "Bash", {"command": "git push --force"}),
+                tool_result("2026-03-02T09:01:30Z", "c", "t1", "blocked", error=True, toolDenialKind=denial),
+                rec("user", "2026-03-02T09:01:31Z", "d", message={"role": "user", "content": [{"type": "text", "text": words}]})])
+            return [(m["kind"], m["id"]) for m in self.output(path)["moments"]]
+        self.assertEqual(run_after("automode-blocked", "[Request interrupted by user for tool use]"),
+                         [("refusal", "c"), ("correction", "d")])
+        self.assertEqual(run_after("user-rejected", "[Request interrupted by user]"),
+                         [("refusal", "c"), ("correction", "d")])
+        self.assertEqual(run_after("user-rejected", "[Request interrupted by user for tool use]"), [("refusal", "c")])
+
     def test_a_sibling_result_between_a_refusal_and_its_interruption_doesnt_count_it_again(self):
         interrupted = {"role": "user", "content": [{"type": "text", "text": "[Request interrupted by user for tool use]"}]}
         path = write(self.tmp, "rs.jsonl", [human("2026-03-02T09:00:00Z", "a", "Go"),

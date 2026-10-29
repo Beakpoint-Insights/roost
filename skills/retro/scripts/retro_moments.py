@@ -46,6 +46,7 @@ NOT_TYPED = ("<command-", "<local-command-", "<bash-", "<system-reminder>", "<ta
 SIGNING = [re.compile(p, re.I) for p in (r"gpg failed to sign", r"failed to sign the data", r"error: signing failed")]
 SIGN_IN = [re.compile(p, re.I) for p in (r"gh auth login", r"not logged in", r"HTTP 401", r"authentication required")]
 HOOK_BLOCK = re.compile(r"\bhook\b.*\b(?:block|blocked|denied|deny)\b|\b(?:block|blocked|denied)\b.*\bhook\b", re.I | re.S)
+REJECTED_INTERRUPTION = "[Request interrupted by user for tool use]"   # written after a rejected prompt
 DELIVERY = re.compile(r"^\[Cross-session delivery notice\]", re.M)
 
 
@@ -240,7 +241,7 @@ class Session:
         pending = {}
         seen_human = False
         last_assistant = None
-        after_refusal = False   # a refusal with no assistant record or typed message since
+        after_refusal = False   # a user-rejected refusal with no assistant record or typed message since
         for n, rec, reason in records(self.path):
             if rec is None:
                 self.unparseable.append({"session": None, "line": n, "reason": reason})
@@ -274,7 +275,7 @@ class Session:
                         self.events.append(self.moment("stop", last_assistant, excerpt=plain_text(last_assistant),
                                                        waited_minutes=minutes_between(last_assistant.get("timestamp"), rec.get("timestamp"))))
                     # rejecting a permission prompt also writes an interruption: one refusal, not a correction too
-                    if seen_human and not (after_refusal and text.startswith("[Request interrupted by user")):
+                    if seen_human and not (after_refusal and text == REJECTED_INTERRUPTION):
                         self.events.append(self.moment("correction", rec, excerpt=text))
                     seen_human = True
                     last_assistant = None
@@ -283,7 +284,7 @@ class Session:
                 if rec.get("usageLimitNote"):
                     self.events.append(self.moment("blocked", rec, why="usage_limit", excerpt=plain_text(rec)))
                 self.read_results(rec, n, pending)
-                if rec.get("toolDenialKind"):
+                if rec.get("toolDenialKind") == "user-rejected":
                     after_refusal = True
                 elif text is not None:   # another call's result between them doesn't end it
                     after_refusal = False
