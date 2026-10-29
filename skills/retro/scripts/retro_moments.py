@@ -50,17 +50,22 @@ DELIVERY = re.compile(r"^\[Cross-session delivery notice\]", re.M)
 
 SECRET_PATTERNS = [
     (re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----.*?-----END [A-Z ]*PRIVATE KEY-----", re.S), "[private key]"),
-    (re.compile(r"(?i)\bauthorization\s*:\s*\S+(?:\s+\S+)?"), "Authorization: [redacted]"),
+    (re.compile(r"""(?i)\bauthorization["']?\s*[:=]\s*["']?[^\s"']+(?:\s+[^\s"',}]+)?["']?"""), "Authorization: [redacted]"),
     (re.compile(r"\b([a-z][a-z0-9+.-]*)://[^\s/:@]+:[^\s/@]+@\S+"), r"\1://[redacted]"),
-    (re.compile(r"(?i)\b(password|pwd)=[^;\s]+"), r"\1=[redacted]"),
     (re.compile(r"\b(?:gh[pousr]_[A-Za-z0-9]{20,}|github_pat_\w{20,}|sk-ant-[\w-]{20,}|sk-[A-Za-z0-9]{20,}|AKIA[0-9A-Z]{16}"
                 r"|xox[abposr]-[\w-]{10,}|eyJ[\w-]+\.[\w-]+\.[\w-]+)"), "[token]"),
-    (re.compile(r"(?i)\b(api[_-]?key|token|secret|password)\s*[=:]\s*\S+"), r"\1=[redacted]"),
+    # a secret's name, also inside a longer one (PGPASSWORD, GITHUB_TOKEN, client_secret) or in JSON quotes
+    (re.compile(r"""(?i)\b([\w-]*?(?:password|passwd|pwd|token|secret|api[_-]?key))["']?\s*[=:]\s*["']?[^\s"',;}]+["']?"""),
+     r"\1=[redacted]"),
     (re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+"), "[email]"),
 ]
 UNFINISHED_KEY = re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----")
 TOKEN_LIKE = re.compile(r"[A-Za-z0-9+/=_-]{32,}")
 PRIVATE_KEYS = {"site", "cloud_id", "host", "hostname", "domain", "url", "test_account_email"}
+PRIVATE_SUFFIXES = ("_id", "_url", "_host", "_hostname", "_domain")
+HOSTNAME = re.compile(r"\b[\w-]+(?:\.[\w-]+)+\.[a-z]{2,}\b", re.I)
+FILE_EXTENSIONS = {"yml", "yaml", "json", "md", "py", "sh", "ts", "tsx", "js", "jsx", "txt", "html", "toml",
+                   "lock", "cfg", "ini", "xml", "csv", "sql", "rb", "go", "rs", "java", "cs", "css"}
 LOCAL_HOSTS = {"localhost", "127.0.0.1", "0.0.0.0"}
 PUBLIC_HOSTS = {"github.com", "api.github.com", "claude.ai", "anthropic.com", "figma.com", "www.figma.com"}
 URL = re.compile(r"[a-z][a-z0-9+.-]*://[^\s\"'<>]+", re.I)
@@ -483,34 +488,47 @@ def strip_comment(line):
 
 
 def config_entries(path):
-    """(key path, value) for each scalar in a team config, read as text: block mappings, lists and
-    flow mappings ({ name: API, url: "…" }). There's no YAML parser in the standard library."""
+    """(key path, value) for each scalar in a team config, read as text: block mappings, lists, flow
+    mappings ({ name: API, url: "…" }) and > or | block scalars. There's no YAML parser in the standard
+    library."""
     stack = []
+    block = None    # (indent, key path, lines) while reading a > or | block scalar
     with open(path, encoding="utf-8") as f:
-        for raw in f.read().splitlines():
-            line = strip_comment(raw).rstrip()
-            if not line.strip():
+        lines = f.read().splitlines()
+    for raw in lines + [None]:
+        if block is not None:
+            if raw is not None and (not raw.strip() or len(raw) - len(raw.lstrip()) > block[0]):
+                block[2].append(raw.strip())
                 continue
-            m = re.match(r"^(\s*)(-\s+)?(.*)$", line)
-            indent, item, rest = len(m.group(1)), m.group(2), m.group(3)
-            if item:
-                indent += len(item)
-            while stack and stack[-1][0] >= indent:
-                stack.pop()
-            parent = [k for _, k in stack]
-            if rest.startswith("{"):
-                for key, value in re.findall(r"([\w-]+)\s*:\s*(\"[^\"]*\"|'[^']*'|[^,}]+)", rest):
-                    yield parent + [key], unquote(value)
-                continue
-            km = re.match(r"^([\w.-]+)\s*:(?:\s+(.*))?$", rest)
-            if km:
-                key, value = km.group(1), (km.group(2) or "").strip()
-                if value:
-                    yield parent + [key], unquote(value)
-                else:
-                    stack.append((indent, key))
-            elif item:
-                yield parent, unquote(rest)
+            yield block[1], " ".join(x for x in block[2] if x)
+            block = None
+        if raw is None:
+            break
+        line = strip_comment(raw).rstrip()
+        if not line.strip():
+            continue
+        m = re.match(r"^(\s*)(-\s+)?(.*)$", line)
+        indent, item, rest = len(m.group(1)), m.group(2), m.group(3)
+        if item:
+            indent += len(item)
+        while stack and stack[-1][0] >= indent:
+            stack.pop()
+        parent = [k for _, k in stack]
+        if rest.startswith("{"):
+            for key, value in re.findall(r"([\w-]+)\s*:\s*(\"[^\"]*\"|'[^']*'|[^,}]+)", rest):
+                yield parent + [key], unquote(value)
+            continue
+        km = re.match(r"^([\w.-]+)\s*:(?:\s+(.*))?$", rest)
+        if km:
+            key, value = km.group(1), (km.group(2) or "").strip()
+            if re.fullmatch(r"[>|][+-]?", value):
+                block = (indent, parent + [key], [])
+            elif value:
+                yield parent + [key], unquote(value)
+            else:
+                stack.append((indent, key))
+        elif item:
+            yield parent, unquote(rest)
 
 
 def is_local(value):
@@ -533,12 +551,19 @@ def private_values(paths):
             if not keys:
                 continue
             key, label = keys[-1], ".".join(keys[-2:])
-            if (key in PRIVATE_KEYS or key.endswith("_id") or key.endswith("_url")) and re.search(r"[.:/@\d]", value):
+            if (key in PRIVATE_KEYS or key.endswith(PRIVATE_SUFFIXES)) and re.search(r"[.:/@\d]", value):
                 add(value, label)
             for url in URL.findall(value):
-                host = re.sub(r"^[^@]*@", "", re.split(r"[/?#]", url.split("://", 1)[1])[0]).split(":")[0]
+                authority = re.split(r"[/?#]", url.split("://", 1)[1])[0]
+                userinfo, _, hostport = authority.rpartition("@")
+                host = hostport.split(":")[0]
                 if not is_local(host):
                     add(url, label)
+                    add(host, label)
+                for part in userinfo.split(":"):  # a user and password in a config URL
+                    add(part, label)
+            for host in HOSTNAME.findall(value):
+                if host.rsplit(".", 1)[-1].lower() not in FILE_EXTENSIONS:
                     add(host, label)
             for email in re.findall(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+", value):
                 add(email, label)
@@ -549,15 +574,20 @@ def private_values(paths):
 
 
 def unsure(text):
-    """Why a redacted text still can't be trusted, or None."""
+    """Why a redacted text still can't be trusted, or None. A run of 32 or more token characters is a
+    token when a piece of it between slashes, with - and _ taken out, is 20 or more letters and digits
+    that switch between letters and digits at least 4 times. A UUID and a 40-character commit SHA are kept;
+    a file name like UsageTableReport2024Final switches only twice."""
     if UNFINISHED_KEY.search(text):
         return "a private key with no end"
+    text = UUID.sub(" ", text)
     for m in TOKEN_LIKE.finditer(text):
-        run = m.group(0)
-        if re.fullmatch(r"[0-9a-f]{7,40}", run):  # a commit SHA
-            continue
-        if any(re.search(r"[A-Za-z]", c) and re.search(r"\d", c) for c in re.findall(r"[A-Za-z0-9]{20,}", run)):
-            return "a long token-like string"
+        for piece in m.group(0).split("/"):
+            if re.fullmatch(r"[0-9a-f]{40}", piece):  # a commit SHA
+                continue
+            piece = re.sub(r"[-_=+]", "", piece)
+            if len(piece) >= 20 and len(re.findall(r"[A-Za-z](?=\d)|\d(?=[A-Za-z])", piece)) >= 4:
+                return "a long token-like string"
     return None
 
 
@@ -575,8 +605,12 @@ def redact_moments(found, private):
     summary_ = {"redacted": 0, "dropped": []}
     for m in found:
         if m.get("command"):
-            command, _ = redact(m["command"], private)
+            command, why = redact(m["command"], private)
             m["command"] = command if command is not None else "[withheld]"
+            if command is None:
+                where = m["runs"][-1]
+                summary_["dropped"].append({"kind": m["kind"], "session": where["session"], "time": where["time"],
+                                            "id": where["id"], "reason": why, "field": "command"})
         if m.get("excerpt") is None:
             continue
         text, why = redact(m["excerpt"], private)
