@@ -1,0 +1,40 @@
+scripts/fixtures/retro-moments/kinds/error.jsonl
+  s_317ca7d8caddc7::t_4dfa972b5c0cfc 1-3
+scripts/retro-moments.test.py
+  s_317ca7d8caddc7::t_44aee9b4fe7842 84-101,105-217
+  s_317ca7d8caddc7::t_61a7e30a870ad4 102-104
+scripts/fixtures/retro-moments/kinds/search.jsonl
+  s_317ca7d8caddc7::t_4dfa972b5c0cfc 1-23
+scripts/fixtures/retro-moments/kinds/refusal.jsonl
+  s_317ca7d8caddc7::t_4dfa972b5c0cfc 1-3
+scripts/fixtures/retro-moments/kinds/slow.jsonl
+  s_317ca7d8caddc7::t_4dfa972b5c0cfc 1-3
+skills/retro/scripts/retro_moments.py
+  s_317ca7d8caddc7::t_c665950ba3e33b 1-428
+scripts/fixtures/retro-moments/kinds/lookalikes.jsonl
+  s_317ca7d8caddc7::t_4dfa972b5c0cfc 1-7
+scripts/fixtures/retro-moments/kinds/stop.jsonl
+  s_317ca7d8caddc7::t_4dfa972b5c0cfc 1-3
+scripts/fixtures/retro-moments/kinds/correction.jsonl
+  s_317ca7d8caddc7::t_4dfa972b5c0cfc 1-6
+scripts/fixtures/retro-moments/kinds/blocked.jsonl
+  s_317ca7d8caddc7::t_4dfa972b5c0cfc 1-3
+scripts/fixtures/retro-moments/kinds/retry.jsonl
+  s_317ca7d8caddc7::t_4dfa972b5c0cfc 1-7
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3c2b822728f496847c4dfdff817b3fed1cb9d063",
+  "prompts": {},
+  "sessions": {
+    "s_317ca7d8caddc7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "42bf6ed7-c0ea-476a-a622-d52d0b8672e1",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Alan Cox <acox@beakpointinsights.com>"
+    }
+  }
+}
