@@ -55,7 +55,7 @@ SECRET_PATTERNS = [
     (re.compile(r"\b(?:gh[pousr]_[A-Za-z0-9]{20,}|github_pat_\w{20,}|sk-ant-[\w-]{20,}|sk-[A-Za-z0-9]{20,}|AKIA[0-9A-Z]{16}"
                 r"|xox[abposr]-[\w-]{10,}|eyJ[\w-]+\.[\w-]+\.[\w-]+)"), "[token]"),
     # a secret's name, also inside a longer one (PGPASSWORD, GITHUB_TOKEN, client_secret) or in JSON quotes
-    (re.compile(r"""(?i)\b([\w-]*?(?:password|passwd|pwd|token|secret|api[_-]?key))["']?\s*[=:]\s*["']?[^\s"',;}]+["']?"""),
+    (re.compile(r"""(?i)\b([\w-]*?(?:password|passwd|pwd|token|secret|api[_-]?key))["']?\s*[=:]\s*(?:"[^"]*"|'[^']*'|[^\s"',;}]+)"""),
      r"\1=[redacted]"),
     (re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+"), "[email]"),
 ]
@@ -63,7 +63,7 @@ UNFINISHED_KEY = re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----")
 TOKEN_LIKE = re.compile(r"[A-Za-z0-9+/=_-]{32,}")
 PRIVATE_KEYS = {"site", "cloud_id", "host", "hostname", "domain", "url", "test_account_email"}
 PRIVATE_SUFFIXES = ("_id", "_url", "_host", "_hostname", "_domain")
-HOSTNAME = re.compile(r"\b[\w-]+(?:\.[\w-]+)+\.[a-z]{2,}\b", re.I)
+HOSTNAME = re.compile(r"(?<![.\w/-])[\w-]+(?:\.[\w-]+)*\.[a-z]{2,}\b", re.I)
 FILE_EXTENSIONS = {"yml", "yaml", "json", "md", "py", "sh", "ts", "tsx", "js", "jsx", "txt", "html", "toml",
                    "lock", "cfg", "ini", "xml", "csv", "sql", "rb", "go", "rs", "java", "cs", "css"}
 LOCAL_HOSTS = {"localhost", "127.0.0.1", "0.0.0.0"}
@@ -560,8 +560,8 @@ def private_values(paths):
                 if not is_local(host):
                     add(url, label)
                     add(host, label)
-                for part in userinfo.split(":"):  # a user and password in a config URL
-                    add(part, label)
+                    if ":" in userinfo:  # the password; a user is often a plain word (postgres, admin)
+                        add(userinfo.split(":", 1)[1], label)
             for host in HOSTNAME.findall(value):
                 if host.rsplit(".", 1)[-1].lower() not in FILE_EXTENSIONS:
                     add(host, label)
@@ -573,21 +573,37 @@ def private_values(paths):
     return sorted(found.items(), key=lambda kv: -len(kv[0]))
 
 
+GIT_CONTEXT = re.compile(r"(?i)\b(?:commit|git|sha|merge|revert|cherry-pick|rebase|HEAD|tree|blob|fixup)\b")
+
+
+def token_like(piece):
+    """A run of letters and digits (separators taken out) that reads as random rather than as words:
+    many switches between letters and digits, or mostly one- and two-character pieces when split into
+    words (wJalrXUtn…, kQzXwLr…), unlike camelCase names and file names (UsageTableReport2024Final)."""
+    if len(piece) < 20:
+        return False
+    if len(re.findall(r"[A-Za-z](?=\d)|\d(?=[A-Za-z])", piece)) >= 6:
+        return True
+    words = re.findall(r"[A-Z]?[a-z]+|[A-Z]+(?![a-z])|\d+", piece)
+    return len(words) >= 8 and sum(len(w) <= 2 for w in words) / len(words) >= 0.4
+
+
 def unsure(text):
-    """Why a redacted text still can't be trusted, or None. A run of 32 or more token characters is a
-    token when a piece of it between slashes, with - and _ taken out, is 20 or more letters and digits
-    that switch between letters and digits at least 4 times. A UUID and a 40-character commit SHA are kept;
-    a file name like UsageTableReport2024Final switches only twice."""
+    """Why a redacted text still can't be trusted, or None: a private key with no end, or a run of 32 or
+    more token characters that reads as random. UUIDs are kept, and so is a 40-character hex commit SHA
+    when the words before it are about git or it's part of a range (sha..main)."""
     if UNFINISHED_KEY.search(text):
         return "a private key with no end"
-    text = UUID.sub(" ", text)
+    text = UUID.sub(lambda m: " " * len(m.group(0)), text)
     for m in TOKEN_LIKE.finditer(text):
-        for piece in m.group(0).split("/"):
-            if re.fullmatch(r"[0-9a-f]{40}", piece):  # a commit SHA
+        run = m.group(0)
+        if re.fullmatch(r"[0-9a-f]{40}", run):
+            if (GIT_CONTEXT.search(text[max(0, m.start() - 30):m.start()])
+                    or text[m.end():m.end() + 2] == ".." or text[max(0, m.start() - 2):m.start()] == ".."):
                 continue
-            piece = re.sub(r"[-_=+]", "", piece)
-            if len(piece) >= 20 and len(re.findall(r"[A-Za-z](?=\d)|\d(?=[A-Za-z])", piece)) >= 4:
-                return "a long token-like string"
+            return "40 hex characters that aren't a commit"
+        if token_like(re.sub(r"[-_=+/]", "", run)):
+            return "a long token-like string"
     return None
 
 

@@ -565,10 +565,37 @@ class Redaction(TempDir):
             with self.subTest(text=text):
                 self.assertIsNone(self.redacted(text))
 
+    def test_slashed_and_letter_only_tokens_and_bare_40_hex_drop_the_quote(self):
+        for text in ("key wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY", "kQzXwLrTpMvNbYhGfDsAjCeUiOoPlKmJnHbGvFcDxSzAqWeR",
+                     "oauth 3f9a1c2b4d5e6f708192a3b4c5d6e7f80a1b2c3d"):
+            with self.subTest(text=text):
+                self.assertIsNone(self.redacted(text))
+
+    def test_a_quoted_secret_with_spaces_is_redacted_whole(self):
+        out = self.redacted('{"password": "correct horse battery"}')
+        for word in ("correct", "horse", "battery"):
+            self.assertNotIn(word, out)
+
+    def test_two_label_hosts_are_private_and_local_url_users_arent(self):
+        config = os.path.join(self.tmp, "two.yml")
+        with open(config, "w") as f:
+            f.write("deploy:\n  how: deploy from zephyr.io with Next.js\n"
+                    "stack:\n  database:\n    url: postgres://postgres:postgres@localhost:5432/app\n"
+                    "    shared: postgres://admin:pa55word@db.zephyr.io/app\n"
+                    "  secrets_file: .env.test\n  how: run scripts/seed.prod in docs/x.internal\n")
+        values = dict(retro_moments.private_values([config]))
+        self.assertIn("zephyr.io", values)
+        self.assertIn("pa55word", values)
+        for word in ("postgres", "admin", "Next.js", "env.test", "seed.prod", "x.internal"):
+            self.assertNotIn(word, values)
+
     def test_file_names_ids_and_shas_are_kept(self):
         for text in ("Read src/components/UsageTableReport2024Final.tsx",
                      "session 7d3f2a11-5b6c-4e8d-9f01-23456789abce/subagents",
-                     "git show 3f9a1c2e7b4d8f0a6c5e1b9d2f7a3c8e4b6d0f1a", "the tokens = 12"):
+                     "git show 3f9a1c2e7b4d8f0a6c5e1b9d2f7a3c8e4b6d0f1a", "the tokens = 12",
+                     "range 3f9a1c2e7b4d8f0a6c5e1b9d2f7a3c8e4b6d0f1a..main",
+                     "ThisIsAVeryLongCamelCaseClassNameForTesting and getUserAccountSettingsFromDatabaseById",
+                     "mcp__plugin_playwright_playwright__browser_take_screenshot"):
             with self.subTest(text=text):
                 self.assertEqual(self.redacted(text), text)
 
