@@ -4,6 +4,12 @@
   moments TRANSCRIPT... [--since ISO] [--until ISO] [--config FILE]... [--repo-of PATH=REPO]...
       The moments worth a finding (corrections, refusals, errors, retries, long searches,
       slow steps, stops for the user, blocks), with totals per session.
+  redact [--config FILE]...      (text on stdin)
+      The text with secrets and the team config's identifying values taken out.
+
+Every quote it prints is redacted: generic secrets by pattern, then each identifying value in
+the team config and its overrides (--config, in roost-config's order). A quote it can't clean
+with confidence is dropped, and its moment kept.
 
 Exit 0 whatever it finds (unreadable records are in the JSON), 2 for bad arguments,
 1 for a failure of its own, with {"error": "<type>: <message>"}.
@@ -40,6 +46,27 @@ SIGNING = [re.compile(p, re.I) for p in (r"gpg failed to sign", r"failed to sign
 SIGN_IN = [re.compile(p, re.I) for p in (r"gh auth login", r"not logged in", r"HTTP 401", r"authentication required")]
 HOOK_BLOCK = re.compile(r"\bhook\b.*\b(?:block|blocked|denied|deny)\b|\b(?:block|blocked|denied)\b.*\bhook\b", re.I | re.S)
 DELIVERY = re.compile(r"^\[Cross-session delivery notice\]", re.M)
+
+
+SECRET_PATTERNS = [
+    (re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----.*?-----END [A-Z ]*PRIVATE KEY-----", re.S), "[private key]"),
+    (re.compile(r"(?i)\bauthorization\s*:\s*\S+(?:\s+\S+)?"), "Authorization: [redacted]"),
+    (re.compile(r"\b([a-z][a-z0-9+.-]*)://[^\s/:@]+:[^\s/@]+@\S+"), r"\1://[redacted]"),
+    (re.compile(r"(?i)\b(password|pwd)=[^;\s]+"), r"\1=[redacted]"),
+    (re.compile(r"\b(?:gh[pousr]_[A-Za-z0-9]{20,}|github_pat_\w{20,}|sk-ant-[\w-]{20,}|sk-[A-Za-z0-9]{20,}|AKIA[0-9A-Z]{16}"
+                r"|xox[abposr]-[\w-]{10,}|eyJ[\w-]+\.[\w-]+\.[\w-]+)"), "[token]"),
+    (re.compile(r"(?i)\b(api[_-]?key|token|secret|password)\s*[=:]\s*\S+"), r"\1=[redacted]"),
+    (re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+"), "[email]"),
+]
+UNFINISHED_KEY = re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----")
+TOKEN_LIKE = re.compile(r"[A-Za-z0-9+/=_-]{32,}")
+PRIVATE_KEYS = {"site", "cloud_id", "host", "hostname", "domain", "url", "test_account_email"}
+LOCAL_HOSTS = {"localhost", "127.0.0.1", "0.0.0.0"}
+PUBLIC_HOSTS = {"github.com", "api.github.com", "claude.ai", "anthropic.com", "figma.com", "www.figma.com"}
+URL = re.compile(r"[a-z][a-z0-9+.-]*://[^\s\"'<>]+", re.I)
+EMAIL_DOMAIN = re.compile(r"@([\w-]+(?:\.[\w-]+)+)")
+IPV4 = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
+UUID = re.compile(r"\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b", re.I)
 
 
 def parse_time(value):
@@ -442,6 +469,129 @@ def unquote(value):
     return value
 
 
+def strip_comment(line):
+    """The line without a YAML comment: a # at the start or after a space, outside quotes."""
+    quote = None
+    for i, c in enumerate(line):
+        if quote:
+            quote = None if c == quote else quote
+        elif c in "\"'":
+            quote = c
+        elif c == "#" and (i == 0 or line[i - 1] in " \t"):
+            return line[:i]
+    return line
+
+
+def config_entries(path):
+    """(key path, value) for each scalar in a team config, read as text: block mappings, lists and
+    flow mappings ({ name: API, url: "…" }). There's no YAML parser in the standard library."""
+    stack = []
+    with open(path, encoding="utf-8") as f:
+        for raw in f.read().splitlines():
+            line = strip_comment(raw).rstrip()
+            if not line.strip():
+                continue
+            m = re.match(r"^(\s*)(-\s+)?(.*)$", line)
+            indent, item, rest = len(m.group(1)), m.group(2), m.group(3)
+            if item:
+                indent += len(item)
+            while stack and stack[-1][0] >= indent:
+                stack.pop()
+            parent = [k for _, k in stack]
+            if rest.startswith("{"):
+                for key, value in re.findall(r"([\w-]+)\s*:\s*(\"[^\"]*\"|'[^']*'|[^,}]+)", rest):
+                    yield parent + [key], unquote(value)
+                continue
+            km = re.match(r"^([\w.-]+)\s*:(?:\s+(.*))?$", rest)
+            if km:
+                key, value = km.group(1), (km.group(2) or "").strip()
+                if value:
+                    yield parent + [key], unquote(value)
+                else:
+                    stack.append((indent, key))
+            elif item:
+                yield parent, unquote(rest)
+
+
+def is_local(value):
+    return any(h in value.lower() for h in LOCAL_HOSTS)
+
+
+def private_values(paths):
+    """(value, label) for each identifying value in the configs, longest first. Values of keys named site,
+    cloud_id, *_id, host, hostname, domain, url, *_url and test_account_email, plus every URL and its host,
+    email domain, IPv4 address and UUID in any value. Never localhost, 127.0.0.1 or 0.0.0.0; nothing under
+    4 characters."""
+    found = {}
+
+    def add(value, label):
+        value = value.strip()
+        if len(value) >= 4 and not is_local(value) and value.lower() not in PUBLIC_HOSTS:
+            found.setdefault(value, label)
+    for path in paths:
+        for keys, value in config_entries(path):
+            if not keys:
+                continue
+            key, label = keys[-1], ".".join(keys[-2:])
+            if (key in PRIVATE_KEYS or key.endswith("_id") or key.endswith("_url")) and re.search(r"[.:/@\d]", value):
+                add(value, label)
+            for url in URL.findall(value):
+                host = re.sub(r"^[^@]*@", "", re.split(r"[/?#]", url.split("://", 1)[1])[0]).split(":")[0]
+                if not is_local(host):
+                    add(url, label)
+                    add(host, label)
+            for email in re.findall(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+", value):
+                add(email, label)
+            for pattern in (EMAIL_DOMAIN, IPV4, UUID):
+                for match in pattern.finditer(value):
+                    add(match.group(1) if pattern is EMAIL_DOMAIN else match.group(0), label)
+    return sorted(found.items(), key=lambda kv: -len(kv[0]))
+
+
+def unsure(text):
+    """Why a redacted text still can't be trusted, or None."""
+    if UNFINISHED_KEY.search(text):
+        return "a private key with no end"
+    for m in TOKEN_LIKE.finditer(text):
+        run = m.group(0)
+        if re.fullmatch(r"[0-9a-f]{7,40}", run):  # a commit SHA
+            continue
+        if any(re.search(r"[A-Za-z]", c) and re.search(r"\d", c) for c in re.findall(r"[A-Za-z0-9]{20,}", run)):
+            return "a long token-like string"
+    return None
+
+
+def redact(text, private):
+    """(redacted text, or None when it can't be cleaned; why not)."""
+    for pattern, replacement in SECRET_PATTERNS:
+        text = pattern.sub(replacement, text)
+    for value, label in private:
+        text = re.sub(re.escape(value), "[config: %s]" % label, text, flags=re.I)
+    why = unsure(text)
+    return (None, why) if why else (text, None)
+
+
+def redact_moments(found, private):
+    summary_ = {"redacted": 0, "dropped": []}
+    for m in found:
+        if m.get("command"):
+            command, _ = redact(m["command"], private)
+            m["command"] = command if command is not None else "[withheld]"
+        if m.get("excerpt") is None:
+            continue
+        text, why = redact(m["excerpt"], private)
+        if text is None:
+            m["excerpt"], m["excerpt_dropped"] = None, True
+            where = m["runs"][-1] if m.get("runs") else m
+            summary_["dropped"].append({"kind": m["kind"], "session": where["session"], "time": where["time"],
+                                        "id": where["id"], "reason": why})
+        else:
+            if text != m["excerpt"]:
+                summary_["redacted"] += 1
+            m["excerpt"] = trim(text)
+    return summary_
+
+
 def moments(opts):
     sessions = []
     for path in opts.transcripts:
@@ -465,9 +615,7 @@ def moments(opts):
             shapes[k] += [dict(x, session=s.name) for x in s.unknown_shapes[k]]
         turn_slow += turn_moments(turns, repo_of(s.cwd, opts.repo_map))
     slow_moments = sorted(group_slow(slow) + turn_slow, key=lambda m: -m["total_minutes"])
-    for m in out_moments + slow_moments:
-        if m.get("excerpt") is not None:
-            m["excerpt"] = trim(m["excerpt"])
+    redaction = redact_moments(slow_moments + out_moments, opts.private)
     out_moments.sort(key=lambda m: time_key(m["time"]))
     return {
         "window": [opts.since, opts.until],
@@ -478,6 +626,7 @@ def moments(opts):
         "unknown_types": unknown_types,
         "unknown_shapes": shapes,
         "subagents_not_read": subagent_count(opts.transcripts),
+        "redaction": redaction,
     }
 
 
@@ -490,7 +639,11 @@ def parse_args(argv):
     m.add_argument("--until")
     m.add_argument("--config", action="append", default=[], metavar="FILE")
     m.add_argument("--repo-of", action="append", default=[], metavar="PATH=REPO")
+    r = sub.add_parser("redact", help="the text on stdin with secrets and config values taken out")
+    r.add_argument("--config", action="append", default=[], metavar="FILE")
     opts = parser.parse_args(argv)
+    if opts.command == "redact":
+        return opts
     since, until = parse_time(opts.since), parse_time(opts.until)
     for name, given, parsed in (("--since", opts.since, since), ("--until", opts.until, until)):
         if given and parsed is None:
@@ -515,8 +668,13 @@ def parse_args(argv):
 def main(argv=None):
     opts = parse_args(sys.argv[1:] if argv is None else argv)
     try:
-        opts.signing_errors = read_config_lists(opts.config, "signing_errors")
-        result = moments(opts)
+        opts.private = private_values(opts.config)
+        if opts.command == "redact":
+            text, why = redact(sys.stdin.read(), opts.private)
+            result = {"text": text, "dropped": text is None, "reason": why}
+        else:
+            opts.signing_errors = read_config_lists(opts.config, "signing_errors")
+            result = moments(opts)
         code = 0
     except Exception as e:  # its own failure: say what, never a traceback
         result, code = {"error": "%s: %s" % (type(e).__name__, e)}, 1
