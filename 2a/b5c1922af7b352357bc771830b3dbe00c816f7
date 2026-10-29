@@ -1,0 +1,23 @@
+.github/workflows/pr-checks.yml
+  s_317ca7d8caddc7::t_6b9e17aee6be46 50-51
+CONTRIBUTING.md
+  s_317ca7d8caddc7::t_6b9e17aee6be46 44,103-104
+README.md
+  s_317ca7d8caddc7::t_6b9e17aee6be46 183,221,255
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2ab5c1922af7b352357bc771830b3dbe00c816f7",
+  "prompts": {},
+  "sessions": {
+    "s_317ca7d8caddc7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "42bf6ed7-c0ea-476a-a622-d52d0b8672e1",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Alan Cox <acox@beakpointinsights.com>"
+    }
+  }
+}
