@@ -315,6 +315,7 @@ class Session:
         self.totals = {"turns": 0, "tool_calls": {}, "errors": 0, "minutes": 0}
         self.first = self.last = None   # first and last timestamped record in the window
         self._name = None
+        self._repos = {}        # cwd -> its repo, redacted
 
     @property
     def name(self):
@@ -325,6 +326,14 @@ class Session:
             title = redact(self.title, private)[0] if self.title else None
             self._name = title or redact_path((self.id or os.path.basename(self.path))[:8], private)
         return self._name
+
+    def repo(self, cwd):
+        """The repo a cwd is in, redacted once per cwd: a repo named after its folder can hold a configured
+        value."""
+        if cwd not in self._repos:
+            name = repo_of(cwd, self.opts.repo_map)
+            self._repos[cwd] = name and redact_path(name, getattr(self.opts, "private", []))
+        return self._repos[cwd]
 
     def moment(self, kind, rec, **fields):
         return dict({"kind": kind, "session": None, "time": rec.get("timestamp"), "id": rec.get("uuid")}, **fields)
@@ -513,7 +522,7 @@ class Session:
             if call["input"].get("run_in_background"):
                 continue
             command = FULL_PATH.sub("[path]", normalise(summary(call["name"], call["input"])))  # group as printed
-            repo = repo_of(call["rec"].get("cwd"), self.opts.repo_map)
+            repo = self.repo(call["rec"].get("cwd"))
             out.append(((command, repo), {"session": self.name, "time": start, "id": call["rec"].get("uuid"),
                                           "minutes": round(seconds / 60, 1),
                                           "last_line": ((call["result"]["text"] or "").strip().splitlines() or [""])[-1]}))
@@ -847,16 +856,14 @@ def moments(opts):
             unknown_types[k] = unknown_types.get(k, 0) + v
         for k in shapes:
             shapes[k] += [dict(x, session=s.name) for x in s.unknown_shapes[k]]
-        turn_slow += turn_moments(turns, repo_of(s.cwd, opts.repo_map))
+        turn_slow += turn_moments(turns, s.repo(s.cwd))
     opts.users = usernames(set().union(*[s.cwds for s in sessions]), opts.transcripts)
     slow_moments = sorted(group_slow(slow, opts.private, opts.users) + turn_slow, key=lambda m: -m["total_minutes"])
     redaction = redact_moments(slow_moments + out_moments, opts.private, opts.users)
     out_moments.sort(key=lambda m: time_key(m["time"]))
-    for m in slow_moments:   # a repo named after its folder can hold a configured value
-        m["repo"] = m["repo"] and redact_path(m["repo"], opts.private)
     return {
         "window": [opts.since, opts.until],
-        "sessions": [{"session": s.name, "id": s.id, "path": redact_path(os.path.basename(s.path), opts.private), "repo": (repo_of(s.cwd, opts.repo_map) or None) and redact_path(repo_of(s.cwd, opts.repo_map), opts.private),
+        "sessions": [{"session": s.name, "id": s.id, "path": redact_path(os.path.basename(s.path), opts.private), "repo": s.repo(s.cwd),
                       "totals": s.totals} for s in sessions],
         "moments": slow_moments + out_moments,
         "unreadable": unreadable,

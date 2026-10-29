@@ -822,9 +822,15 @@ class Home(TempDir):
         config = os.path.join(self.tmp, "c.yml")
         with open(config, "w") as f:
             f.write("stack:\n  database:\n    host: acmedb\n")
-        path = write(self.tmp, "r.jsonl", [human("2026-03-02T09:00:00Z", "a", "Go", cwd="/srv/acmedb-api")])
+        cwd = {"cwd": "/srv/acmedb-api"}
+        path = write(self.tmp, "r.jsonl", [human("2026-03-02T09:00:00Z", "a", "Go", **cwd),
+            tool_use("2026-03-02T09:01:00Z", "b", "t1", "Bash", {"command": "make"}, **cwd),
+            tool_result("2026-03-02T09:05:00Z", "c", "t1", "ok", **cwd),
+            rec("system", "2026-03-02T09:40:00Z", "d", subtype="turn_duration", durationMs=31 * 60 * 1000, **cwd)])
         code, out = run("moments", path, "--config", config)
         self.assertNotIn("acmedb", json.dumps(out))
+        repos = [out["sessions"][0]["repo"]] + [m["repo"] for m in out["moments"] if m["kind"] == "slow"]
+        self.assertEqual(repos, ["[config: database.host]-api"] * 3)  # the session, the tool step and the turn
 
     def test_the_redact_command_takes_out_full_paths_too(self):
         code, out = run("redact", stdin="see /home/acme/a and /Users/acme and /Users/Shared/b")
