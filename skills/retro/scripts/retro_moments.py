@@ -38,7 +38,9 @@ KNOWN_TYPES = {"user", "assistant", "system", "attachment", "summary", "api-requ
 SEARCH_TOOLS = {"Read", "Grep", "Glob", "LS"}
 # A read-only command: no redirect into a file (2>&1 and 2>/dev/null are fine) and no here-doc,
 # outside quotes (a pattern like '=> ' is fine).
-READ_ONLY_BASH = re.compile(r"""^(?!(?:[^'"]|'[^']*'|"[^"]*")*?(?:<<|(?<![2&])>(?!&)))(?:cd \S+ && )?(?:grep|rg|find|ls|cat|head|tail|sed -n|wc|git (?:log|show|grep|diff|status))\b""", re.S)
+# `cd <folder> && ` as written: a quoted folder, $(…), one with escaped spaces (My\ Project), or none (cd)
+CD_PREFIX = r"""cd(?: (?:"[^"]*"|'[^']*'|\$\([^)]*\)|(?:\\.|[^\s\\])+))? && """
+READ_ONLY_BASH = re.compile(r"""^(?!(?:[^'"]|'[^']*'|"[^"]*")*?(?:<<|(?<![2&])>(?!&)))(?:""" + CD_PREFIX + r""")?(?:grep|rg|find|ls|cat|head|tail|sed -n|wc|git (?:log|show|grep|diff|status))\b""", re.S)
 EDIT_TOOLS = {"Edit", "Write", "MultiEdit", "NotebookEdit"}
 USER_WAIT_TOOLS = {"AskUserQuestion"}
 NOT_TYPED = ("<command-", "<local-command-", "<bash-", "<system-reminder>", "<task-notification",
@@ -202,33 +204,52 @@ def repo_of(cwd, repo_map):
     for prefix, repo in repo_map:
         if cwd and (cwd == prefix or cwd.startswith(prefix.rstrip("/") + "/")):
             return repo
-    if cwd and without_homes(cwd.rstrip("/\\")).endswith("[home]"):
+    if cwd and HOME_FOLDER.fullmatch(cwd.rstrip("/\\")):
         return "[home]"  # the folder's name is a username
     return re.split(r"[/\\]", (cwd or "").rstrip("/\\"))[-1] or None
 
 
-# A home folder in a path: /Users/<name> (not /Users/Shared), /home/<name> or /root, also under WSL's
-# /mnt/<drive>, Fedora's /var/home and a Windows drive (C:\\Users\\<name>). It starts a path: after the
-# text's start, a space, a quote, = or : (a drive), // (file:///…), /mnt/<drive> or /var. And the
-# same in a project folder's name, where / is written as - (-Users-<name>-src-…), starting a name.
-HOME_PATH = re.compile(r"""(?:^|(?<=[\s"'`=:(\[<,;])|(?<=//)|(?<=/mnt/[a-z])|(?<=/var))"""
-                       r"[/\\](?:Users[/\\](?!Shared(?![A-Za-z0-9._-]))[A-Za-z0-9._-]+|home[/\\][A-Za-z0-9._-]+"
-                       r"|root(?![A-Za-z0-9._-]))")
-HOME_FOLDER_NAME = re.compile(r"""(?:^|(?<=[/\s"'`=]))-(?:Users-(?!Shared(?![A-Za-z0-9._]))|home-)[A-Za-z0-9._]+""")
+# A home folder: /Users/<name>, /home/<name>, /var/home/<name> or /root, also under WSL's /mnt/<drive>, and
+# a Windows drive's Users\<name>.
+HOME_FOLDER = re.compile(r"(?:/mnt/[a-z])?(?:/Users/[^/\\]+|/home/[^/\\]+|/var/home/[^/\\]+|/root)"
+                         r"|[A-Za-z]:[\\/]+Users[\\/]+[^/\\]+")
+# A full path: a token that starts with / and has a second / or \ in it (/home/x, not /compact), ~ with a
+# name or a folder (~/x, ~bob/x; not a bare ~), ../, a drive (C:\ or C:/), \\server or \\?\, JSON's \/, a
+# project folder's name (-Users-<name>-…, -home-<name>-…), or a URL whose scheme isn't a web or database
+# one (file://, vscode://). Also a quoted path, spaces and all, a web URL serving a home folder's file
+# (/@fs/Users/…) and a URL-encoded home path (%2FUsers%2F…). It starts wherever it sits: after a space, a
+# quote, =, >, |, @, {, _, : (PATH=$PATH:/x, but not a URL's ://), < before a path (not </div>), a glued flag
+# (-I/x), an escaped \n, \r or \t, or a colour code. A / inside a word (src/a.ts, w/o, 1/2) doesn't start one.
+PATH_CHARS = r"""[^\s"'`<>|;,()\[\]{}\x1b]"""   # a colour code (\x1b[0m) ends a path too
+WEB_SCHEMES = r"(?:https?|wss?|s?ftp|ssh|git|postgres(?:ql)?|mysql|redis|mongodb(?:\+srv)?|amqps?)"
+FULL_PATH = re.compile(
+    # a quoted path, spaces and all ('/home/x/My Config/a.yml')
+    r"""(?<=(?P<q>['"`]))(?=/[^'"`\n]*/|~[\w.-]*/|[A-Za-z]:[\\/]|\\\\)[^'"`\n]+?(?=(?P=q))"""
+    # a web URL serving a home folder's file (Vite's /@fs/Users/…), and a URL-encoded home path
+    r"""|(?<![A-Za-z0-9+.-])%(w)s://[^\s"'`<>|;,()\[\]{}]*?/(?:@fs/)?(?:Users|home)/%(c)s*|(?i:%%2F(?:Users|home)%%2F)%(c)s*"""
+    r"""|(?<![A-Za-z0-9+.-])(?!%(w)s://)[A-Za-z][A-Za-z0-9+.-]*://%(c)s*"""
+    r"""|(?:(?<=[\s"'=]-[A-Za-z])|(?<=\\[nrt])|(?<=:)(?!//)|(?<=<)(?=/%(c)s*/|[A-Za-z]:[\\/]|\\\\)"""
+    r"""|(?<=\x1b\[\dm)|(?<=\x1b\[\d\dm)|(?<=\x1b\[\d;\d\dm)|(?<![A-Za-z0-9.~$/\\<:-]))"""
+    r"""(?:[A-Za-z]:[\\/]%(c)s*|\\\\[A-Za-z0-9?.]%(c)s*|/(?=%(c)s*[/\\])%(c)s+|\\/(?=%(c)s*\\/)%(c)s+"""
+    r"""|\.\.[\\/]%(c)s*|-(?:Users|home)-%(c)s*|~(?:[A-Za-z_][\w.-]*)?[\\/]%(c)s*"""
+    r"""|~[A-Za-z_][\w.-]*(?=[\s"'`<>|;,()\[\]{}]|$))"""
+    % {"c": PATH_CHARS, "w": WEB_SCHEMES})
 
 
-def without_homes(value):
-    """The output with every home folder in every string written as [home], so no username is printed;
-    the last pass over everything the script prints."""
+def without_paths(value):
+    """The output with every full path in every string, and every key, written as [path], so no folder,
+    home or username is printed; the last pass over everything the script prints. A repo-relative path
+    (src/a.ts) stays. Punctuation that ends a sentence after a path is kept."""
     if isinstance(value, str):
-        # after a prefix (/mnt/c, /var, C:) the separator stays: /var/[home]/x, not /var[home]/x
-        value = HOME_PATH.sub(lambda m: m.group(0)[0] + "[home]" if m.start() and (m.string[m.start() - 1].isalnum()
-                              or m.string[m.start() - 1] == ":") else "[home]", value)
-        return HOME_FOLDER_NAME.sub("-[home]", value)
+        def replace(m):
+            path = m.group(0)
+            tail = len(path) - len(path.rstrip(".,:;?!"))
+            return "[path]" + (path[len(path) - tail:] if tail else "")
+        return FULL_PATH.sub(replace, value)
     if isinstance(value, list):
-        return [without_homes(v) for v in value]
+        return [without_paths(v) for v in value]
     if isinstance(value, dict):
-        return {without_homes(k): without_homes(v) for k, v in value.items()}
+        return {without_paths(k): without_paths(v) for k, v in value.items()}
     return value
 
 
@@ -446,7 +467,7 @@ class Session:
                 continue
             if call["input"].get("run_in_background"):
                 continue
-            command = normalise(summary(call["name"], call["input"]), call["rec"].get("cwd"))
+            command = FULL_PATH.sub("[path]", normalise(summary(call["name"], call["input"])))  # group as printed
             repo = repo_of(call["rec"].get("cwd"), self.opts.repo_map)
             out.append(((command, repo), {"session": self.name, "time": start, "id": call["rec"].get("uuid"),
                                           "minutes": round(seconds / 60, 1),
@@ -454,34 +475,15 @@ class Session:
         return out
 
 
-def normalise(command, cwd=None):
-    """The command with whitespace collapsed, and a leading `cd <dir> && ` dropped when it goes to the
-    call's own working directory. Any other cd stays, its folder resolved to a full path against the
-    call's cwd (an absolute one as it is; ~ against the cwd's home folder, when the cwd is under one) and
-    its home folder written as [home], so one folder is one step however it was written and from
-    wherever, and two folders are two steps. A ~ is never expanded to the home folder of whoever runs
-    the retro. With no cwd, or a ~ and no home in the cwd, the folder is only normalised (./, a trailing
-    / and quotes)."""
+def normalise(command):
+    """The command with whitespace collapsed and any leading `cd <dir> && ` dropped, so the folder it ran in
+    is never printed and one command is one step wherever it ran in the repo."""
     command = re.sub(r"\s+", " ", command.strip())
-    m = re.match(r"""^cd ("[^"]+"|'[^']+'|\S+) && (.*)$""", command)
-    if not m:
-        return command
-    folder, rest = unquote(m.group(1)), m.group(2)
-    base = os.path.normpath(cwd) if cwd else None
-    home = HOME_PATH.search(base) if base else None
-    if folder == "~" or folder.startswith("~/"):
-        if home is None:
-            target = os.path.normpath(folder)
-            return rest if target == base else "cd %s && %s" % (target, rest)
-        folder = base[:home.end()] + folder[1:]
-    if not folder.startswith("/"):
-        if base is None:
-            return "cd %s && %s" % (os.path.normpath(folder), rest)
-        folder = os.path.join(base, folder)
-    target = os.path.normpath(folder)
-    if target == base:
-        return rest
-    return "cd %s && %s" % (without_homes(target), rest)
+    while True:
+        m = re.match("^" + CD_PREFIX + "(.*)$", command)
+        if not m:
+            return command
+        command = m.group(1)
 
 
 def is_search(call):
@@ -846,7 +848,7 @@ def main(argv=None):
         code = 0
     except Exception as e:  # its own failure: say what, never a traceback
         result, code = {"error": "%s: %s" % (type(e).__name__, e)}, 1
-    json.dump(without_homes(result), sys.stdout, indent=2)
+    json.dump(without_paths(result), sys.stdout, indent=2)
     sys.stdout.write("\n")
     return code
 
