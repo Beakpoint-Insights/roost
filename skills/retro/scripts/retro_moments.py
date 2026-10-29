@@ -223,16 +223,17 @@ class Session:
         self.turns = []         # turns at least TURN_MINUTES long
         self.totals = {"turns": 0, "tool_calls": {}, "errors": 0, "minutes": 0}
         self.first = self.last = None   # first and last timestamped record in the window
+        self._name = None
 
     @property
     def name(self):
         """The session's title, redacted like any quote, or the start of its id (or of its file's name,
-        redacted like a path)."""
-        fallback = redact_path((self.id or os.path.basename(self.path))[:8], getattr(self.opts, "private", []))
-        if not self.title:
-            return fallback
-        title, _ = redact(self.title, getattr(self.opts, "private", []))
-        return title or fallback
+        redacted like a path). Worked out once, on first use after the transcript is read."""
+        if self._name is None:
+            private = getattr(self.opts, "private", [])
+            title = redact(self.title, private)[0] if self.title else None
+            self._name = title or redact_path((self.id or os.path.basename(self.path))[:8], private)
+        return self._name
 
     def moment(self, kind, rec, **fields):
         return dict({"kind": kind, "session": None, "time": rec.get("timestamp"), "id": rec.get("uuid")}, **fields)
