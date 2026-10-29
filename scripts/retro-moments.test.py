@@ -262,6 +262,29 @@ class Kinds(TempDir):
             rec("user", "2026-03-02T09:01:00Z", "b", message={"role": "user", "content": "[Request interrupted by user]"})])
         self.assertEqual([(m["kind"], m["id"]) for m in self.output(path)["moments"]], [("correction", "b")])
 
+    def test_an_interruption_straight_after_a_refusal_isnt_counted_again(self):
+        interrupted = {"role": "user", "content": [{"type": "text", "text": "[Request interrupted by user for tool use]"}]}
+        path = write(self.tmp, "ri.jsonl", [human("2026-03-02T09:00:00Z", "a", "Go"),
+            tool_use("2026-03-02T09:01:00Z", "b", "t1", "Bash", {"command": "git push --force"}),
+            tool_result("2026-03-02T09:01:30Z", "c", "t1", "The user doesn't want to proceed with this tool use.",
+                        error=True, toolDenialKind="user-rejected", permission={"decision": "reject", "source": "user_temporary"}),
+            rec("user", "2026-03-02T09:01:31Z", "d", message=interrupted),
+            assistant("2026-03-02T09:02:00Z", "e", "Stopped."),
+            rec("user", "2026-03-02T09:03:00Z", "f", message=interrupted)])
+        self.assertEqual([(m["kind"], m["id"]) for m in self.output(path)["moments"]],
+                         [("refusal", "c"), ("correction", "f")])
+
+    def test_a_sibling_result_between_a_refusal_and_its_interruption_doesnt_count_it_again(self):
+        interrupted = {"role": "user", "content": [{"type": "text", "text": "[Request interrupted by user for tool use]"}]}
+        path = write(self.tmp, "rs.jsonl", [human("2026-03-02T09:00:00Z", "a", "Go"),
+            rec("assistant", "2026-03-02T09:01:00Z", "b", message={"role": "assistant", "content": [
+                {"type": "tool_use", "id": "t1", "name": "Bash", "input": {"command": "git push --force"}},
+                {"type": "tool_use", "id": "t2", "name": "Read", "input": {"file_path": "/home/acme/src/acme-api/a.ts"}}]}),
+            tool_result("2026-03-02T09:01:30Z", "c", "t1", "rejected", error=True, toolDenialKind="user-rejected"),
+            tool_result("2026-03-02T09:01:30Z", "d", "t2", "…"),
+            rec("user", "2026-03-02T09:01:31Z", "e", message=interrupted)])
+        self.assertEqual([(m["kind"], m["id"]) for m in self.output(path)["moments"]], [("refusal", "c")])
+
     def test_excerpts_are_trimmed_and_collapsed(self):
         long = "no,   use\n\n date-fns " + "x" * 1000
         path = write(self.tmp, "long.jsonl", [human("2026-03-02T09:00:00Z", "a", "Go"),

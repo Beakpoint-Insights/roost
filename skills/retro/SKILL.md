@@ -42,7 +42,7 @@ It prints one JSON object: `moments` (each with its kind, session, time, record 
 
 Read every moment and the totals. Open the transcript around a moment only when the excerpt isn't enough to say what happened, and quote only the script's excerpt.
 
-A `correction` moment is only a candidate: the script marks every message the user typed after the first. A go-ahead or an approval ("yes", "proceed", "merged", "looks good") isn't a correction, and nor is the user's answer to a question the agent asked. Only a message that changes or rejects what the agent did ("we don't use moment here", "that's the wrong repo") can back a finding. The user interrupting the agent (`[Request interrupted by user`) is a real correction too: they stopped what it was doing.
+A `correction` moment is only a candidate: the script marks every message the user typed after the first. A go-ahead or an approval ("yes", "proceed", "merged", "looks good") isn't a correction, and nor is the user's answer to a question the agent asked. Only a message that changes or rejects what the agent did ("we don't use moment here", "that's the wrong repo") can back a finding. The user interrupting the agent (`[Request interrupted by user`) is a real correction too: they stopped what it was doing. Rejecting a permission prompt also writes an interruption; the script counts that once, as the `refusal`.
 
 ## 4. Write the findings
 
