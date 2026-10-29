@@ -350,8 +350,26 @@ class Slow(TempDir):
             recs += [tool_use("2026-03-02T1%d:00:00Z" % i, "u%d" % i, "t%d" % i, "Bash", {"command": cd + " && npm run build"}),
                      tool_result("2026-03-02T1%d:05:00Z" % i, "r%d" % i, "t%d" % i, "built")]
         slow = self.slow(write(self.tmp, "cds.jsonl", recs))
-        self.assertEqual([(m["command"], m["count"]) for m in slow], [("cd frontend && npm run build", 5)])
+        self.assertEqual([(m["command"], m["count"]) for m in slow],  # an absolute folder stays absolute
+                         [("cd frontend && npm run build", 4), ("cd ~/src/acme-api/frontend && npm run build", 1)])
         self.assertEqual(retro_moments.normalise("cd ~/src/acme-api && npm test", "~/src/acme-api"), "npm test")
+
+    def test_an_absolute_cd_from_two_folders_is_one_slow_step(self):
+        recs = [human("2026-03-02T09:00:00Z", "h", "Build")]
+        for i, cwd in enumerate(["/home/acme/src/acme-api", "/home/acme/src/acme-api/web"]):
+            recs += [tool_use("2026-03-02T1%d:00:00Z" % i, "u%d" % i, "t%d" % i, "Bash", {"command": "cd /tmp/build && make"}, cwd=cwd),
+                     tool_result("2026-03-02T1%d:05:00Z" % i, "r%d" % i, "t%d" % i, "built", cwd=cwd)]
+        slow = self.slow(write(self.tmp, "abs.jsonl", recs), extra=("--repo-of", "/home/acme/src/acme-api=api"))
+        self.assertEqual([(m["command"], m["count"]) for m in slow], [("cd /tmp/build && make", 2)])
+
+    def test_a_home_folder_is_written_as_a_tilde(self):
+        for folder in ("/home/acme/src/shared", "/Users/acme/src/shared"):
+            with self.subTest(folder=folder):
+                self.assertEqual(retro_moments.normalise("cd %s && make" % folder, "/home/acme/src/acme-api"),
+                                 "cd ~/src/shared && make")
+                self.assertEqual(retro_moments.normalise("cd %s && make" % folder), "cd ~/src/shared && make")
+        self.assertEqual(retro_moments.normalise("cd /home/acme/src/acme-api && make", "/home/acme/src/acme-api"), "make")
+        self.assertEqual(retro_moments.normalise("cd ~/src/acme-api && make", "/home/acme/src/acme-api"), "make")
 
     def test_a_tilde_is_left_as_written(self):
         recs = [human("2026-03-02T09:00:00Z", "h", "Build")]
