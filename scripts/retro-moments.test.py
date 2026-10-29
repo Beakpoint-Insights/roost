@@ -476,11 +476,14 @@ class Unparseable(unittest.TestCase):
         self.assertEqual([m["id"] for m in out["moments"]], ["c"])
 
     def test_a_missing_transcript_is_reported_and_the_rest_still_read(self):
-        code, out = run("moments", "/home/acme/no-such.jsonl", os.path.join(FIXTURES, "kinds", "correction.jsonl"))
+        missing = "/home/acme/" + SID.format(9) + ".jsonl"
+        code, out = run("moments", missing, os.path.join(FIXTURES, "kinds", "correction.jsonl"))
         self.assertEqual(code, 0)
         self.assertEqual([m["id"] for m in out["moments"]], ["c-5"])
-        self.assertEqual(out["unparseable"][0]["line"], None)
-        self.assertTrue(out["unparseable"][0]["reason"].startswith("can't read the file"))
+        self.assertEqual(out["unparseable"], [])
+        self.assertEqual(len(out["unreadable"]), 1)
+        self.assertEqual((out["unreadable"][0]["session"], out["unreadable"][0]["path"]), (SID.format(9)[:8], missing))
+        self.assertTrue(out["unreadable"][0]["reason"].startswith("can't read the file"))
 
     def test_fixtures_are_synthetic(self):
         """No real transcript is committed: every fixture record has a made-up session and an Acme cwd."""
