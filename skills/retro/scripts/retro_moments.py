@@ -3,7 +3,8 @@
 
   moments TRANSCRIPT... [--since ISO] [--until ISO] [--config FILE]... [--repo-of PATH=REPO]...
       The moments worth a finding (corrections, refusals, errors, retries, long searches,
-      slow steps, stops for the user, blocks), with totals per session.
+      slow steps, stops for the user, blocks), with totals per session; a transcript that
+      can't be opened is listed in "unreadable" and the others are still read.
   redact [--config FILE]...      (text on stdin)
       The text with secrets and the team config's identifying values taken out.
 
@@ -669,14 +670,14 @@ def redact_moments(found, private):
 
 
 def moments(opts):
-    sessions, unparseable = [], []
+    sessions, unparseable, unreadable = [], [], []
     for path in opts.transcripts:
         s = Session(path, opts)
         try:
             s.read()
         except OSError as e:  # one unreadable transcript doesn't stop the others
-            unparseable.append({"session": os.path.basename(path), "line": None,
-                                "reason": "can't read the file: %s" % (e.strerror or e)})
+            unreadable.append({"session": s.name, "path": path,
+                               "reason": "can't read the file: %s" % (e.strerror or e)})
             continue
         sessions.append(s)
     out_moments, slow, turn_slow, unknown_types = [], [], [], {}
@@ -703,6 +704,7 @@ def moments(opts):
         "sessions": [{"session": s.name, "id": s.id, "path": s.path, "repo": repo_of(s.cwd, opts.repo_map),
                       "totals": s.totals} for s in sessions],
         "moments": slow_moments + out_moments,
+        "unreadable": unreadable,
         "unparseable": unparseable,
         "unknown_types": unknown_types,
         "unknown_shapes": shapes,
