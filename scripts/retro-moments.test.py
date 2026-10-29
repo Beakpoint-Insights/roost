@@ -237,6 +237,8 @@ class Kinds(TempDir):
         self.assertEqual([m["count"] for m in self.searches(middle)], [10])  # 11 if the write counted
         self.assertFalse(retro_moments.READ_ONLY_BASH.match("grep -c x a.txt > out.txt"))
         self.assertTrue(retro_moments.READ_ONLY_BASH.match("grep -rn x src 2>&1 | head"))
+        for quoted in ("grep -rn '=> ' src", 'rg "a -> b" lib', "grep -c '>=' x.ts"):
+            self.assertTrue(retro_moments.READ_ONLY_BASH.match(quoted), quoted)
 
     def test_a_refusal_with_two_results_is_reported_once(self):
         r = rec("user", "2026-03-02T09:01:01Z", "f", toolDenialKind="automode-blocked", message={"role": "user", "content": [
@@ -369,6 +371,13 @@ class Totals(TempDir):
         self.assertEqual(out["sessions"][0]["totals"],
                          {"turns": 3, "tool_calls": {"Bash": 2, "Read": 1}, "errors": 2, "minutes": 30.0})
 
+    def test_a_refusal_isnt_counted_as_an_error(self):
+        path = write(self.tmp, "r.jsonl", [human("2026-03-02T09:00:00Z", "a", "Go"),
+            tool_use("2026-03-02T09:01:00Z", "b", "t1", "Bash", {"command": "rm -rf build"}),
+            tool_result("2026-03-02T09:01:01Z", "c", "t1", "denied", error=True, toolDenialKind="user-rejected")])
+        code, out = run("moments", path)
+        self.assertEqual(out["sessions"][0]["totals"]["errors"], 0)
+
 
 class Window(TempDir):
     def test_records_outside_the_window_are_left_out(self):
@@ -382,6 +391,29 @@ class Window(TempDir):
         self.assertEqual((first["turns"], first["tool_calls"], first["minutes"]), (0, {}, 0))
         second = out["sessions"][1]["totals"]
         self.assertEqual((second["turns"], second["tool_calls"]), (1, {"Bash": 2}))
+
+    def calls(self, name, inputs):
+        recs = [human("2026-03-02T09:00:00Z", "h", "Go")]
+        for i, inp in enumerate(inputs):
+            recs += [tool_use("2026-03-02T09:%02d:00Z" % (i + 1), "u%d" % i, "t%d" % i, name, inp),
+                     tool_result("2026-03-02T09:%02d:01Z" % (i + 1), "r%d" % i, "t%d" % i, "…")]
+        return write(self.tmp, "calls.jsonl", recs)
+
+    def kinds(self, path, *window):
+        code, out = run("moments", path, *window)
+        return [(m["kind"], m.get("count")) for m in out["moments"]]
+
+    def test_retries_count_only_calls_inside_the_window(self):
+        path = self.calls("Bash", [{"command": "npm test"}, {"command": "ls"}, {"command": "npm test"},
+                                   {"command": "ls -a"}, {"command": "npm test"}])
+        self.assertEqual(self.kinds(path, "--until", "2026-03-02T09:02:00Z"), [])
+        self.assertEqual(self.kinds(path, "--since", "2026-03-02T09:02:00Z"), [("retry", 2)])
+
+    def test_searches_count_only_calls_inside_the_window(self):
+        path = self.calls("Grep", [{"pattern": "p%d" % i} for i in range(12)])
+        self.assertEqual(self.kinds(path), [("search", 12)])
+        self.assertEqual(self.kinds(path, "--until", "2026-03-02T09:03:00Z"), [])
+        self.assertEqual(self.kinds(path, "--since", "2026-03-02T09:02:30Z"), [("search", 10)])
 
     def test_a_moment_outside_the_window_is_left_out(self):
         code, out = run("moments", kind_fixture("correction"), "--until", "2026-03-02T10:00:00Z")
@@ -427,6 +459,96 @@ class Unparseable(unittest.TestCase):
                         if "cwd" in r:
                             self.assertTrue(r["cwd"].startswith("/home/acme/"), (name, r["cwd"]))
         self.assertGreater(checked, 20)
+
+
+PLANTED = ["ghp_A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8", "eyJhbGciOiJIUzI1NiJ9", "s3cret", "b3BlbnNzaC1rZXktdjEAAAAABG5vbmU",
+           "dana.k@zephyr-corp.com", "zephyr-corp.atlassian.net", "7d3f2a10-5b6c-4e8d-9f01-23456789abcd",
+           "api.zephyr-corp.internal", "10.20.30.40", "qa+7@zephyr-corp.com", "zephyr-corp.com", "hunter2",
+           "db.zephyr-corp.internal", "Zx8Kq2Lm9Np4Rt7Vw1Yb3Cd6Fg0Hj5Ks8Mn2Pq4St7Uv9Wx1"]
+CONFIGS = ("--config", os.path.join(FIXTURES, "redaction-config.yml"),
+           "--config", os.path.join(FIXTURES, "redaction-local.yml"))
+
+
+class Redaction(TempDir):
+    def setUp(self):
+        super().setUp()
+        code, self.out = run("moments", os.path.join(FIXTURES, "redaction.jsonl"), *CONFIGS)
+        self.assertEqual(code, 0)
+        self.by_id = {m["id"]: m for m in self.out["moments"]}
+
+    def excerpt(self, key):
+        return self.by_id["x-" + key]["excerpt"]
+
+    def test_no_planted_value_is_in_the_output(self):
+        text = json.dumps(self.out).lower()
+        for value in PLANTED:
+            with self.subTest(value=value):
+                self.assertNotIn(value.lower(), text)
+
+    def test_replacements_say_what_was_there(self):
+        self.assertIn("[token]", self.excerpt("token"))
+        self.assertIn("Authorization: [redacted]", self.excerpt("auth"))
+        self.assertIn("postgres://[redacted]", self.excerpt("conn"))
+        self.assertIn("[private key]", self.excerpt("key"))
+        self.assertIn("[email]", self.excerpt("email"))
+        self.assertIn("[config: jira.site]", self.excerpt("site"))
+        self.assertIn("[config: jira.cloud_id]", self.excerpt("cloud"))
+        self.assertIn("[config: database.host]", self.excerpt("ip"))
+
+    def test_a_long_unknown_token_drops_the_quote(self):
+        for key in ("unknown", "cutkey"):
+            with self.subTest(key=key):
+                m = self.by_id["x-" + key]
+                self.assertEqual((m["excerpt"], m["excerpt_dropped"]), (None, True))
+                self.assertEqual(m["time"][:10], "2026-03-02")
+        dropped = {d["id"] for d in self.out["redaction"]["dropped"]}
+        self.assertEqual(dropped, {"x-unknown", "x-cutkey"})
+        self.assertGreaterEqual(self.out["redaction"]["redacted"], 11)
+
+    def test_a_commit_sha_is_kept(self):
+        self.assertIn("3f9a1c2e7b4d8f0a6c5e1b9d2f7a3c8e4b6d0f1a", self.excerpt("sha"))
+        self.assertFalse(self.by_id["x-sha"].get("excerpt_dropped"))
+
+    def test_ordinary_paths_and_words_are_kept(self):
+        for text in ("/home/acme/src/acme-api/scripts/openapi/build.ts", "docs/plans/2026-10-28-issue-92-retro.md",
+                     "retro-ranks-and-routes-checks-and-review-rules", "localhost:3000 and http://localhost:8080",
+                     "pushed to github"):
+            with self.subTest(text=text):
+                code, out = run("redact", *CONFIGS, stdin=text)
+                self.assertEqual((out["text"], out["dropped"]), (text, False))
+
+    def test_redact_on_stdin_matches_moments(self):
+        with open(os.path.join(FIXTURES, "redaction.jsonl")) as f:
+            recs = [json.loads(line) for line in f]
+        for r in recs[1:]:
+            code, out = run("redact", *CONFIGS, stdin=r["message"]["content"])
+            moment = self.by_id[r["uuid"]]
+            with self.subTest(id=r["uuid"]):
+                self.assertEqual(out["dropped"], bool(moment.get("excerpt_dropped")))
+                if not out["dropped"]:
+                    self.assertEqual(retro_moments.trim(out["text"]), moment["excerpt"])
+                else:
+                    self.assertIsNone(out["text"])
+                    self.assertTrue(out["reason"])
+
+    def test_private_values_reads_the_config_shapes(self):
+        config = write(self.tmp, "c.yml", [])
+        with open(config, "w") as f:
+            f.write("tracker:\n  github:\n    repo: zephyr/core  # not private by key\n"
+                    "  jira:\n    site: 'zephyr.atlassian.net'\n    board_id: 4821\n    cloud_id: abc\n"
+                    "stack:\n  services:\n    - { name: API, url: \"https://api.zephyr.dev:8443/v1\" }\n"
+                    "    - { name: web, url: \"http://127.0.0.1:3000\" }\n"
+                    "  how: run it on 0.0.0.0 # site: commented.example.com\n"
+                    "  note: ask ops@zephyr.dev or 192.168.4.20\n")
+        values = dict(retro_moments.private_values([config]))
+        self.assertEqual(values.get("zephyr.atlassian.net"), "jira.site")
+        self.assertEqual(values.get("4821"), "jira.board_id")
+        self.assertIn("https://api.zephyr.dev:8443/v1", values)
+        self.assertIn("api.zephyr.dev", values)
+        self.assertIn("ops@zephyr.dev", values)
+        self.assertIn("192.168.4.20", values)
+        for absent in ("abc", "127.0.0.1", "0.0.0.0", "commented.example.com", "zephyr/core", "localhost"):
+            self.assertNotIn(absent, values)
 
 
 if __name__ == "__main__":

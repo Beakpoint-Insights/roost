@@ -1,0 +1,5 @@
+team:
+  name: Zephyr
+stack:
+  database:
+    local: postgres://dev:hunter2@db.zephyr-corp.internal/app
