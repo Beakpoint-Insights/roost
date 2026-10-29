@@ -256,7 +256,9 @@ class Session:
                 self.title = rec["agentName"]
             self.id = self.id or rec.get("sessionId")
             self.cwd = self.cwd or rec.get("cwd")
-            self.count(rec)
+            # rejecting a permission prompt also writes an interruption: one refusal, not a correction or a turn too
+            echo = kind == "user" and after_refusal and human_text(rec) == REJECTED_INTERRUPTION
+            self.count(rec, echo)
             if (kind == "system" and rec.get("subtype") == "turn_duration"
                     and (rec.get("durationMs") or 0) >= TURN_MINUTES * 60000):
                 self.turns.append({"session": None, "time": rec.get("timestamp"), "id": rec.get("uuid"),
@@ -270,12 +272,11 @@ class Session:
                 text = human_text(rec)
                 if DELIVERY.search(plain_text(rec)):
                     self.unknown_shapes["delivery"].append({"session": None, "line": n, "id": rec.get("uuid")})
-                if text is not None:
+                if text is not None and not echo:   # the user's answer is still to come
                     if last_assistant is not None and plain_text(last_assistant).rstrip().endswith("?"):
                         self.events.append(self.moment("stop", last_assistant, excerpt=plain_text(last_assistant),
                                                        waited_minutes=minutes_between(last_assistant.get("timestamp"), rec.get("timestamp"))))
-                    # rejecting a permission prompt also writes an interruption: one refusal, not a correction too
-                    if seen_human and not (after_refusal and text == REJECTED_INTERRUPTION):
+                    if seen_human:
                         self.events.append(self.moment("correction", rec, excerpt=text))
                     seen_human = True
                     last_assistant = None
@@ -289,8 +290,9 @@ class Session:
                 elif text is not None:   # another call's result between them doesn't end it
                     after_refusal = False
 
-    def count(self, rec):
-        """Adds a record to the session's totals, if it's in the window."""
+    def count(self, rec, echo=False):
+        """Adds a record to the session's totals, if it's in the window. `echo` is the interruption a
+        rejected prompt writes, which isn't a turn of its own."""
         t = rec.get("timestamp")
         if t is None or not self.opts.inside(t):
             return
@@ -299,7 +301,7 @@ class Session:
         totals = self.totals
         origin = (rec.get("origin") or {}).get("kind")
         if rec.get("type") == "user":
-            if human_text(rec) is not None or origin in ("peer", "task-notification"):
+            if not echo and (human_text(rec) is not None or origin in ("peer", "task-notification")):
                 totals["turns"] += 1
             if not rec.get("toolDenialKind"):  # a refusal isn't an error
                 totals["errors"] += sum(1 for b in blocks(rec) if b.get("type") == "tool_result" and b.get("is_error"))
