@@ -26,7 +26,7 @@ If the user already gave you the script's output for the session, skip to step 3
 Transcripts are `~/.claude/projects/<folder>/<session id>.jsonl`, one folder per working directory. Don't build the folder's name from the path (characters such as `.`, `_` and spaces are changed in it); find transcripts by what their records say: each record has the session's working directory as `"cwd"`.
 
 - **"This session":** the transcripts whose records have this working directory as their `cwd` (`grep -l '"cwd":"<this directory>"' ~/.claude/projects/*/*.jsonl`); of those, the newest that contains the user's last message. Say which file.
-- **A named session:** search every folder under `~/.claude/projects/`, not only this directory's: a repo session's transcript is in its own repo's folder. Match the name against each transcript's `custom-title` and `agent-name` records (`"customTitle": "<name>"` or `"agentName": "<name>"`). If none matches, or more than one does, list what you found and ask which.
+- **A named session:** search every folder under `~/.claude/projects/`, not only this directory's: a repo session's transcript is in its own repo's folder. Match the name against each transcript's `custom-title` and `agent-name` records, written with no space after the colon (`grep -lF '"customTitle":"<name>"' ~/.claude/projects/*/*.jsonl`, and the same for `"agentName":"<name>"`). If none matches, or more than one does, list what you found and ask which.
 
 ## 2. Run the script
 
