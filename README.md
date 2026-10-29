@@ -180,6 +180,7 @@ The skills are grouped by where they fit in the development cycle, in order.
 | `run-bug` | Fixes one or more bugs through the repo sessions: triages each, assigns it to you, puts the fix on the epic's stack or on its own PR from `main`, builds each repo's part in order, and checks the test, the test scenario and CI. Starts without asking |
 | `review-epic` | Before release, has every session run a whole-epic `/code-review` at high effort against `main` (plus `/security-review` on the server code), marks code that was never reviewed, and brings the findings to one checkpoint |
 | `close-out-epic` | Before an epic is released, gives every open ticket a place (fix before release, the epic's follow-up epic, or standalone), moves the deferred ones out with a link back, and after the release checks every ticket ended done |
+| `retro` | After a session, reads its transcript through a script and suggests changes to the setup it ran in, as one ranked list: each with its evidence, what skipping it costs, and a Checked or Hypothesis recommendation. Nothing changes until you decide; then each accepted change gets a home (a config edit for you, a ticket, or a check to run) |
 | `stacked-prs` | Puts branches and PRs on the right `gh stack`, with the "Stacked on" banner, and fixes conflicts on the one branch that has them |
 | `cross-repo-handoff` | Writes a prompt another repo's agent can run cold, posted as a comment on the ticket |
 | `triage-ticket` | Decides whether a finding in the tracker is accurate and needs fixing, then fixes it test-first if asked |
@@ -217,6 +218,7 @@ Every skill needs the team config. Install fails quietly if a skill's tools aren
 | `build-epic`, `run-bug`, `review-epic` | Everything `run-slice` needs; `build-epic` also needs what `slice-handoff` and `release-qa` need |
 | `slice-handoff` | Tracker access, the `gh` CLI, and the repo sessions open for the epic test run |
 | `close-out-epic` | Tracker access; to confirm production from GitHub, Python 3 and the `gh` CLI |
+| `retro` | The `gh` CLI or tracker access for tickets, and Python 3 for its script; reads transcripts in `~/.claude/projects/`, so Claude Code on the same machine as the run |
 | `release-notes` | Tracker access, the `gh` CLI to read PRs, deploy runs and releases, and Python 3 for its production-date script |
 | `stacked-prs` | The `gh` CLI with the `gh stack` extension, and commit signing if your config requires it |
 | `cross-repo-handoff` | Tracker access to post the prompt; works without it by returning the text |
@@ -250,6 +252,7 @@ The skills were written for Claude Code. In Cursor, set up the same MCP servers 
 | `stacked-prs`, `bug-bash`, `cross-repo-handoff`, `triage-ticket`, `write-runbook`, `pair-runbook`, `close-out-epic`, `release-notes` | Work |
 | `release-qa`, `automate-tests`, `verify-slice-tests` | Work, with the Playwright MCP set up for an app |
 | `run-slice`, `build-epic`, `run-bug`, `review-epic` | Don't work. They message other Claude Code sessions, which Cursor can't do. |
+| `retro` | Doesn't work. It reads Claude Code's transcripts. |
 | `slice-handoff` | Partly. Sorting, tracker updates and stack checks work; the epic test run needs the repo sessions, so run that step in each repo by hand. |
 | `shape-epic` | Partly. The problem statement, slices and tests work. The prototype may need your design system's tools, the build guide is published as a claude.ai artifact, and the tech lead handoff uses your plan skill. Run those phases in Claude Code. |
 
