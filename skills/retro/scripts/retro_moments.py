@@ -239,6 +239,7 @@ class Session:
         pending = {}
         seen_human = False
         last_assistant = None
+        after_refusal = False   # a refusal with no assistant record or typed message since
         for n, rec, reason in records(self.path):
             if rec is None:
                 self.unparseable.append({"session": None, "line": n, "reason": reason})
@@ -262,6 +263,7 @@ class Session:
                 self.unknown_shapes["hook"].append({"session": None, "line": n, "id": rec.get("uuid")})
             if kind == "assistant":
                 last_assistant = self.read_assistant(rec, pending) or last_assistant
+                after_refusal = False
             elif kind == "user":
                 text = human_text(rec)
                 if DELIVERY.search(plain_text(rec)):
@@ -270,7 +272,8 @@ class Session:
                     if last_assistant is not None and plain_text(last_assistant).rstrip().endswith("?"):
                         self.events.append(self.moment("stop", last_assistant, excerpt=plain_text(last_assistant),
                                                        waited_minutes=minutes_between(last_assistant.get("timestamp"), rec.get("timestamp"))))
-                    if seen_human:
+                    # rejecting a permission prompt also writes an interruption: one refusal, not a correction too
+                    if seen_human and not (after_refusal and text.startswith("[Request interrupted by user")):
                         self.events.append(self.moment("correction", rec, excerpt=text))
                     seen_human = True
                     last_assistant = None
@@ -279,6 +282,10 @@ class Session:
                 if rec.get("usageLimitNote"):
                     self.events.append(self.moment("blocked", rec, why="usage_limit", excerpt=plain_text(rec)))
                 self.read_results(rec, n, pending)
+                if rec.get("toolDenialKind"):
+                    after_refusal = True
+                elif text is not None:   # another call's result between them doesn't end it
+                    after_refusal = False
 
     def count(self, rec):
         """Adds a record to the session's totals, if it's in the window."""
