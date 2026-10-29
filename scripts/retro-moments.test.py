@@ -10,6 +10,7 @@ import datetime
 import io
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -317,7 +318,7 @@ class Kinds(TempDir):
         finally:
             retro_moments.redact_path = real
         self.assertEqual(len(out["moments"]), 5)
-        self.assertEqual(len(calls), 2)  # the name once, and the session's path
+        self.assertEqual(len(calls), 3)  # the name once, the session's path and its repo
 
     def test_the_session_is_named_by_its_title(self):
         path = write(self.tmp, "named.jsonl", [
@@ -400,7 +401,7 @@ class Slow(TempDir):
                      tool_result("2026-03-02T1%d:05:00Z" % i, "r%d" % i, "t%d" % i, "built")]
         slow = self.slow(write(self.tmp, "cds.jsonl", recs))
         self.assertEqual([(m["command"], m["count"]) for m in slow],  # an absolute folder stays absolute
-                         [("cd frontend && npm run build", 4), ("cd ~/src/acme-api/frontend && npm run build", 1)])
+                         [("cd frontend && npm run build", 4), ("cd [home]/src/acme-api/frontend && npm run build", 1)])
         self.assertEqual(retro_moments.normalise("cd ~/src/acme-api && npm test", "~/src/acme-api"), "npm test")
 
     def test_an_absolute_cd_from_two_folders_is_one_slow_step(self):
@@ -411,14 +412,12 @@ class Slow(TempDir):
         slow = self.slow(write(self.tmp, "abs.jsonl", recs), extra=("--repo-of", "/home/acme/src/acme-api=api"))
         self.assertEqual([(m["command"], m["count"]) for m in slow], [("cd /tmp/build && make", 2)])
 
-    def test_a_home_folder_is_written_as_a_tilde(self):
+    def test_a_home_folder_is_written_as_home(self):
         for folder in ("/home/acme/src/shared", "/Users/acme/src/shared"):
             with self.subTest(folder=folder):
-                self.assertEqual(retro_moments.normalise("cd %s && make" % folder, "/home/acme/src/acme-api"),
-                                 "cd ~/src/shared && make")
-                self.assertEqual(retro_moments.normalise("cd %s && make" % folder), "cd ~/src/shared && make")
+                command = retro_moments.normalise("cd %s && make" % folder, "/home/acme/src/acme-api")
+                self.assertEqual(retro_moments.without_homes(command), "cd [home]/src/shared && make")
         self.assertEqual(retro_moments.normalise("cd /home/acme/src/acme-api && make", "/home/acme/src/acme-api"), "make")
-        self.assertEqual(retro_moments.normalise("cd ~/src/acme-api && make", "/home/acme/src/acme-api"), "make")
 
     def test_a_tilde_is_left_as_written(self):
         recs = [human("2026-03-02T09:00:00Z", "h", "Build")]
@@ -583,7 +582,7 @@ class Unparseable(unittest.TestCase):
         self.assertEqual([m["id"] for m in out["moments"]], ["c-5"])
         self.assertEqual(out["unparseable"], [])
         self.assertEqual(len(out["unreadable"]), 1)
-        self.assertEqual((out["unreadable"][0]["session"], out["unreadable"][0]["path"]), (SID.format(9)[:8], missing))
+        self.assertEqual((out["unreadable"][0]["session"], out["unreadable"][0]["path"]), (SID.format(9)[:8], SID.format(9) + ".jsonl"))  # the file's name only
         self.assertTrue(out["unreadable"][0]["reason"].startswith("can't read the file"))
 
     def test_an_unreadable_path_is_redacted(self):
@@ -597,7 +596,7 @@ class Unparseable(unittest.TestCase):
         missing = os.path.join(folder, SID.format(9) + ".jsonl")
         code, out = run("moments", missing, "--config", config)
         self.assertNotIn("acmedb", json.dumps(out))
-        self.assertTrue(out["unreadable"][0]["path"].endswith("-home-acme-src-[config: database.host]/" + SID.format(9) + ".jsonl"))
+        self.assertEqual(out["unreadable"][0]["path"], SID.format(9) + ".jsonl")  # the file's name only
         self.assertEqual(out["unreadable"][0]["session"], SID.format(9)[:8])
         readable = write(folder, SID.format(8) + ".jsonl", [human("2026-03-02T09:00:00Z", "a", "Go")])
         code, out = run("moments", readable, "--config", config)
@@ -637,6 +636,78 @@ class Unparseable(unittest.TestCase):
                         if "cwd" in r:
                             self.assertTrue(r["cwd"].startswith("/home/acme/"), (name, r["cwd"]))
         self.assertGreater(checked, 20)
+
+
+def home_transcript(tmp):
+    """A session run from the home folder /Users/acme, in a project folder named -Users-acme, whose title,
+    commands, results and messages name paths under /Users/acme and /home/acme."""
+    cwd = {"cwd": "/Users/acme"}
+    recs = [{"type": "custom-title", "customTitle": "fix /Users/acme/src/acme-api", "sessionId": SID.format(1)},
+            human("2026-03-02T09:00:00Z", "a", "Go", **cwd),
+            tool_use("2026-03-02T09:01:00Z", "e1", "te", "Bash", {"command": "npm test --prefix /home/acme/src/acme-api"}, **cwd),
+            tool_result("2026-03-02T09:01:05Z", "e2", "te", "Error: ENOENT /home/acme/src/acme-api/package.json", error=True, **cwd),
+            tool_use("2026-03-02T09:02:00Z", "s1", "ts", "Bash", {"command": "cd /home/acme/src/acme-web && npm run build"}, **cwd),
+            tool_result("2026-03-02T09:06:00Z", "s2", "ts", "wrote /home/acme/src/acme-web/dist", **cwd),
+            human("2026-03-02T09:07:00Z", "c", "look in /Users/acme/notes and ~/.claude/projects/-Users-acme-src-x", **cwd),
+            assistant("2026-03-02T09:08:00Z", "q", "Should I edit /root/.zshrc or /Users/Shared/build?", **cwd),
+            human("2026-03-02T09:09:00Z", "c2", "no", **cwd),
+            tool_use("2026-03-02T09:10:00Z", "f1", "tf", "Bash", {"command": "rm -rf /home/acme/tmp"}, **cwd),
+            tool_result("2026-03-02T09:10:05Z", "f2", "tf", "denied /home/acme/tmp", error=True, toolDenialKind="user-rejected", **cwd),
+            tool_use("2026-03-02T09:11:00Z", "g1", "tg", "Bash", {"command": "git commit -S"}, **cwd),
+            tool_result("2026-03-02T09:11:05Z", "g2", "tg", "error: gpg failed to sign the data; see /home/acme/.gnupg", error=True, **cwd)]
+    for i in range(3):
+        recs += [tool_use("2026-03-02T09:2%d:00Z" % i, "r%d" % i, "tr%d" % i, "Read", {"file_path": "/home/acme/src/acme-api/a.ts"}, **cwd),
+                 tool_result("2026-03-02T09:2%d:01Z" % i, "rr%d" % i, "tr%d" % i, "x", **cwd)]
+    for i in range(10):
+        recs += [tool_use("2026-03-02T09:3%d:00Z" % i, "g%d" % i, "tq%d" % i, "Grep", {"pattern": "p", "path": "/home/acme/src/x%d" % i}, **cwd),
+                 tool_result("2026-03-02T09:3%d:01Z" % i, "gr%d" % i, "tq%d" % i, "x", **cwd)]
+    folder = os.path.join(tmp, "-Users-acme")
+    os.makedirs(folder)
+    return [write(folder, SID.format(1) + ".jsonl", recs), os.path.join(folder, "gone.jsonl")]
+
+
+class Home(TempDir):
+    def test_no_home_folder_is_in_the_output(self):
+        code, out = run("moments", *home_transcript(self.tmp))
+        text = json.dumps(out)
+        kinds = {m["kind"] for m in out["moments"]}
+        self.assertEqual(kinds, {"slow", "error", "correction", "stop", "refusal", "blocked", "retry", "search"})
+        for leak in ("/Users/acme", "/home/acme", "Users-acme", "/root", self.tmp):
+            self.assertNotIn(leak, text)
+        self.assertIsNone(re.search(r"(?<![\w-])acme(?![\w-])", text), text)  # the bare username
+        self.assertIn("/Users/Shared/build", text)
+        self.assertIn("[home]/src/acme-api", text)
+        self.assertEqual(out["sessions"][0]["repo"], "[home]")
+        self.assertEqual(out["sessions"][0]["path"], SID.format(1) + ".jsonl")
+        self.assertEqual(out["unreadable"][0]["path"], "gone.jsonl")
+
+    def test_other_home_folder_forms_are_taken_out_and_flags_are_kept(self):
+        for text, want in (("cd /mnt/c/Users/acme/src", "cd /mnt/c/[home]/src"), ("/var/home/acme/x", "/var/[home]/x"),
+                           ("C:\\Users\\acme\\src", "C:\\[home]\\src"), ("C:/Users/acme/src", "C:/[home]/src"),
+                           ("~/.claude/projects/-home-acme-src-x", "~/.claude/projects/-[home]-src-x"),
+                           ("pip --home-page x --home-dir=/srv", "pip --home-page x --home-dir=/srv")):
+            with self.subTest(text=text):
+                self.assertEqual(run("redact", stdin=text)[1]["text"], want)
+        for cwd in ("/mnt/c/Users/acme", "/var/home/acme", "C:\\Users\\acme"):
+            with self.subTest(cwd=cwd):
+                self.assertEqual(retro_moments.repo_of(cwd, []), "[home]")
+
+    def test_an_error_names_no_home_folder(self):
+        code, out = run("moments", "/home/acme/x.jsonl", "--config", "/home/acme/missing.yml")
+        self.assertEqual(code, 1)
+        self.assertNotIn("/home/acme", out["error"])
+
+    def test_a_configured_value_in_a_repo_name_is_redacted(self):
+        config = os.path.join(self.tmp, "c.yml")
+        with open(config, "w") as f:
+            f.write("stack:\n  database:\n    host: acmedb\n")
+        path = write(self.tmp, "r.jsonl", [human("2026-03-02T09:00:00Z", "a", "Go", cwd="/srv/acmedb-api")])
+        code, out = run("moments", path, "--config", config)
+        self.assertNotIn("acmedb", json.dumps(out))
+
+    def test_the_redact_command_takes_out_home_folders_too(self):
+        code, out = run("redact", stdin="see /home/acme/a and /Users/acme and /Users/Shared/b")
+        self.assertEqual(out["text"], "see [home]/a and [home] and /Users/Shared/b")
 
 
 PLANTED = ["ghp_A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8", "eyJhbGciOiJIUzI1NiJ9", "s3cret", "b3BlbnNzaC1rZXktdjEAAAAABG5vbmU",
@@ -688,7 +759,7 @@ class Redaction(TempDir):
         self.assertFalse(self.by_id["x-sha"].get("excerpt_dropped"))
 
     def test_ordinary_paths_and_words_are_kept(self):
-        for text in ("/home/acme/src/acme-api/scripts/openapi/build.ts", "docs/plans/2026-10-28-issue-92-retro.md",
+        for text in ("/srv/acme-api/scripts/openapi/build.ts", "docs/plans/2026-10-28-issue-92-retro.md",
                      "retro-ranks-and-routes-checks-and-review-rules", "localhost:3000 and http://localhost:8080",
                      "pushed to github"):
             with self.subTest(text=text):

@@ -202,7 +202,34 @@ def repo_of(cwd, repo_map):
     for prefix, repo in repo_map:
         if cwd and (cwd == prefix or cwd.startswith(prefix.rstrip("/") + "/")):
             return repo
-    return os.path.basename((cwd or "").rstrip("/")) or None
+    if cwd and without_homes(cwd.rstrip("/\\")).endswith("[home]"):
+        return "[home]"  # the folder's name is a username
+    return re.split(r"[/\\]", (cwd or "").rstrip("/\\"))[-1] or None
+
+
+# A home folder in a path: /Users/<name> (not /Users/Shared), /home/<name> or /root, also under WSL's
+# /mnt/<drive>, Fedora's /var/home and a Windows drive (C:\\Users\\<name>). It starts a path: after the
+# text's start, a space, a quote, = or : (a drive), // (file:///…), /mnt/<drive> or /var. And the
+# same in a project folder's name, where / is written as - (-Users-<name>-src-…), starting a name.
+HOME_PATH = re.compile(r"""(?:^|(?<=[\s"'`=:(\[<,;])|(?<=//)|(?<=/mnt/[a-z])|(?<=/var))"""
+                       r"[/\\](?:Users[/\\](?!Shared(?![A-Za-z0-9._-]))[A-Za-z0-9._-]+|home[/\\][A-Za-z0-9._-]+"
+                       r"|root(?![A-Za-z0-9._-]))")
+HOME_FOLDER_NAME = re.compile(r"""(?:^|(?<=[/\s"'`=]))-(?:Users-(?!Shared(?![A-Za-z0-9._]))|home-)[A-Za-z0-9._]+""")
+
+
+def without_homes(value):
+    """The output with every home folder in every string written as [home], so no username is printed;
+    the last pass over everything the script prints."""
+    if isinstance(value, str):
+        # after a prefix (/mnt/c, /var, C:) the separator stays: /var/[home]/x, not /var[home]/x
+        value = HOME_PATH.sub(lambda m: m.group(0)[0] + "[home]" if m.start() and (m.string[m.start() - 1].isalnum()
+                              or m.string[m.start() - 1] == ":") else "[home]", value)
+        return HOME_FOLDER_NAME.sub("-[home]", value)
+    if isinstance(value, list):
+        return [without_homes(v) for v in value]
+    if isinstance(value, dict):
+        return {without_homes(k): without_homes(v) for k, v in value.items()}
+    return value
 
 
 class Session:
@@ -434,28 +461,20 @@ def normalise(command, cwd=None):
     cwd and written relative to it (./, a trailing / and quotes normalised), so `cd ./frontend` and
     `cd frontend` are one step and `cd frontend` and `cd backend` are two. A ~ is never expanded: it
     would be the home folder of whoever runs the retro, not the session's, and would print their
-    username. For the same reason a home folder (/home/<user>, /Users/<user>) is written as ~."""
+    username. Home folders are taken out of the whole output by without_homes()."""
     command = re.sub(r"\s+", " ", command.strip())
     m = re.match(r"""^cd ("[^"]+"|'[^']+'|\S+) && (.*)$""", command)
     if not m:
         return command
     folder = unquote(m.group(1))
-    base = home_as_tilde(os.path.normpath(cwd)) if cwd else None
+    base = os.path.normpath(cwd) if cwd else None
     if folder.startswith("/") or folder == "~" or folder.startswith("~/") or base is None:
-        target = home_as_tilde(os.path.normpath(folder))
+        target = os.path.normpath(folder)
         return m.group(2) if target == base else "cd %s && %s" % (target, m.group(2))
     target = os.path.normpath(os.path.join(base, folder))
     if target == base:
         return m.group(2)
     return "cd %s && %s" % (os.path.relpath(target, base), m.group(2))
-
-
-HOME = re.compile(r"^/(?:home|Users)/[^/]+(?=/|$)|^/root(?=/|$)")
-
-
-def home_as_tilde(path):
-    """The path with a leading home folder written as ~, so it carries no username."""
-    return HOME.sub("~", path)
 
 
 def is_search(call):
@@ -689,10 +708,11 @@ def redact(text, private):
 
 
 def redact_path(path, private):
-    """A transcript's path, redacted like a quote, one folder at a time: its project folder's name is the
-    session's cwd, with every character but a letter or digit written as -, so each configured value is
-    looked for that way too (acme.example.com as acme-example-com). A folder that can't be cleaned (a
-    random temporary folder's name) is withheld alone."""
+    """A transcript's file name (or a path), redacted like a quote, one part at a time. Claude Code names
+    files and folders after a session's cwd with every character but a letter or digit written as -, so
+    each configured value is looked for that way too (acme.example.com as acme-example-com). A part that
+    can't be cleaned (a random temporary folder's name) is withheld alone. The output prints only a
+    transcript's file name: its folders hold the session's cwd and the reader's home."""
     private = list(private) + [(re.sub(r"[^A-Za-z0-9]", "-", v), label) for v, label in private
                                if re.search(r"[^A-Za-z0-9]", v)]
     private.sort(key=lambda kv: -len(kv[0]))
@@ -732,7 +752,7 @@ def moments(opts):
             s.read()
         except OSError as e:  # one unreadable transcript doesn't stop the others
             # by its short id only: a title is in the file. The reason never carries the path.
-            unreadable.append({"session": s.name, "path": redact_path(path, opts.private),
+            unreadable.append({"session": s.name, "path": redact_path(os.path.basename(path), opts.private),
                                "reason": "can't read the file: %s" % (e.strerror or type(e).__name__)})
             continue
         sessions.append(s)
@@ -755,9 +775,11 @@ def moments(opts):
     slow_moments = sorted(group_slow(slow) + turn_slow, key=lambda m: -m["total_minutes"])
     redaction = redact_moments(slow_moments + out_moments, opts.private)
     out_moments.sort(key=lambda m: time_key(m["time"]))
+    for m in slow_moments:   # a repo named after its folder can hold a configured value
+        m["repo"] = m["repo"] and redact_path(m["repo"], opts.private)
     return {
         "window": [opts.since, opts.until],
-        "sessions": [{"session": s.name, "id": s.id, "path": redact_path(s.path, opts.private), "repo": repo_of(s.cwd, opts.repo_map),
+        "sessions": [{"session": s.name, "id": s.id, "path": redact_path(os.path.basename(s.path), opts.private), "repo": (repo_of(s.cwd, opts.repo_map) or None) and redact_path(repo_of(s.cwd, opts.repo_map), opts.private),
                       "totals": s.totals} for s in sessions],
         "moments": slow_moments + out_moments,
         "unreadable": unreadable,
@@ -817,7 +839,7 @@ def main(argv=None):
         code = 0
     except Exception as e:  # its own failure: say what, never a traceback
         result, code = {"error": "%s: %s" % (type(e).__name__, e)}, 1
-    json.dump(result, sys.stdout, indent=2)
+    json.dump(without_homes(result), sys.stdout, indent=2)
     sys.stdout.write("\n")
     return code
 
