@@ -633,13 +633,23 @@ def unsure(text):
     return None
 
 
+def whole_word(value):
+    """A pattern for the value as a word of its own. A letter at its edge mustn't touch another letter,
+    and a digit another digit; `_`, digits next to letters and anything else are word breaks. So host
+    acmedb is found in ACMEDB_HOST, acmedb2 and acmedb_replica, but not in acmedbx, and 4821 not in 48210."""
+    def edge(c, look):
+        if c.isascii() and c.isalpha():
+            return "(?%s[A-Za-z])" % look
+        return "(?%s[0-9])" % look if c.isdigit() else ""
+    return edge(value[0], "<!") + re.escape(value) + edge(value[-1], "!")
+
+
 def redact(text, private):
     """(redacted text, or None when it can't be cleaned; why not)."""
     for pattern, replacement in SECRET_PATTERNS:
         text = pattern.sub(replacement, text)
     for value, label in private:
-        # whole words only: host postgres leaves postgresql alone
-        text = re.sub(r"(?<![A-Za-z0-9_])%s(?![A-Za-z0-9_])" % re.escape(value), "[config: %s]" % label, text, flags=re.I)
+        text = re.sub(whole_word(value), "[config: %s]" % label, text, flags=re.I)
     why = unsure(text)
     return (None, why) if why else (text, None)
 

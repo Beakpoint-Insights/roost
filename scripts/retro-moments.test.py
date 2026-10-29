@@ -665,6 +665,20 @@ class Redaction(TempDir):
         out = self.redacted("run postgres, not postgresql or mypostgres", ("--config", config))
         self.assertEqual(out, "run [config: database.host], not postgresql or mypostgres")
 
+    def test_config_values_next_to_an_underscore_or_a_digit_are_replaced(self):
+        config = os.path.join(self.tmp, "words.yml")
+        with open(config, "w") as f:
+            f.write("stack:\n  database:\n    host: acmedb\n  jira:\n    board_id: 4821\n")
+        configs = ("--config", config)
+        for text in ("ACMEDB_HOST=x", "acmedb2 is up", "acmedb_replica lags", "use 2acmedb", "board4821"):
+            with self.subTest(text=text):
+                out = self.redacted(text, configs)
+                self.assertNotIn("acmedb", out.lower())
+                self.assertNotIn("4821", out)
+        for text in ("acmedbx and xacmedb", "48210 and 14821"):
+            with self.subTest(text=text):
+                self.assertEqual(self.redacted(text, configs), text)
+
     def test_file_names_ids_and_shas_are_kept(self):
         for text in ("Read src/components/UsageTableReport2024Final.tsx",
                      "session 7d3f2a11-5b6c-4e8d-9f01-23456789abce/subagents",
