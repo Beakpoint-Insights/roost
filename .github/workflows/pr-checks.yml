@@ -47,6 +47,8 @@ jobs:
         run: python3 scripts/production-date.test.py
       - name: Test the catch-up script
         run: python3 scripts/catch-up.test.py
+      - name: Test the retro moments script
+        run: python3 scripts/retro-moments.test.py
 
   private-details:
     runs-on: ubuntu-latest
