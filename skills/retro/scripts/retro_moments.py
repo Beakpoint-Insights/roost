@@ -271,19 +271,27 @@ def strip_paths(text):
     return FULL_PATH.sub(replace, text)
 
 
-def scrub(value, users=()):
-    """The last pass over everything the script prints, every string and every key: each full path becomes
-    [path] and each session's username, as a word of its own, [user]. So no folder, home or username is
-    printed. A repo-relative path (src/a.ts) stays."""
+ISO_TIME = re.compile(r"\d{4}-\d{2}-\d{2}T[\d:.]+(?:Z|[+-]\d{2}:?\d{2})?")
+
+
+def scrub(value, users=(), private=()):
+    """The last pass over everything the script prints, every string and every key (tool names, the
+    tool_calls keys, the error object): each configured value becomes [config: <key>], each full path
+    [path] and each session's username, as a word of its own, [user]. So no configured value, folder,
+    home or username is printed. A repo-relative path (src/a.ts) stays."""
     if isinstance(value, str):
-        value = strip_paths(value)
-        for user in users:
-            value = re.sub(whole_word(user), "[user]", value, flags=re.I)
-        return value
+        if ISO_TIME.fullmatch(value):  # a record's time, never a quote
+            return value
+        return replace_users(replace_config(strip_paths(value), private), users)  # paths first, as in redact()
     if isinstance(value, list):
-        return [scrub(v, users) for v in value]
+        return [scrub(v, users, private) for v in value]
     if isinstance(value, dict):
-        return {scrub(k, users): scrub(v, users) for k, v in value.items()}
+        out = {}
+        for k, v in value.items():
+            k, v = scrub(k, users, private), scrub(v, users, private)
+            # two names that redact alike (two configured MCP servers) are one key: add up their counts
+            out[k] = out[k] + v if isinstance(out.get(k), int) and isinstance(v, int) else out.get(k, v)
+        return out
     return value
 
 
@@ -529,10 +537,12 @@ def is_search(call):
     return call["name"] == "Bash" and bool(READ_ONLY_BASH.match(call["input"].get("command", "")))
 
 
-def group_slow(runs):
+def group_slow(runs, private=(), users=()):
+    """Slow runs grouped by command and repo, the command as it will print: a configured value or a
+    username however it was written (acmedb, ACMEDB) is one step."""
     groups = {}
-    for key, run in runs:
-        groups.setdefault(key, []).append(run)
+    for (command, repo), run in runs:
+        groups.setdefault((replace_users(replace_config(command, private), users), repo), []).append(run)
     out = []
     for (command, repo), group in groups.items():
         group.sort(key=lambda r: time_key(r["time"]))
@@ -685,6 +695,12 @@ def private_values(paths):
             for pattern in (EMAIL_DOMAIN, IPV4, UUID):
                 for match in pattern.finditer(value):
                     add(match.group(1) if pattern is EMAIL_DOMAIN else match.group(0), label)
+    # each value also as Claude Code and MCP write it in names: every character but a letter or digit as
+    # - (a project folder, acme-example-com) or _ (an MCP server, mcp__acme_example_com__query)
+    for value, label in list(found.items()):
+        if re.search(r"[^A-Za-z0-9]", value):
+            for sep in "-_":
+                found.setdefault(re.sub(r"[^A-Za-z0-9]", sep, value), label)
     return sorted(found.items(), key=lambda kv: -len(kv[0]))
 
 
@@ -738,30 +754,36 @@ def whole_word(value):
     return edge(value[0], "<!") + re.escape(value) + edge(value[-1], "!")
 
 
+DATE_OR_TIME = re.compile(r"\d{4}-\d{2}-\d{2}(?:T[\d:.]+(?:Z|[+-]\d{2}:?\d{2})?)?")
+
+
+def replace_config(text, private):
+    """The text with each configured value, as a word of its own, written as [config: <key>]."""
+    for value, label in private:
+        if value.isdigit():  # never a group of a session id or other UUID, nor part of a time or a date
+            spans = [m.span() for m in UUID.finditer(text)] + [m.span() for m in DATE_OR_TIME.finditer(text)]
+            text = re.sub(whole_word(value), lambda m: m.group(0) if any(a <= m.start() < b for a, b in spans)
+                          else "[config: %s]" % label, text)
+        else:
+            text = re.sub(whole_word(value), "[config: %s]" % label, text, flags=re.I)
+    return text
+
+
 def redact(text, private):
     """(redacted text, or None when it can't be cleaned; why not)."""
     for pattern, replacement in SECRET_PATTERNS:
         text = pattern.sub(replacement, text)
-    for value, label in private:
-        if value.isdigit():  # never a group of a session id or other UUID
-            uuids = [m.span() for m in UUID.finditer(text)]
-            text = re.sub(whole_word(value), lambda m: m.group(0) if any(a <= m.start() < b for a, b in uuids)
-                          else "[config: %s]" % label, text)
-        else:
-            text = re.sub(whole_word(value), "[config: %s]" % label, text, flags=re.I)
+    text = replace_config(strip_paths(text), private)  # paths first: a [..] inside one would end it
     why = unsure(text)
     return (None, why) if why else (text, None)
 
 
 def redact_path(path, private):
-    """A transcript's file name (or a path), redacted like a quote, one part at a time. Claude Code names
-    files and folders after a session's cwd with every character but a letter or digit written as -, so
-    each configured value is looked for that way too (acme.example.com as acme-example-com). A part that
-    can't be cleaned (a random temporary folder's name) is withheld alone. The output prints only a
-    transcript's file name: its folders hold the session's cwd and the reader's home."""
-    private = list(private) + [(re.sub(r"[^A-Za-z0-9]", "-", v), label) for v, label in private
-                               if re.search(r"[^A-Za-z0-9]", v)]
-    private.sort(key=lambda kv: -len(kv[0]))
+    """A transcript's file name (or a path), redacted like a quote, one part at a time (private_values()
+    also gives each value as Claude Code writes it in a folder's name: acme.example.com as
+    acme-example-com). A part that can't be cleaned (a random temporary folder's name) is withheld alone.
+    The output prints only a transcript's file name: its folders hold the session's cwd and the reader's
+    home."""
     return "/".join(redact(part, private)[0] or "[withheld]" if part else part for part in path.split("/"))
 
 
@@ -827,7 +849,7 @@ def moments(opts):
             shapes[k] += [dict(x, session=s.name) for x in s.unknown_shapes[k]]
         turn_slow += turn_moments(turns, repo_of(s.cwd, opts.repo_map))
     opts.users = usernames(set().union(*[s.cwds for s in sessions]), opts.transcripts)
-    slow_moments = sorted(group_slow(slow) + turn_slow, key=lambda m: -m["total_minutes"])
+    slow_moments = sorted(group_slow(slow, opts.private, opts.users) + turn_slow, key=lambda m: -m["total_minutes"])
     redaction = redact_moments(slow_moments + out_moments, opts.private, opts.users)
     out_moments.sort(key=lambda m: time_key(m["time"]))
     for m in slow_moments:   # a repo named after its folder can hold a configured value
@@ -894,7 +916,12 @@ def main(argv=None):
         code = 0
     except Exception as e:  # its own failure: say what, never a traceback
         result, code = {"error": "%s: %s" % (type(e).__name__, e)}, 1
-    json.dump(scrub(result, getattr(opts, "users", ())), sys.stdout, indent=2)
+        if not hasattr(opts, "private"):  # a config couldn't be read: the values of those that can
+            try:
+                opts.private = private_values([p for p in opts.config if os.path.isfile(p)])
+            except Exception:
+                opts.private = []
+    json.dump(scrub(result, getattr(opts, "users", ()), opts.private), sys.stdout, indent=2)
     sys.stdout.write("\n")
     return code
 

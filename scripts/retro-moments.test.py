@@ -743,6 +743,76 @@ class Home(TempDir):
         code, out = run("moments", path)
         self.assertEqual(out["moments"][0]["excerpt"], "run node scripts/x.js")
 
+    def test_a_path_holding_a_username_or_a_configured_value_is_replaced_whole(self):
+        config = os.path.join(self.tmp, "c.yml")
+        with open(config, "w") as f:
+            f.write("stack:\n  database:\n    host: acmedb\n")
+        cwd = {"cwd": "/home/zephyrine/src/x"}
+        path = write(self.tmp, "whole.jsonl", [human("2026-03-02T09:00:00Z", "a", "Go", **cwd),
+            human("2026-03-02T09:01:00Z", "b", "see /home/zephyrine/acmedb-api/scripts/build.ts now", **cwd)])
+        code, out = run("moments", path, "--config", config)
+        self.assertEqual(out["moments"][0]["excerpt"], "see [path] now")
+        self.assertEqual(run("redact", "--config", config, stdin="see /srv/acmedb/x/y now")[1]["text"], "see [path] now")
+
+    def test_keys_that_redact_alike_are_added_up_and_times_are_kept(self):
+        config = os.path.join(self.tmp, "c.yml")
+        with open(config, "w") as f:
+            f.write("dbs:\n  - host: acmedb.example.net\n  - host: quilldb\njira:\n  board_id: 2026\n")
+        calls = []
+        for i, name in enumerate(["mcp__acmedb_example_net__query", "mcp__acmedb-example-net__query", "mcp__quilldb__query"]):
+            calls += [tool_use("2026-03-02T09:0%d:00Z" % (i + 1), "u%d" % i, "t%d" % i, name, {"q": "x"}),
+                      tool_result("2026-03-02T09:0%d:01Z" % (i + 1), "r%d" % i, "t%d" % i, "ok")]
+        path = write(self.tmp, "k.jsonl", [human("2026-03-02T09:00:00Z", "a", "Go")] + calls)
+        code, out = run("moments", path, "--config", config)
+        text = json.dumps(out)
+        for value in ("acmedb", "quilldb", "example"):
+            self.assertNotIn(value, text)
+        self.assertEqual(out["sessions"][0]["totals"]["tool_calls"], {"mcp__[config: dbs.host]__query": 3})
+        self.assertEqual(run("moments", kind_fixture("correction"), "--config", config)[1]["moments"][0]["time"],
+                         "2026-03-02T11:14:00Z")
+
+    def test_a_number_from_the_config_is_never_found_in_a_time_or_date(self):
+        config = os.path.join(self.tmp, "c.yml")
+        with open(config, "w") as f:
+            f.write("jira:\n  board_id: 2026\n")
+        out = run("redact", "--config", config, stdin="at 2026-03-02T09:00:00Z on 2026-03-02, board 2026")[1]
+        self.assertEqual(out["text"], "at 2026-03-02T09:00:00Z on 2026-03-02, board [config: jira.board_id]")
+
+    def test_steps_that_differ_only_in_how_a_value_is_written_are_one_step(self):
+        config = os.path.join(self.tmp, "c.yml")
+        with open(config, "w") as f:
+            f.write("stack:\n  database:\n    host: acmedb\n")
+        cwd = {"cwd": "/home/zephyrine/src/x"}
+        recs = [human("2026-03-02T09:00:00Z", "h", "Go", **cwd)]
+        for i, command in enumerate(["npm test -- --host acmedb", "npm test -- --host ACMEDB",
+                                     "psql -U zephyrine", "psql -U ZEPHYRINE"]):
+            recs += [tool_use("2026-03-02T1%d:00:00Z" % i, "u%d" % i, "t%d" % i, "Bash", {"command": command}, **cwd),
+                     tool_result("2026-03-02T1%d:05:00Z" % i, "r%d" % i, "t%d" % i, "ok", **cwd)]
+        code, out = run("moments", write(self.tmp, "case.jsonl", recs), "--config", config)
+        self.assertEqual(sorted((m["command"], m["count"]) for m in out["moments"] if m["kind"] == "slow"),
+                         [("npm test -- --host [config: database.host]", 2), ("psql -U [user]", 2)])
+
+    def test_tool_names_keys_and_errors_are_redacted_too(self):
+        config = os.path.join(self.tmp, "c.yml")
+        with open(config, "w") as f:
+            f.write("stack:\n  database:\n    host: acmedb\n")
+        cwd = {"cwd": "/home/zephyrine/src/x"}
+        path = write(self.tmp, "t.jsonl", [human("2026-03-02T09:00:00Z", "a", "Go", **cwd),
+            tool_use("2026-03-02T09:01:00Z", "b", "t1", "mcp__acmedb__query", {"sql": "select 1"}, **cwd),
+            tool_result("2026-03-02T09:01:01Z", "c", "t1", "boom", error=True, **cwd),
+            tool_use("2026-03-02T09:02:00Z", "d", "t2", "mcp__zephyrine__notes", {"q": "x"}, **cwd),
+            tool_result("2026-03-02T09:02:01Z", "e", "t2", "ok", **cwd)])
+        code, out = run("moments", path, "--config", config)
+        text = json.dumps(out)
+        for value in ("acmedb", "zephyrine"):
+            self.assertNotIn(value, text)
+        self.assertEqual(out["moments"][0]["tool"], "mcp__[config: database.host]__query")
+        self.assertIn("mcp__[user]__notes", out["sessions"][0]["totals"]["tool_calls"])
+        # the script's own error: a config that can't be read, after one that names acmedb
+        code, out = run("moments", path, "--config", config, "--config", "acmedb-local.yml")
+        self.assertEqual(code, 1)
+        self.assertNotIn("acmedb", out["error"])
+
     def test_an_error_names_no_full_path(self):
         code, out = run("moments", "/home/acme/x.jsonl", "--config", "/home/acme/missing.yml")
         self.assertEqual(code, 1)
