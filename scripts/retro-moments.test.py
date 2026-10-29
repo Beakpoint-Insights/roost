@@ -308,18 +308,19 @@ class Kinds(TempDir):
         self.assertLessEqual(len(excerpt), retro_moments.EXCERPT)
         self.assertTrue(excerpt.startswith("no, use date-fns x"))
 
-    def test_the_session_name_is_worked_out_once(self):
-        path = write(self.tmp, "once.jsonl", [human("2026-03-02T09:00:00Z", "a", "Go")]
-                     + [human("2026-03-02T09:%02d:00Z" % i, "c%d" % i, "no") for i in range(1, 6)])
-        calls = []
-        real = retro_moments.redact_path
-        retro_moments.redact_path = lambda *a: calls.append(a) or real(*a)
-        try:
-            out = self.output(path)
-        finally:
-            retro_moments.redact_path = real
-        self.assertEqual(len(out["moments"]), 5)
-        self.assertEqual(len(calls), 3)  # the name once, the session's path and its repo
+    def test_every_moment_names_its_session_as_the_sessions_list_does(self):
+        config = os.path.join(self.tmp, "c.yml")
+        with open(config, "w") as f:
+            f.write("stack:\n  database:\n    host: acmedb\n")
+        titled = write(self.tmp, "titled.jsonl", [
+            {"type": "custom-title", "customTitle": "acmedb fixes", "sessionId": SID.format(1)},
+            human("2026-03-02T09:00:00Z", "a", "Go")] + [human("2026-03-02T09:%02d:00Z" % i, "c%d" % i, "no") for i in range(1, 4)])
+        untitled = write(self.tmp, "untitled.jsonl", [human("2026-03-02T10:00:00Z", "d", "Go", sid=SID.format(2)),
+                                                      human("2026-03-02T10:01:00Z", "e", "no", sid=SID.format(2))])
+        out = self.output(titled, untitled, extra=("--config", config))
+        names = [s["session"] for s in out["sessions"]]
+        self.assertEqual(names, ["[config: database.host] fixes", SID.format(2)[:8]])
+        self.assertEqual([m["session"] for m in out["moments"]], [names[0]] * 3 + [names[1]])
 
     def test_the_session_is_named_by_its_title(self):
         path = write(self.tmp, "named.jsonl", [
