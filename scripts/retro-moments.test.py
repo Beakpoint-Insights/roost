@@ -150,7 +150,7 @@ class Kinds(TempDir):
         m = self.moments("search")[0]
         self.assertEqual((m["count"], m["minutes"], m["id"]), (10, 9.2, "s-u0"))
         self.assertIn("openapi", m["excerpt"])
-        self.assertIn("build.ts", m["excerpt"])
+        self.assertTrue(m["excerpt"].endswith("… [path]"))  # the last call's file, a full path
 
     def test_a_question_then_a_human_reply_is_a_stop(self):
         path = write(self.tmp, "ask.jsonl", [
@@ -384,75 +384,32 @@ class Slow(TempDir):
         for waited in ("npm run migrate", "npm run dev", "npm run e2e", "Which tenant?"):
             self.assertNotIn(waited, commands)
 
-    def test_the_same_command_in_two_folders_is_two_slow_steps(self):
+    def slow_of(self, calls, extra=()):
+        """(command, count) of each slow step from Bash calls [(cwd, command)], 5 minutes each."""
         recs = [human("2026-03-02T09:00:00Z", "h", "Build")]
-        for i, folder in enumerate(["frontend", "backend", "frontend"]):
-            recs += [tool_use("2026-03-02T1%d:00:00Z" % i, "u%d" % i, "t%d" % i, "Bash", {"command": "cd %s && npm run build" % folder}),
-                     tool_result("2026-03-02T1%d:05:00Z" % i, "r%d" % i, "t%d" % i, "built")]
-        slow = self.slow(write(self.tmp, "mono.jsonl", recs))
-        self.assertEqual(sorted((m["command"], m["count"]) for m in slow),
-                         [("cd [home]/src/acme-api/backend && npm run build", 1), ("cd [home]/src/acme-api/frontend && npm run build", 2)])
-
-    def test_cd_folders_are_normalised_before_grouping(self):
-        recs = [human("2026-03-02T09:00:00Z", "h", "Build")]
-        cds = ["cd ./frontend", "cd frontend", "cd frontend/", 'cd "frontend"', "cd /home/acme/src/acme-api/frontend"]
-        for i, cd in enumerate(cds):
-            recs += [tool_use("2026-03-02T1%d:00:00Z" % i, "u%d" % i, "t%d" % i, "Bash", {"command": cd + " && npm run build"}),
-                     tool_result("2026-03-02T1%d:05:00Z" % i, "r%d" % i, "t%d" % i, "built")]
-        slow = self.slow(write(self.tmp, "cds.jsonl", recs))
-        self.assertEqual([(m["command"], m["count"]) for m in slow],  # one folder, written five ways
-                         [("cd [home]/src/acme-api/frontend && npm run build", 5)])
-        self.assertEqual(retro_moments.normalise("cd ~/src/acme-api && npm test", "~/src/acme-api"), "npm test")
-
-    def test_a_cd_folder_is_grouped_by_its_full_path(self):
-        def slow_of(calls):
-            recs = [human("2026-03-02T09:00:00Z", "h", "Build")]
-            for i, (cwd, command) in enumerate(calls):
-                recs += [tool_use("2026-03-02T1%d:00:00Z" % i, "u%d" % i, "t%d" % i, "Bash", {"command": command}, cwd=cwd),
-                         tool_result("2026-03-02T1%d:05:00Z" % i, "r%d" % i, "t%d" % i, "built", cwd=cwd)]
-            return sorted((m["command"], m["count"]) for m in
-                          self.slow(write(self.tmp, "full.jsonl", recs), extra=("--repo-of", "/home/acme/src/acme-api=api")))
-        self.assertEqual(slow_of([("/home/acme/src/acme-api", "cd frontend && make"),
-                                  ("/home/acme/src/acme-api/web", "cd frontend && make")]),
-                         [("cd [home]/src/acme-api/frontend && make", 1), ("cd [home]/src/acme-api/web/frontend && make", 1)])
-        self.assertEqual(slow_of([("/home/acme/src/acme-api", "cd /home/acme/src/acme-api/frontend && make"),
-                                  ("/home/acme/src/acme-api", "cd frontend && make")]),
-                         [("cd [home]/src/acme-api/frontend && make", 2)])
-
-    def test_a_cd_is_dropped_only_when_it_goes_to_the_cwd(self):
-        n = retro_moments.normalise
-        self.assertEqual(n("cd ~/src/acme-api && make", "/home/acme/src/acme-api"), "make")
-        self.assertEqual(n("cd ~/src/acme-web && make", "/home/acme/src/acme-api"), "cd [home]/src/acme-web && make")
-        self.assertEqual(n("cd /Users/bob/src/x && make", "/Users/alice/src/x"), "cd [home]/src/x && make")
-        self.assertEqual(n("cd ~/x && make", "/srv/app"), "cd ~/x && make")  # no home to resolve it against
-        self.assertEqual(n("cd ~/src/x && make", "/mnt/c/Users/acme/src/x"), "make")  # a home under WSL's /mnt/c
-        self.assertEqual(n("cd frontend && make"), "cd frontend && make")
-
-    def test_an_absolute_cd_from_two_folders_is_one_slow_step(self):
-        recs = [human("2026-03-02T09:00:00Z", "h", "Build")]
-        for i, cwd in enumerate(["/home/acme/src/acme-api", "/home/acme/src/acme-api/web"]):
-            recs += [tool_use("2026-03-02T1%d:00:00Z" % i, "u%d" % i, "t%d" % i, "Bash", {"command": "cd /tmp/build && make"}, cwd=cwd),
+        for i, (cwd, command) in enumerate(calls):
+            recs += [tool_use("2026-03-02T1%d:00:00Z" % i, "u%d" % i, "t%d" % i, "Bash", {"command": command}, cwd=cwd),
                      tool_result("2026-03-02T1%d:05:00Z" % i, "r%d" % i, "t%d" % i, "built", cwd=cwd)]
-        slow = self.slow(write(self.tmp, "abs.jsonl", recs), extra=("--repo-of", "/home/acme/src/acme-api=api"))
-        self.assertEqual([(m["command"], m["count"]) for m in slow], [("cd /tmp/build && make", 2)])
+        return sorted((m["command"], m["count"]) for m in self.slow(write(self.tmp, "cd.jsonl", recs), extra=extra))
 
-    def test_a_home_folder_is_written_as_home(self):
-        for folder in ("/home/acme/src/shared", "/Users/acme/src/shared"):
-            with self.subTest(folder=folder):
-                command = retro_moments.normalise("cd %s && make" % folder, "/home/acme/src/acme-api")
-                self.assertEqual(retro_moments.without_homes(command), "cd [home]/src/shared && make")
-        self.assertEqual(retro_moments.normalise("cd /home/acme/src/acme-api && make", "/home/acme/src/acme-api"), "make")
+    def test_a_cd_folder_is_dropped_and_steps_group_by_command_and_repo(self):
+        cds = ["cd ./frontend", "cd frontend", "cd backend/", 'cd "front end"', "cd /home/acme/src/acme-api/frontend",
+               "cd ~/acme-web", "cd $REPO", 'cd "$(git rev-parse --show-toplevel)"', "cd ../x", "cd a && cd b"]
+        self.assertEqual(self.slow_of([("/home/acme/src/acme-api", cd + " && npm run build") for cd in cds]),
+                         [("npm run build", len(cds))])
+        self.assertEqual(retro_moments.normalise("cd ~ && ls"), "ls")
+        self.assertEqual(retro_moments.normalise("cd /Users/zephyrine/My\\ Project && npm test"), "npm test")
+        self.assertEqual(retro_moments.normalise("cd $(git rev-parse --show-toplevel) && npm test"), "npm test")
+        self.assertTrue(retro_moments.READ_ONLY_BASH.match('cd "my dir" && grep -rn x src'))
 
-    def test_a_tilde_is_left_as_written(self):
-        recs = [human("2026-03-02T09:00:00Z", "h", "Build")]
-        for i in range(2):
-            use = tool_use("2026-03-02T1%d:00:00Z" % i, "u%d" % i, "t%d" % i, "Bash", {"command": "cd ~/acme-web && npm run build"})
-            del use["cwd"]
-            recs += [use, tool_result("2026-03-02T1%d:05:00Z" % i, "r%d" % i, "t%d" % i, "built")]
-        slow = self.slow(write(self.tmp, "tilde.jsonl", recs))
-        self.assertEqual([m["command"] for m in slow], ["cd ~/acme-web && npm run build"])
-        self.assertNotIn(os.path.expanduser("~"), json.dumps(slow))
-        self.assertEqual(retro_moments.normalise("cd ~ && ls"), "cd ~ && ls")
+    def test_steps_that_differ_only_in_a_full_path_are_one_step(self):
+        self.assertEqual(self.slow_of([("/home/quinn/src/acme-api", "pytest /home/quinn/a"),
+                                       ("/home/quinn/src/acme-api", "pytest /home/quinn/b")]), [("pytest [path]", 2)])
+
+    def test_the_same_command_in_two_repos_is_two_slow_steps(self):
+        self.assertEqual(self.slow_of([("/home/acme/src/acme-api", "cd /tmp/build && make"),
+                                       ("/home/acme/src/acme-web", "cd /tmp/build && make")]),
+                         [("make", 1), ("make", 1)])
 
     def test_the_repo_comes_from_repo_of(self):
         paths = two_sessions_with_seed_runs(self.tmp)
@@ -691,7 +648,7 @@ def home_transcript(tmp):
 
 
 class Home(TempDir):
-    def test_no_home_folder_is_in_the_output(self):
+    def test_no_home_folder_or_full_path_is_in_the_output(self):
         code, out = run("moments", *home_transcript(self.tmp))
         text = json.dumps(out)
         kinds = {m["kind"] for m in out["moments"]}
@@ -699,24 +656,50 @@ class Home(TempDir):
         for leak in ("/Users/acme", "/home/acme", "Users-acme", "/root", self.tmp):
             self.assertNotIn(leak, text)
         self.assertIsNone(re.search(r"(?<![\w-])acme(?![\w-])", text), text)  # the bare username
-        self.assertIn("/Users/Shared/build", text)
-        self.assertIn("[home]/src/acme-api", text)
+        self.assertNotIn("/Users/Shared", text)
+        self.assertIn("npm test --prefix [path]", text)
         self.assertEqual(out["sessions"][0]["repo"], "[home]")
         self.assertEqual(out["sessions"][0]["path"], SID.format(1) + ".jsonl")
         self.assertEqual(out["unreadable"][0]["path"], "gone.jsonl")
 
-    def test_other_home_folder_forms_are_taken_out_and_flags_are_kept(self):
-        for text, want in (("cd /mnt/c/Users/acme/src", "cd /mnt/c/[home]/src"), ("/var/home/acme/x", "/var/[home]/x"),
-                           ("C:\\Users\\acme\\src", "C:\\[home]\\src"), ("C:/Users/acme/src", "C:/[home]/src"),
-                           ("~/.claude/projects/-home-acme-src-x", "~/.claude/projects/-[home]-src-x"),
-                           ("pip --home-page x --home-dir=/srv", "pip --home-page x --home-dir=/srv")):
+    def test_every_full_path_becomes_path(self):
+        shapes = (("ls 2>/home/bob/err", "ls 2>[path]"), ("gcc -I/Users/alan/inc x.c", "gcc -I[path] x.c"),
+                  ("curl -d @/Users/alan/f.json", "curl -d @[path]"), ("echo hi >/Users/alan/x", "echo hi >[path]"),
+                  ("ls|/home/bob/x", "ls|[path]"), ("{/home/bob}", "{[path]}"),
+                  ("see ~/.claude/projects/-Users-alan-cox-src-x/1.jsonl", "see [path]"),
+                  ("folder -Users-alan-cox-src-x", "folder [path]"),
+                  ("/System/Volumes/Data/Users/alan/x", "[path]"), ("C:\\\\Users\\\\alan\\\\x", "[path]"),
+                  ("C:\\Users\\alan\\x", "[path]"), ("C:/Users/alan/x", "[path]"),
+                  ("cd /mnt/c/Users/alan/x", "cd [path]"), ("cd ~bob/x", "cd [path]"),
+                  ("export PATH=$PATH:/home/quillon/.local/bin", "export PATH=$PATH:[path]"),
+                  ("sort </home/quillon/data.txt", "sort <[path]"), ("scp deploy:/home/quillon/app.tar", "scp deploy:[path]"),
+                  ("open vscode://file/Users/quillon/x.ts", "open [path]"),
+                  ('{"note": "a\\n/home/quillon/notes.txt"}', '{"note": "a\\n[path]"}'),
+                  ("\\\\fileserver\\share\\quillon\\doc", "[path]"),
+                  ("\x1b[2m/Users/zephyrine/src/a.test.ts\x1b[0m", "\x1b[2m[path]\x1b[0m"),
+                  ('{"p":"\\/Users\\/zephyrine\\/src"}', '{"p":"[path]"}'),
+                  ("<C:\\Users\\bob\\x", "<[path]"), ("<\\\\server\\share\\bob", "<[path]"),
+                  ("\\\\?\\C:\\Users\\zephyrine\\x", "[path]"), ("a\\r/home/bob/x", "a\\r[path]"),
+                  ("open http://localhost:5173/@fs/Users/zephyrine/src/a.ts", "open [path]"),
+                  ("?file=%2FUsers%2Fzephyrine%2Fsrc now", "?file=[path] now"), ("_/home/bob/x/y", "_[path]"),
+                  ("read '/home/zephyrine/My Config/acmedb.yml' now", "read '[path]' now"),
+                  ("cp ../x y", "cp [path] y"), ('--prefix="/home/bob/x"', '--prefix="[path]"'),
+                  ("--home-dir=/srv/x", "--home-dir=[path]"), ("open file:///Users/alan/x", "open [path]"),
+                  ("edit /root/.zshrc? or /Users/Shared/b.", "edit [path]? or [path]."),
+                  ("route /home/settings", "route [path]"))
+        for text, want in shapes:
             with self.subTest(text=text):
                 self.assertEqual(run("redact", stdin=text)[1]["text"], want)
-        for cwd in ("/mnt/c/Users/acme", "/var/home/acme", "C:\\Users\\acme"):
+        for kept in ("src/a.ts and ./scripts/x.sh", "https://github.com/acme/repo/pull/1", "a / b, 1/2 and w/o",
+                     "</div>", "about ~5 minutes", "pip --home-page x", "$REPO/x", "cd ~",
+                     "took ~ 5 minutes, then I ran /compact and /retro"):
+            with self.subTest(kept=kept):
+                self.assertEqual(run("redact", stdin=kept)[1]["text"], kept)
+        for cwd in ("/Users/acme", "/home/acme", "/mnt/c/Users/acme", "/var/home/acme", "C:\\Users\\acme"):
             with self.subTest(cwd=cwd):
-                self.assertEqual(retro_moments.repo_of(cwd, []), "[home]")
+                self.assertEqual(retro_moments.repo_of(cwd, []), "[home]")  # the folder's name is a username
 
-    def test_an_error_names_no_home_folder(self):
+    def test_an_error_names_no_full_path(self):
         code, out = run("moments", "/home/acme/x.jsonl", "--config", "/home/acme/missing.yml")
         self.assertEqual(code, 1)
         self.assertNotIn("/home/acme", out["error"])
@@ -729,9 +712,9 @@ class Home(TempDir):
         code, out = run("moments", path, "--config", config)
         self.assertNotIn("acmedb", json.dumps(out))
 
-    def test_the_redact_command_takes_out_home_folders_too(self):
+    def test_the_redact_command_takes_out_full_paths_too(self):
         code, out = run("redact", stdin="see /home/acme/a and /Users/acme and /Users/Shared/b")
-        self.assertEqual(out["text"], "see [home]/a and [home] and /Users/Shared/b")
+        self.assertEqual(out["text"], "see [path] and [path] and [path]")
 
 
 PLANTED = ["ghp_A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8", "eyJhbGciOiJIUzI1NiJ9", "s3cret", "b3BlbnNzaC1rZXktdjEAAAAABG5vbmU",
@@ -783,7 +766,7 @@ class Redaction(TempDir):
         self.assertFalse(self.by_id["x-sha"].get("excerpt_dropped"))
 
     def test_ordinary_paths_and_words_are_kept(self):
-        for text in ("/srv/acme-api/scripts/openapi/build.ts", "docs/plans/2026-10-28-issue-92-retro.md",
+        for text in ("scripts/openapi/build.ts", "docs/plans/2026-10-28-issue-92-retro.md",
                      "retro-ranks-and-routes-checks-and-review-rules", "localhost:3000 and http://localhost:8080",
                      "pushed to github"):
             with self.subTest(text=text):
