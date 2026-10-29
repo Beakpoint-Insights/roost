@@ -7,7 +7,7 @@ What `retro` uses to turn moments into findings. Every finding names one area; i
 | Area | What counts | Where the fix goes |
 |---|---|---|
 | **Finding things** | A long `search` for a file or fact that a pointer would have saved | The repo's agent instructions, or the team config (`repos[].owns`, `stack`) |
-| **Automated checks** | A mistake a deterministic check could catch: a banned API, a file location, an import shape. A repo with no checks at all is a finding in itself | A lint rule, hook or CI job in the repo, never a sentence in a doc |
+| **Automated checks** | A mistake a deterministic check could catch: a banned API, a file location, an import shape. A repo with no checks at all is a finding too, but only with evidence the retro may use: a moment showing a mistake no check caught, or the tracker; never from browsing the repo | A lint rule, hook or CI job in the repo, never a sentence in a doc |
 | **Review rules** | Something a review let through that a standing rule should have caught | The repo's `review_focus` (team config) or its coding standards. A repo's `review_focus` replaces `planning.review_focus`, so the new text keeps the planning focus and adds the rule |
 | **Agent instructions** | `CLAUDE.md`/`AGENTS.md` content the agent ignored, that's too long, or belongs in standards or a check | The repo |
 | **Tool use** | Expensive or repeated calls that a script or a narrower command could replace | The repo (a script), or roost (a skill's step) |
