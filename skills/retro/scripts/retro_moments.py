@@ -29,7 +29,8 @@ KNOWN_TYPES = {"user", "assistant", "system", "attachment", "summary", "api-requ
                "file-history-delta", "frame-link", "tools-used", "artifact-autoreact-ledger", "cost-state",
                "artifact-comment-monitor"}
 SEARCH_TOOLS = {"Read", "Grep", "Glob", "LS"}
-READ_ONLY_BASH = re.compile(r"^(?:cd \S+ && )?(?:grep|rg|find|ls|cat|head|tail|sed -n|wc|git (?:log|show|grep|diff|status))\b")
+# A read-only command: no redirect into a file (2>&1 and 2>/dev/null are fine) and no here-doc.
+READ_ONLY_BASH = re.compile(r"^(?!.*(?:<<|(?<![2&])>(?!&)))(?:cd \S+ && )?(?:grep|rg|find|ls|cat|head|tail|sed -n|wc|git (?:log|show|grep|diff|status))\b", re.S)
 EDIT_TOOLS = {"Edit", "Write", "MultiEdit", "NotebookEdit"}
 USER_WAIT_TOOLS = {"AskUserQuestion"}
 NOT_TYPED = ("<command-", "<local-command-", "<bash-", "<system-reminder>", "<task-notification",
@@ -41,13 +42,33 @@ DELIVERY = re.compile(r"^\[Cross-session delivery notice\]", re.M)
 
 
 def parse_time(value):
+    """An ISO time as an aware datetime (a time with no offset is UTC), or None."""
     if not value:
         return None
-    return datetime.datetime.fromisoformat(value.replace("Z", "+00:00"))
+    try:
+        t = datetime.datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return t if t.tzinfo else t.replace(tzinfo=datetime.timezone.utc)
+
+
+def seconds_between(a, b):
+    start, end = parse_time(a), parse_time(b)
+    return None if start is None or end is None else (end - start).total_seconds()
 
 
 def minutes_between(a, b):
-    return round((parse_time(b) - parse_time(a)).total_seconds() / 60, 1)
+    seconds = seconds_between(a, b)
+    return None if seconds is None else round(seconds / 60, 1)
+
+
+EPOCH = datetime.datetime(1970, 1, 1, tzinfo=datetime.timezone.utc)
+
+
+def time_key(value):
+    """Sorts by time, with records that have none last."""
+    t = parse_time(value)
+    return (t is None, t or EPOCH)
 
 
 def records(path):
@@ -157,6 +178,7 @@ class Session:
         self.unparseable = []
         self.unknown_types = {}
         self.unknown_shapes = {"hook": [], "delivery": []}
+        self.breaks = set()     # positions in calls where a human or peer message came in
 
     @property
     def name(self):
@@ -194,11 +216,13 @@ class Session:
                 if text is not None:
                     if last_assistant is not None and plain_text(last_assistant).rstrip().endswith("?"):
                         self.events.append(self.moment("stop", last_assistant, excerpt=plain_text(last_assistant),
-                                                       waited_minutes=minutes_between(last_assistant["timestamp"], rec["timestamp"])))
+                                                       waited_minutes=minutes_between(last_assistant.get("timestamp"), rec.get("timestamp"))))
                     if seen_human:
                         self.events.append(self.moment("correction", rec, excerpt=text))
                     seen_human = True
                     last_assistant = None
+                if text is not None or (rec.get("origin") or {}).get("kind") == "peer":
+                    self.breaks.add(len(self.calls))  # a new message ends a run of searches
                 if rec.get("usageLimitNote"):
                     self.events.append(self.moment("blocked", rec, why="usage_limit", excerpt=plain_text(rec)))
                 self.read_results(rec, n, pending)
@@ -212,7 +236,8 @@ class Session:
             return None
         for b in blocks(rec):
             if b.get("type") == "tool_use":
-                call = {"name": b.get("name"), "input": b.get("input") or {}, "rec": rec, "result": None}
+                inp = b.get("input")
+                call = {"name": b.get("name"), "input": inp if isinstance(inp, dict) else {}, "rec": rec, "result": None}
                 pending[b.get("id")] = call
                 self.calls.append(call)
                 if call["name"] in USER_WAIT_TOOLS:
@@ -220,6 +245,7 @@ class Session:
         return rec
 
     def read_results(self, rec, n, pending):
+        refused = rec.get("toolDenialKind")
         for b in blocks(rec):
             if b.get("type") != "tool_result":
                 continue
@@ -231,16 +257,23 @@ class Session:
                 call["result"] = {"rec": rec, "text": text, "error": bool(b.get("is_error"))}
                 if call.get("stop"):
                     self.events.append(self.moment("stop", call["rec"], excerpt=what,
-                                                   waited_minutes=minutes_between(call["rec"]["timestamp"], rec["timestamp"])))
+                                                   waited_minutes=minutes_between(call["rec"].get("timestamp"), rec.get("timestamp"))))
+            if refused:
+                # toolDenialKind belongs to the record: one refusal however many results it carries
+                self.events.append(self.moment("refusal", rec, how=refused, tool=name, excerpt=text))
+                refused = None
+                continue
             if rec.get("toolDenialKind"):
-                self.events.append(self.moment("refusal", rec, how=rec["toolDenialKind"], tool=name, excerpt=text))
-            elif matches_any(SIGNING, text) or any(s and s.lower() in text.lower() for s in self.opts.signing_errors):
+                continue
+            if not b.get("is_error"):
+                continue
+            if matches_any(SIGNING, text) or any(s and s.lower() in text.lower() for s in self.opts.signing_errors):
                 self.events.append(self.moment("blocked", rec, why="signing", excerpt=text))
-            elif matches_any(SIGN_IN, text) and b.get("is_error"):
+            elif matches_any(SIGN_IN, text):
                 self.events.append(self.moment("blocked", rec, why="sign_in", excerpt=text))
-            elif b.get("is_error") and HOOK_BLOCK.search(text):
+            elif HOOK_BLOCK.search(text):
                 self.unknown_shapes["hook"].append({"session": None, "line": n, "id": rec.get("uuid")})
-            elif b.get("is_error"):
+            else:
                 self.events.append(self.moment("error", rec, tool=name, excerpt=(what + " → " if what else "") + first_lines(text)))
 
     def call_moments(self):
@@ -259,17 +292,20 @@ class Session:
         moments = [self.moment("retry", g["first"]["rec"], tool=g["first"]["name"], count=g["count"],
                                excerpt=summary(g["first"]["name"], g["first"]["input"])) for g in out if g["count"] > 1]
         run = []
-        for call in self.calls + [None]:
-            if call is not None and is_search(call):
-                run.append(call)
-                continue
+        for i, call in enumerate(self.calls + [None]):
+            # a run of searches ends at an edit, a new human or peer message, or the end; other tools pass
+            if call is not None and i not in self.breaks:
+                if is_search(call):
+                    run.append(call)
+                if call["name"] not in EDIT_TOOLS:
+                    continue
             if len(run) >= SEARCH_MIN:
                 end = (run[-1]["result"] or {}).get("rec") or run[-1]["rec"]
                 moments.append(self.moment("search", run[0]["rec"], count=len(run),
-                                           minutes=minutes_between(run[0]["rec"]["timestamp"], end["timestamp"]),
+                                           minutes=minutes_between(run[0]["rec"].get("timestamp"), end.get("timestamp")),
                                            excerpt=summary(run[0]["name"], run[0]["input"]) + " … "
                                            + summary(run[-1]["name"], run[-1]["input"])))
-            run = []
+            run = [call] if call is not None and i in self.breaks and is_search(call) else []
         return moments
 
     def slow_runs(self):
@@ -278,9 +314,9 @@ class Session:
         for call in self.calls:
             if not call["result"]:
                 continue
-            start, end = call["rec"]["timestamp"], call["result"]["rec"]["timestamp"]
-            seconds = (parse_time(end) - parse_time(start)).total_seconds()
-            if seconds < SLOW_SECONDS or call["name"] in USER_WAIT_TOOLS:
+            start, end = call["rec"].get("timestamp"), call["result"]["rec"].get("timestamp")
+            seconds = seconds_between(start, end)
+            if seconds is None or seconds < SLOW_SECONDS or call["name"] in USER_WAIT_TOOLS:
                 continue
             command = normalise(summary(call["name"], call["input"]))
             repo = repo_of(call["rec"].get("cwd"), self.opts.repo_map)
@@ -307,7 +343,7 @@ def group_slow(runs):
         groups.setdefault(key, []).append(run)
     out = []
     for (command, repo), group in groups.items():
-        group.sort(key=lambda r: r["time"])
+        group.sort(key=lambda r: time_key(r["time"]))
         last = group[-1].pop("last_line")
         for r in group[:-1]:
             r.pop("last_line")
@@ -379,7 +415,7 @@ def moments(opts):
     for m in out_moments + slow_moments:
         if m.get("excerpt") is not None:
             m["excerpt"] = trim(m["excerpt"])
-    out_moments.sort(key=lambda m: parse_time(m["time"]))
+    out_moments.sort(key=lambda m: time_key(m["time"]))
     return {
         "window": [opts.since, opts.until],
         "sessions": [{"session": s.name, "id": s.id, "path": s.path, "repo": repo_of(s.cwd, opts.repo_map)}
