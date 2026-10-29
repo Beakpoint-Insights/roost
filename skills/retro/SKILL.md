@@ -42,6 +42,8 @@ It prints one JSON object: `moments` (each with its kind, session, time, record 
 
 Read every moment and the totals. Open the transcript around a moment only when the excerpt isn't enough to say what happened, and quote only the script's excerpt.
 
+A `correction` moment is only a candidate: the script marks every message the user typed after the first. A go-ahead or an approval ("yes", "proceed", "merged", "looks good") isn't a correction, and nor is the user's answer to a question the agent asked. Only a message that changes or rejects what the agent did ("we don't use moment here", "that's the wrong repo") can back a finding.
+
 ## 4. Write the findings
 
 Use `references/finding-areas.md`: each finding names its area, which decides where the fix goes, and has what happened, its evidence (the moment's excerpt, session and time), what skipping it costs with a concrete case, a recommendation marked **Checked** or **Hypothesis**, and where the change goes. Rank them there too.
