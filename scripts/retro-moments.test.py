@@ -6,6 +6,7 @@ transcript is ever committed.
 Run: python3 scripts/retro-moments.test.py
 """
 import contextlib
+import datetime
 import io
 import json
 import os
@@ -184,7 +185,7 @@ class Kinds(TempDir):
         self.assertEqual(out["moments"], [])
         self.assertEqual([x["id"] for x in out["unknown_shapes"]["hook"]], ["l-3", "l-4"])
         self.assertEqual([x["id"] for x in out["unknown_shapes"]["delivery"]], ["l-5"])
-        self.assertEqual(out["unknown_shapes"]["delivery"][0]["line"], 5)
+        self.assertEqual(out["unknown_shapes"]["delivery"][0]["line"], 5)  # not line 8's mid-line mentions
 
     def test_subagent_transcripts_are_counted_not_read(self):
         path = write(self.tmp, SID.format(1) + ".jsonl", [human("2026-03-02T09:00:00Z", "a", "Go")])
@@ -195,6 +196,64 @@ class Kinds(TempDir):
         out = self.output(path)
         self.assertEqual(out["subagents_not_read"], 2)
         self.assertEqual(out["moments"], [])
+
+    def test_a_record_without_a_timestamp_or_with_a_naive_one_doesnt_stop_the_run(self):
+        recs = [human("2026-03-02T09:00:00Z", "a", "Go"), human("2026-03-02T09:01:00", "b", "naive time"),
+                tool_use(None, "c", "t1", "Bash", {"command": "npm test"}),
+                tool_result("2026-03-02T09:03:00Z", "d", "t1", "FAIL", error=True),
+                human(None, "e", "no time")]
+        code, out = run("moments", write(self.tmp, "t.jsonl", recs))
+        self.assertEqual(code, 0)
+        self.assertEqual(sorted(m["id"] for m in out["moments"]), ["b", "d", "e"])
+
+    def test_signing_text_in_a_successful_result_isnt_blocked(self):
+        path = write(self.tmp, "s.jsonl", [human("2026-03-02T09:00:00Z", "a", "Go"),
+            tool_use("2026-03-02T09:01:00Z", "b", "t1", "Read", {"file_path": "/home/acme/src/acme-api/notes.md"}),
+            tool_result("2026-03-02T09:01:01Z", "c", "t1", "matches gpg failed to sign and gh auth login")])
+        self.assertEqual(self.output(path)["moments"], [])
+
+    def searches(self, middle):
+        recs = [human("2026-03-02T09:00:00Z", "a", "Find it")]
+        for i in range(5):
+            recs += [tool_use("2026-03-02T09:%02d:00Z" % (i + 1), "u%d" % i, "t%d" % i, "Grep", {"pattern": "p%d" % i}),
+                     tool_result("2026-03-02T09:%02d:01Z" % (i + 1), "r%d" % i, "t%d" % i, "…")]
+        recs += middle
+        for i in range(5, 10):
+            recs += [tool_use("2026-03-02T09:%02d:00Z" % (i + 11), "u%d" % i, "t%d" % i, "Grep", {"pattern": "p%d" % i}),
+                     tool_result("2026-03-02T09:%02d:01Z" % (i + 11), "r%d" % i, "t%d" % i, "…")]
+        return [m for m in self.output(write(self.tmp, "g.jsonl", recs))["moments"] if m["kind"] == "search"]
+
+    def test_a_new_human_message_ends_a_search(self):
+        self.assertEqual(self.searches([human("2026-03-02T09:10:00Z", "h", "keep going")]), [])
+
+    def test_a_tool_that_isnt_an_edit_doesnt_end_a_search(self):
+        middle = [tool_use("2026-03-02T09:10:00Z", "x", "tx", "TodoWrite", {"todos": []}),
+                  tool_result("2026-03-02T09:10:01Z", "y", "tx", "ok")]
+        self.assertEqual([m["count"] for m in self.searches(middle)], [10])
+
+    def test_a_bash_write_isnt_a_search(self):
+        middle = [tool_use("2026-03-02T09:10:00Z", "x", "tx", "Bash", {"command": "cat > notes.md <<'EOF'\nx\nEOF"}),
+                  tool_result("2026-03-02T09:10:01Z", "y", "tx", "")]
+        self.assertEqual([m["count"] for m in self.searches(middle)], [10])  # 11 if the write counted
+        self.assertFalse(retro_moments.READ_ONLY_BASH.match("grep -c x a.txt > out.txt"))
+        self.assertTrue(retro_moments.READ_ONLY_BASH.match("grep -rn x src 2>&1 | head"))
+
+    def test_a_refusal_with_two_results_is_reported_once(self):
+        r = rec("user", "2026-03-02T09:01:01Z", "f", toolDenialKind="automode-blocked", message={"role": "user", "content": [
+            {"type": "tool_result", "tool_use_id": "t1", "is_error": True, "content": "denied"},
+            {"type": "tool_result", "tool_use_id": "t2", "is_error": True, "content": "denied"}]})
+        path = write(self.tmp, "r.jsonl", [human("2026-03-02T09:00:00Z", "a", "Go"),
+            rec("assistant", "2026-03-02T09:01:00Z", "b", message={"role": "assistant", "content": [
+                {"type": "tool_use", "id": "t1", "name": "Bash", "input": {"command": "rm -rf build"}},
+                {"type": "tool_use", "id": "t2", "name": "Bash", "input": {"command": "rm -rf dist"}}]}), r])
+        self.assertEqual([m["kind"] for m in self.output(path)["moments"]], ["refusal"])
+
+    def test_a_tool_input_that_isnt_an_object_doesnt_stop_the_run(self):
+        path = write(self.tmp, "i.jsonl", [human("2026-03-02T09:00:00Z", "a", "Go"),
+            tool_use("2026-03-02T09:01:00Z", "b", "t1", "Bash", "ls"),
+            tool_result("2026-03-02T09:01:01Z", "c", "t1", "boom", error=True)])
+        code, out = run("moments", path)
+        self.assertEqual((code, [m["kind"] for m in out["moments"]]), (0, ["error"]))
 
     def test_excerpts_are_trimmed_and_collapsed(self):
         long = "no,   use\n\n date-fns " + "x" * 1000
@@ -213,6 +272,120 @@ class Kinds(TempDir):
         self.assertEqual(out["sessions"][0]["session"], "acme-api-3f")
         self.assertEqual(out["sessions"][0]["id"], SID.format(1))
         self.assertEqual(out["sessions"][0]["repo"], "acme-api")
+
+
+def seed_session(tmp, n, runs, extra=()):
+    """A session in acme-api that runs the seed `runs` times: [(start, minutes, cd-prefixed?)]."""
+    sid = SID.format(n)
+    recs = [human("2026-03-0%dT08:00:00Z" % n, "h%d" % n, "Seed it", sid=sid)]
+    for i, (start, minutes, cd) in enumerate(runs):
+        end = (retro_moments.parse_time(start) + datetime.timedelta(minutes=minutes)).strftime("%Y-%m-%dT%H:%M:%SZ")
+        cmd = ("cd /home/acme/src/acme-api && " if cd else "") + "npm run seed -- --tenant qa"
+        recs += [tool_use(start, "s%d-u%d" % (n, i), "s%d-t%d" % (n, i), "Bash", {"command": cmd}, sid=sid),
+                 tool_result(end, "s%d-r%d" % (n, i), "s%d-t%d" % (n, i), "Seeding…\nSeeded tenant qa: 2,104,332 usage rows", sid=sid)]
+    return write(tmp, sid + ".jsonl", recs + list(extra))
+
+
+def two_sessions_with_seed_runs(tmp):
+    """5 seed runs (19.4 + 20.1 + 19.8 + 21.0 + 20.3 = 100.6 minutes) over two sessions, plus calls that
+    took long only because they waited: one the user approved, one in the background, an AskUserQuestion,
+    and one with no result yet."""
+    sid = SID.format(1)
+    waits = [
+        tool_use("2026-03-01T13:00:00Z", "w-u1", "w-t1", "Bash", {"command": "npm run migrate"}, sid=sid),
+        tool_result("2026-03-01T13:10:00Z", "w-r1", "w-t1", "done", sid=sid,
+                    permission={"decision": "accept", "source": "user_temporary"}),
+        tool_use("2026-03-01T14:00:00Z", "w-u2", "w-t2", "Bash", {"command": "npm run dev", "run_in_background": True}, sid=sid),
+        tool_result("2026-03-01T14:10:00Z", "w-r2", "w-t2", "started", sid=sid),
+        tool_use("2026-03-01T15:00:00Z", "w-u3", "w-t3", "AskUserQuestion", {"questions": [{"question": "Which tenant?"}]}, sid=sid),
+        tool_result("2026-03-01T15:06:40Z", "w-r3", "w-t3", "qa", sid=sid),
+        tool_use("2026-03-01T16:00:00Z", "w-u4", "w-t4", "Bash", {"command": "npm run e2e"}, sid=sid),
+    ]
+    first = seed_session(tmp, 1, [("2026-03-01T09:05:00Z", 19.4, True), ("2026-03-01T16:10:00Z", 20.1, False)], waits)
+    second = seed_session(tmp, 2, [("2026-03-02T09:02:00Z", 19.8, False), ("2026-03-02T14:30:00Z", 21.0, True),
+                                   ("2026-03-02T16:01:00Z", 20.3, False)])
+    return [first, second]
+
+
+class Slow(TempDir):
+    def slow(self, *paths, extra=()):
+        code, out = run("moments", *paths, *extra)
+        self.assertEqual(code, 0)
+        return [m for m in out["moments"] if m["kind"] == "slow"]
+
+    def test_a_command_run_five_times_is_one_slow_moment(self):
+        slow = self.slow(*two_sessions_with_seed_runs(self.tmp))
+        self.assertEqual(len(slow), 1)
+        self.assertEqual((slow[0]["command"], slow[0]["repo"], slow[0]["count"]), ("npm run seed -- --tenant qa", "acme-api", 5))
+        self.assertAlmostEqual(slow[0]["total_minutes"], 100.6, places=1)
+        self.assertEqual([r["minutes"] for r in slow[0]["runs"]], [19.4, 20.1, 19.8, 21.0, 20.3])
+        self.assertEqual({r["session"] for r in slow[0]["runs"]}, {SID.format(1)[:8], SID.format(2)[:8]})
+        self.assertEqual(slow[0]["excerpt"], "Seeded tenant qa: 2,104,332 usage rows")
+
+    def test_a_call_the_user_approved_isnt_slow(self):
+        commands = [m["command"] for m in self.slow(*two_sessions_with_seed_runs(self.tmp))]
+        for waited in ("npm run migrate", "npm run dev", "npm run e2e", "Which tenant?"):
+            self.assertNotIn(waited, commands)
+
+    def test_the_repo_comes_from_repo_of(self):
+        paths = two_sessions_with_seed_runs(self.tmp)
+        slow = self.slow(*paths, extra=("--repo-of", "/home/acme/src/acme-api=api"))
+        self.assertEqual(slow[0]["repo"], "api")
+
+    def test_a_long_turn_is_slow_and_a_gap_between_turns_isnt(self):
+        path = write(self.tmp, "turns.jsonl", [
+            human("2026-03-02T09:00:00Z", "t-1", "Build it"),
+            rec("system", "2026-03-02T09:40:00Z", "t-2", subtype="turn_duration", durationMs=31 * 60 * 1000),
+            rec("system", "2026-03-02T09:41:00Z", "t-3", subtype="turn_duration", durationMs=29 * 60 * 1000),
+            human("2026-03-02T13:00:00Z", "t-4", "Next slice please"),
+            rec("system", "2026-03-02T13:05:00Z", "t-5", subtype="turn_duration", durationMs=5 * 60 * 1000),
+        ])
+        slow = self.slow(path)
+        self.assertEqual([(m["kind_of"], m["command"], m["total_minutes"], m["runs"][0]["id"]) for m in slow],
+                         [("turn", None, 31.0, "t-2")])
+
+
+class Totals(TempDir):
+    def test_totals_per_session(self):
+        sid = SID.format(1)
+        path = write(self.tmp, "t.jsonl", [
+            human("2026-03-02T09:00:00Z", "a", "Go"),
+            rec("user", "2026-03-02T09:01:00Z", "b", origin={"kind": "peer", "msg_id": "m"},
+                message={"role": "user", "content": "run-slice: next"}),
+            rec("user", "2026-03-02T09:02:00Z", "c", origin={"kind": "task-notification"},
+                message={"role": "user", "content": "<task-notification>done</task-notification>"}),
+            rec("user", "2026-03-02T09:02:30Z", "m", isMeta=True, message={"role": "user", "content": "<system-reminder>x"}),
+            tool_use("2026-03-02T09:03:00Z", "d", "t1", "Bash", {"command": "npm test"}),
+            tool_result("2026-03-02T09:03:10Z", "e", "t1", "FAIL", error=True),
+            tool_use("2026-03-02T09:04:00Z", "f", "t2", "Read", {"file_path": "/home/acme/src/acme-api/a.ts"}),
+            tool_result("2026-03-02T09:04:01Z", "g", "t2", "…"),
+            tool_use("2026-03-02T09:05:00Z", "h", "t3", "Bash", {"command": "npm test"}),
+            tool_result("2026-03-02T09:05:10Z", "i", "t3", "ok"),
+            rec("assistant", "2026-03-02T09:30:00Z", "j", isApiErrorMessage=True, apiErrorStatus=500,
+                message={"role": "assistant", "content": [{"type": "text", "text": "API Error: 500"}]}),
+        ])
+        code, out = run("moments", path)
+        self.assertEqual(out["sessions"][0]["id"], sid)
+        self.assertEqual(out["sessions"][0]["totals"],
+                         {"turns": 3, "tool_calls": {"Bash": 2, "Read": 1}, "errors": 2, "minutes": 30.0})
+
+
+class Window(TempDir):
+    def test_records_outside_the_window_are_left_out(self):
+        paths = two_sessions_with_seed_runs(self.tmp)
+        code, out = run("moments", *paths, "--since", "2026-03-02T00:00:00Z", "--until", "2026-03-02T15:00:00Z")
+        self.assertEqual(out["window"], ["2026-03-02T00:00:00Z", "2026-03-02T15:00:00Z"])
+        slow = [m for m in out["moments"] if m["kind"] == "slow"]
+        self.assertEqual([r["minutes"] for r in slow[0]["runs"]], [19.8, 21.0])
+        self.assertEqual(slow[0]["count"], 2)
+        first = out["sessions"][0]["totals"]
+        self.assertEqual((first["turns"], first["tool_calls"], first["minutes"]), (0, {}, 0))
+        second = out["sessions"][1]["totals"]
+        self.assertEqual((second["turns"], second["tool_calls"]), (1, {"Bash": 2}))
+
+    def test_a_moment_outside_the_window_is_left_out(self):
+        code, out = run("moments", kind_fixture("correction"), "--until", "2026-03-02T10:00:00Z")
+        self.assertEqual(out["moments"], [])
 
 
 if __name__ == "__main__":
