@@ -17,7 +17,7 @@ For now the retro covers one session: this one, or one the user names. It reads 
 - **The retro never runs a check itself.** A hypothesis's check is run by the user or a repo session, or ticketed.
 - **Every finding has evidence.** A finding whose problem isn't in the script's output, the transcript or the tracker isn't reported, however likely it seems.
 - **Quotes come only from the script's output,** which is already redacted. Never paste text from the transcript into a finding, a ticket or a handoff; cite the moment's session and time instead.
-- **The retro never edits the team config.** An accepted config change is shown for the user to make.
+- **The retro never edits the team config or a permission settings file.** An accepted config change or permission rule is shown for the user to make.
 
 ## 1. Find the transcript
 
@@ -47,7 +47,7 @@ A `correction` moment is only a candidate: the script marks each message the use
 A `refusal` moment is a tool call that didn't run; its `how` says who stopped it:
 
 - **`user-rejected`:** the user said no at a permission prompt. That's the user's judgment, like a correction: the agent tried something they didn't want. The prompt's own "[Request interrupted by user for tool use]" isn't counted again.
-- **`automode-blocked`** or **`automode-unavailable`:** auto mode stopped the call, not the user. Nobody said no to that call: it points at what the session was allowed to do (its permissions, or a roost skill asking for something auto mode blocks), not at the user's view of the work. An interruption after it is a real correction.
+- **`automode-blocked`** or **`automode-unavailable`:** auto mode stopped the call, not the user. Nobody said no to that call: it points at what the session was allowed to do, not at the user's view of the work, so its finding is in the **Permissions and auto mode** area of `references/finding-areas.md` (or **roost itself**, when a roost skill asked for the blocked action). An interruption after it is a real correction.
 
 ## 4. Write the findings
 
@@ -65,7 +65,7 @@ Show one ranked list, most severe first:
 
 - **Severity:** High, Medium or Low.
 - **Recommendation:** starts `Checked:` with its evidence, or `Hypothesis:` with the check, who can run it and how long it takes against what the problem costs.
-- **Where:** `Team config` (and the key), a repo's name, or `roost`.
+- **Where:** `Team config` (and the key), a repo's name, `Permissions` (the settings file and the tool), or `roost`.
 
 End with: "Decide each by number: a Checked finding takes yes or no; a Hypothesis takes check now, ticket the check, or skip." Then stop and wait.
 
@@ -76,6 +76,7 @@ A "yes" on a Hypothesis isn't one of its choices: ask again which of the three i
 Only after the user decides, and only for what they accepted:
 
 - **A team config change:** show the key and its new text for the user to make. Don't edit the config.
+- **A permission rule:** name the settings file and the tool, with the moment's session and time, for the user to write the allow rule. Don't copy the command from the transcript, and don't edit any settings file.
 - **A change in a repo:** a ticket for that repo with a `cross-repo-handoff` prompt that its session can act on.
 - **A change to roost:** list it in the report for the user, with its evidence. Don't draft or file a roost issue: roost's tracker is public, and the retro doesn't yet swap the team's names for example names or check a draft for private details.
 - **A hypothesis, "check now":** give the user the check's steps (or what to tell the repo session), wait for the result, then mark the finding Checked or drop it.
