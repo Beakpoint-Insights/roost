@@ -1,0 +1,33 @@
+skills/retro/scripts/retro_moments.py
+  s_317ca7d8caddc7::t_418006f641379d 207,212-215,222,224,230-231,524-526,528,530-532
+  s_317ca7d8caddc7::t_f65f10d824ce35 232-233,237-241,244-252,254-265,299,352-353,847
+  s_317ca7d8caddc7::t_d7e68622969d6f 269-273,279,756-757,765-771,913-918
+  s_317ca7d8caddc7::t_c5486b1d46ee45 310,322-329,517,846,853
+scripts/retro-moments.test.py
+  s_317ca7d8caddc7::t_4319599385a9f4 389,392
+  s_317ca7d8caddc7::t_a1b9f736695272 651,659-660,665-672,679,681-683,686,689-691,693,778,797,799
+  s_317ca7d8caddc7::t_55714899bb842f 154,399-400,851
+  s_317ca7d8caddc7::t_e761b778459109 388,391,394,396-398,401,409-412
+  s_317ca7d8caddc7::t_8b38de1795fa80 695-703,705-712
+  s_317ca7d8caddc7::t_f65f10d824ce35 704
+  s_317ca7d8caddc7::t_51fd37995d7d5b 31-32,34
+  s_317ca7d8caddc7::t_8a32558a4f0d6b 416
+  s_317ca7d8caddc7::t_578743f7478dd3 757-777
+  s_317ca7d8caddc7::t_c5486b1d46ee45 787-791,794-795
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9bd419940dd7417c2a6a75fa5db95f171a36c539",
+  "prompts": {},
+  "sessions": {
+    "s_317ca7d8caddc7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "42bf6ed7-c0ea-476a-a622-d52d0b8672e1",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Alan Cox <acox@beakpointinsights.com>"
+    }
+  }
+}
