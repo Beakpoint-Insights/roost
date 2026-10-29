@@ -343,6 +343,16 @@ class Slow(TempDir):
         self.assertEqual(sorted((m["command"], m["count"]) for m in slow),
                          [("cd backend && npm run build", 1), ("cd frontend && npm run build", 2)])
 
+    def test_cd_folders_are_normalised_before_grouping(self):
+        recs = [human("2026-03-02T09:00:00Z", "h", "Build")]
+        cds = ["cd ./frontend", "cd frontend", "cd frontend/", 'cd "frontend"', "cd /home/acme/src/acme-api/frontend"]
+        for i, cd in enumerate(cds):
+            recs += [tool_use("2026-03-02T1%d:00:00Z" % i, "u%d" % i, "t%d" % i, "Bash", {"command": cd + " && npm run build"}),
+                     tool_result("2026-03-02T1%d:05:00Z" % i, "r%d" % i, "t%d" % i, "built")]
+        slow = self.slow(write(self.tmp, "cds.jsonl", recs))
+        self.assertEqual([(m["command"], m["count"]) for m in slow], [("cd frontend && npm run build", 5)])
+        self.assertEqual(retro_moments.normalise("cd ~/src/acme-api && npm test", "~/src/acme-api"), "npm test")
+
     def test_the_repo_comes_from_repo_of(self):
         paths = two_sessions_with_seed_runs(self.tmp)
         slow = self.slow(*paths, extra=("--repo-of", "/home/acme/src/acme-api=api"))
