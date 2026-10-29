@@ -306,6 +306,19 @@ class Kinds(TempDir):
         self.assertLessEqual(len(excerpt), retro_moments.EXCERPT)
         self.assertTrue(excerpt.startswith("no, use date-fns x"))
 
+    def test_the_session_name_is_worked_out_once(self):
+        path = write(self.tmp, "once.jsonl", [human("2026-03-02T09:00:00Z", "a", "Go")]
+                     + [human("2026-03-02T09:%02d:00Z" % i, "c%d" % i, "no") for i in range(1, 6)])
+        calls = []
+        real = retro_moments.redact_path
+        retro_moments.redact_path = lambda *a: calls.append(a) or real(*a)
+        try:
+            out = self.output(path)
+        finally:
+            retro_moments.redact_path = real
+        self.assertEqual(len(out["moments"]), 5)
+        self.assertEqual(len(calls), 2)  # the name once, and the session's path
+
     def test_the_session_is_named_by_its_title(self):
         path = write(self.tmp, "named.jsonl", [
             {"type": "custom-title", "customTitle": "acme-api-3f", "sessionId": SID.format(1)},
