@@ -225,8 +225,9 @@ class Session:
 
     @property
     def name(self):
-        """The session's title, redacted like any quote, or the start of its id."""
-        fallback = (self.id or os.path.basename(self.path))[:8]
+        """The session's title, redacted like any quote, or the start of its id (or of its file's name,
+        redacted like a path)."""
+        fallback = redact_path((self.id or os.path.basename(self.path))[:8], getattr(self.opts, "private", []))
         if not self.title:
             return fallback
         title, _ = redact(self.title, getattr(self.opts, "private", []))
@@ -673,6 +674,17 @@ def redact(text, private):
     return (None, why) if why else (text, None)
 
 
+def redact_path(path, private):
+    """A transcript's path, redacted like a quote, one folder at a time: its project folder's name is the
+    session's cwd, with every character but a letter or digit written as -, so each configured value is
+    looked for that way too (acme.example.com as acme-example-com). A folder that can't be cleaned (a
+    random temporary folder's name) is withheld alone."""
+    private = list(private) + [(re.sub(r"[^A-Za-z0-9]", "-", v), label) for v, label in private
+                               if re.search(r"[^A-Za-z0-9]", v)]
+    private.sort(key=lambda kv: -len(kv[0]))
+    return "/".join(redact(part, private)[0] or "[withheld]" if part else part for part in path.split("/"))
+
+
 def redact_moments(found, private):
     summary_ = {"redacted": 0, "dropped": []}
     for m in found:
@@ -705,8 +717,9 @@ def moments(opts):
         try:
             s.read()
         except OSError as e:  # one unreadable transcript doesn't stop the others
-            unreadable.append({"session": s.name, "path": path,
-                               "reason": "can't read the file: %s" % (e.strerror or e)})
+            # by its short id only: a title is in the file. The reason never carries the path.
+            unreadable.append({"session": s.name, "path": redact_path(path, opts.private),
+                               "reason": "can't read the file: %s" % (e.strerror or type(e).__name__)})
             continue
         sessions.append(s)
     out_moments, slow, turn_slow, unknown_types = [], [], [], {}
@@ -730,7 +743,7 @@ def moments(opts):
     out_moments.sort(key=lambda m: time_key(m["time"]))
     return {
         "window": [opts.since, opts.until],
-        "sessions": [{"session": s.name, "id": s.id, "path": s.path, "repo": repo_of(s.cwd, opts.repo_map),
+        "sessions": [{"session": s.name, "id": s.id, "path": redact_path(s.path, opts.private), "repo": repo_of(s.cwd, opts.repo_map),
                       "totals": s.totals} for s in sessions],
         "moments": slow_moments + out_moments,
         "unreadable": unreadable,
