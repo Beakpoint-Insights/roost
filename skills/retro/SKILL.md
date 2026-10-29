@@ -42,7 +42,12 @@ It prints one JSON object: `moments` (each with its kind, session, time, record 
 
 Read every moment and the totals. Open the transcript around a moment only when the excerpt isn't enough to say what happened, and quote only the script's excerpt.
 
-A `correction` moment is only a candidate: the script marks every message the user typed after the first. A go-ahead or an approval ("yes", "proceed", "merged", "looks good") isn't a correction, and nor is the user's answer to a question the agent asked. Only a message that changes or rejects what the agent did ("we don't use moment here", "that's the wrong repo") can back a finding. The user interrupting the agent (`[Request interrupted by user`) is a real correction too: they stopped what it was doing. Rejecting a permission prompt also writes an interruption; the script counts that once, as the `refusal`.
+A `correction` moment is only a candidate: the script marks each message the user typed after their first, except the interruption a rejected permission prompt writes. A go-ahead or an approval ("yes", "proceed", "merged", "looks good") isn't a correction, and nor is the user's answer to a question the agent asked. Only a message that changes or rejects what the agent did ("we don't use moment here", "that's the wrong repo") can back a finding. The user interrupting the agent (`[Request interrupted by user`) is a real correction too: they stopped what it was doing.
+
+A `refusal` moment is a tool call that didn't run; its `how` says who stopped it:
+
+- **`user-rejected`:** the user said no at a permission prompt. That's the user's judgment, like a correction: the agent tried something they didn't want. The prompt's own "[Request interrupted by user for tool use]" isn't counted again.
+- **`automode-blocked`** or **`automode-unavailable`:** auto mode stopped the call, not the user. Nobody said no to that call: it points at what the session was allowed to do (its permissions, or a roost skill asking for something auto mode blocks), not at the user's view of the work. An interruption after it is a real correction.
 
 ## 4. Write the findings
 
