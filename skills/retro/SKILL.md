@@ -68,7 +68,7 @@ Only after the user decides, and only for what they accepted:
 
 - **A team config change:** show the key and its new text for the user to make. Don't edit the config.
 - **A change in a repo:** a ticket for that repo with a `cross-repo-handoff` prompt that its session can act on.
-- **A change to roost:** a roost issue, drafted and shown to the user first.
+- **A change to roost:** list it in the report for the user, with its evidence. Don't draft or file a roost issue: roost's tracker is public, and the retro doesn't yet swap the team's names for example names or check a draft for private details.
 - **A hypothesis, "check now":** give the user the check's steps (or what to tell the repo session), wait for the result, then mark the finding Checked or drop it.
 - **A hypothesis, "ticket the check":** ticket the check, not the change. A check a repo session can run is a ticket for that repo, with a `cross-repo-handoff` prompt. A check only the user can run is a person-owned task (labelled `tracker.person_task_label`, default `person-owned`) for the user, with its steps and the result that confirms or refutes the hypothesis. The change waits for that result.
 - **Skipped or rejected:** nothing is filed.
