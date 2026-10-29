@@ -353,6 +353,17 @@ class Slow(TempDir):
         self.assertEqual([(m["command"], m["count"]) for m in slow], [("cd frontend && npm run build", 5)])
         self.assertEqual(retro_moments.normalise("cd ~/src/acme-api && npm test", "~/src/acme-api"), "npm test")
 
+    def test_a_tilde_is_left_as_written(self):
+        recs = [human("2026-03-02T09:00:00Z", "h", "Build")]
+        for i in range(2):
+            use = tool_use("2026-03-02T1%d:00:00Z" % i, "u%d" % i, "t%d" % i, "Bash", {"command": "cd ~/acme-web && npm run build"})
+            del use["cwd"]
+            recs += [use, tool_result("2026-03-02T1%d:05:00Z" % i, "r%d" % i, "t%d" % i, "built")]
+        slow = self.slow(write(self.tmp, "tilde.jsonl", recs))
+        self.assertEqual([m["command"] for m in slow], ["cd ~/acme-web && npm run build"])
+        self.assertNotIn(os.path.expanduser("~"), json.dumps(slow))
+        self.assertEqual(retro_moments.normalise("cd ~ && ls"), "cd ~ && ls")
+
     def test_the_repo_comes_from_repo_of(self):
         paths = two_sessions_with_seed_runs(self.tmp)
         slow = self.slow(*paths, extra=("--repo-of", "/home/acme/src/acme-api=api"))
