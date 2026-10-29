@@ -1,0 +1,24 @@
+scripts/retro-moments.test.py
+  s_317ca7d8caddc7::t_98a8643ca130f3 13,628-673
+  s_317ca7d8caddc7::t_800bdf18155014 404,415,418-419
+  s_317ca7d8caddc7::t_74f0413fb8bb1a 572,586,725
+  s_317ca7d8caddc7::t_db8852769a9fc1 674-675
+skills/retro/scripts/retro_moments.py
+  s_317ca7d8caddc7::t_800bdf18155014 205-206,210-228,458,464,466,700-704,744,769,826
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "78a13bbd0c0e01bb28f53bfb2d8b4f719be9e4a0",
+  "prompts": {},
+  "sessions": {
+    "s_317ca7d8caddc7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "42bf6ed7-c0ea-476a-a622-d52d0b8672e1",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Alan Cox <acox@beakpointinsights.com>"
+    }
+  }
+}
