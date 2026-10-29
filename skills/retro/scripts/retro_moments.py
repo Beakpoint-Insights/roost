@@ -456,25 +456,32 @@ class Session:
 
 def normalise(command, cwd=None):
     """The command with whitespace collapsed, and a leading `cd <dir> && ` dropped when it goes to the
-    call's own working directory. A cd elsewhere stays: an absolute folder (or one under ~) as written,
-    so the same folder is one step whatever the call's cwd; a relative one resolved against the call's
-    cwd and written relative to it (./, a trailing / and quotes normalised), so `cd ./frontend` and
-    `cd frontend` are one step and `cd frontend` and `cd backend` are two. A ~ is never expanded: it
-    would be the home folder of whoever runs the retro, not the session's, and would print their
-    username. Home folders are taken out of the whole output by without_homes()."""
+    call's own working directory. Any other cd stays, its folder resolved to a full path against the
+    call's cwd (an absolute one as it is; ~ against the cwd's home folder, when the cwd is under one) and
+    its home folder written as [home], so one folder is one step however it was written and from
+    wherever, and two folders are two steps. A ~ is never expanded to the home folder of whoever runs
+    the retro. With no cwd, or a ~ and no home in the cwd, the folder is only normalised (./, a trailing
+    / and quotes)."""
     command = re.sub(r"\s+", " ", command.strip())
     m = re.match(r"""^cd ("[^"]+"|'[^']+'|\S+) && (.*)$""", command)
     if not m:
         return command
-    folder = unquote(m.group(1))
+    folder, rest = unquote(m.group(1)), m.group(2)
     base = os.path.normpath(cwd) if cwd else None
-    if folder.startswith("/") or folder == "~" or folder.startswith("~/") or base is None:
-        target = os.path.normpath(folder)
-        return m.group(2) if target == base else "cd %s && %s" % (target, m.group(2))
-    target = os.path.normpath(os.path.join(base, folder))
+    home = HOME_PATH.search(base) if base else None
+    if folder == "~" or folder.startswith("~/"):
+        if home is None:
+            target = os.path.normpath(folder)
+            return rest if target == base else "cd %s && %s" % (target, rest)
+        folder = base[:home.end()] + folder[1:]
+    if not folder.startswith("/"):
+        if base is None:
+            return "cd %s && %s" % (os.path.normpath(folder), rest)
+        folder = os.path.join(base, folder)
+    target = os.path.normpath(folder)
     if target == base:
-        return m.group(2)
-    return "cd %s && %s" % (os.path.relpath(target, base), m.group(2))
+        return rest
+    return "cd %s && %s" % (without_homes(target), rest)
 
 
 def is_search(call):

@@ -391,7 +391,7 @@ class Slow(TempDir):
                      tool_result("2026-03-02T1%d:05:00Z" % i, "r%d" % i, "t%d" % i, "built")]
         slow = self.slow(write(self.tmp, "mono.jsonl", recs))
         self.assertEqual(sorted((m["command"], m["count"]) for m in slow),
-                         [("cd backend && npm run build", 1), ("cd frontend && npm run build", 2)])
+                         [("cd [home]/src/acme-api/backend && npm run build", 1), ("cd [home]/src/acme-api/frontend && npm run build", 2)])
 
     def test_cd_folders_are_normalised_before_grouping(self):
         recs = [human("2026-03-02T09:00:00Z", "h", "Build")]
@@ -400,9 +400,33 @@ class Slow(TempDir):
             recs += [tool_use("2026-03-02T1%d:00:00Z" % i, "u%d" % i, "t%d" % i, "Bash", {"command": cd + " && npm run build"}),
                      tool_result("2026-03-02T1%d:05:00Z" % i, "r%d" % i, "t%d" % i, "built")]
         slow = self.slow(write(self.tmp, "cds.jsonl", recs))
-        self.assertEqual([(m["command"], m["count"]) for m in slow],  # an absolute folder stays absolute
-                         [("cd frontend && npm run build", 4), ("cd [home]/src/acme-api/frontend && npm run build", 1)])
+        self.assertEqual([(m["command"], m["count"]) for m in slow],  # one folder, written five ways
+                         [("cd [home]/src/acme-api/frontend && npm run build", 5)])
         self.assertEqual(retro_moments.normalise("cd ~/src/acme-api && npm test", "~/src/acme-api"), "npm test")
+
+    def test_a_cd_folder_is_grouped_by_its_full_path(self):
+        def slow_of(calls):
+            recs = [human("2026-03-02T09:00:00Z", "h", "Build")]
+            for i, (cwd, command) in enumerate(calls):
+                recs += [tool_use("2026-03-02T1%d:00:00Z" % i, "u%d" % i, "t%d" % i, "Bash", {"command": command}, cwd=cwd),
+                         tool_result("2026-03-02T1%d:05:00Z" % i, "r%d" % i, "t%d" % i, "built", cwd=cwd)]
+            return sorted((m["command"], m["count"]) for m in
+                          self.slow(write(self.tmp, "full.jsonl", recs), extra=("--repo-of", "/home/acme/src/acme-api=api")))
+        self.assertEqual(slow_of([("/home/acme/src/acme-api", "cd frontend && make"),
+                                  ("/home/acme/src/acme-api/web", "cd frontend && make")]),
+                         [("cd [home]/src/acme-api/frontend && make", 1), ("cd [home]/src/acme-api/web/frontend && make", 1)])
+        self.assertEqual(slow_of([("/home/acme/src/acme-api", "cd /home/acme/src/acme-api/frontend && make"),
+                                  ("/home/acme/src/acme-api", "cd frontend && make")]),
+                         [("cd [home]/src/acme-api/frontend && make", 2)])
+
+    def test_a_cd_is_dropped_only_when_it_goes_to_the_cwd(self):
+        n = retro_moments.normalise
+        self.assertEqual(n("cd ~/src/acme-api && make", "/home/acme/src/acme-api"), "make")
+        self.assertEqual(n("cd ~/src/acme-web && make", "/home/acme/src/acme-api"), "cd [home]/src/acme-web && make")
+        self.assertEqual(n("cd /Users/bob/src/x && make", "/Users/alice/src/x"), "cd [home]/src/x && make")
+        self.assertEqual(n("cd ~/x && make", "/srv/app"), "cd ~/x && make")  # no home to resolve it against
+        self.assertEqual(n("cd ~/src/x && make", "/mnt/c/Users/acme/src/x"), "make")  # a home under WSL's /mnt/c
+        self.assertEqual(n("cd frontend && make"), "cd frontend && make")
 
     def test_an_absolute_cd_from_two_folders_is_one_slow_step(self):
         recs = [human("2026-03-02T09:00:00Z", "h", "Build")]
