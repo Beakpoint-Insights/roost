@@ -48,7 +48,7 @@ A `correction` moment is only a candidate: the script marks every message the us
 
 Use `references/finding-areas.md`: each finding names its area, which decides where the fix goes, and has what happened, its evidence (the moment's excerpt, session and time), what skipping it costs with a concrete case, a recommendation marked **Checked** or **Hypothesis**, and where the change goes. Rank them there too.
 
-- A mechanical mistake is a check (a lint rule, a hook or a CI job in the repo); a review miss is a review rule (the repo's `review_focus` or its coding standards). Neither is only a line in `CLAUDE.md` or `AGENTS.md`.
+- A mechanical mistake is a check (a lint rule, a hook or a CI job in the repo); a review miss is a review rule (the repo's `review_focus`, keeping `planning.review_focus` in it, since a repo's own replaces it; or its coding standards). Neither is only a line in `CLAUDE.md` or `AGENTS.md`.
 - A slow step is one finding with its count and total, never one per run. A skip or a speed-up you can't prove from what you've read is a Hypothesis that names its check, who can run it and how long it takes.
 
 ## 5. The checkpoint
