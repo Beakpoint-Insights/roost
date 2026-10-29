@@ -460,6 +460,29 @@ class Totals(TempDir):
         self.assertEqual(out["sessions"][0]["totals"],
                          {"turns": 3, "tool_calls": {"Bash": 2, "Read": 1}, "errors": 2, "minutes": 30.0})
 
+    def test_the_interruption_after_a_rejected_prompt_isnt_a_turn(self):
+        path = write(self.tmp, "rt.jsonl", [human("2026-03-02T09:00:00Z", "a", "Go"),
+            tool_use("2026-03-02T09:01:00Z", "b", "t1", "Bash", {"command": "rm -rf build"}),
+            tool_result("2026-03-02T09:01:01Z", "c", "t1", "rejected", error=True, toolDenialKind="user-rejected"),
+            rec("user", "2026-03-02T09:01:02Z", "d", message={"role": "user", "content": [
+                {"type": "text", "text": "[Request interrupted by user for tool use]"}]}),
+            human("2026-03-02T09:02:00Z", "e", "use git clean instead")])
+        code, out = run("moments", path)
+        self.assertEqual(out["sessions"][0]["totals"]["turns"], 2)
+
+    def test_the_interruption_after_a_rejected_prompt_doesnt_answer_a_question(self):
+        path = write(self.tmp, "rq.jsonl", [human("2026-03-02T09:00:00Z", "a", "Go"),
+            rec("assistant", "2026-03-02T09:01:00Z", "b", message={"role": "assistant", "content": [
+                {"type": "text", "text": "Shall I clean the build folder?"},
+                {"type": "tool_use", "id": "t1", "name": "Bash", "input": {"command": "rm -rf build"}}]}),
+            tool_result("2026-03-02T09:01:01Z", "c", "t1", "rejected", error=True, toolDenialKind="user-rejected"),
+            rec("user", "2026-03-02T09:01:02Z", "d", message={"role": "user", "content": [
+                {"type": "text", "text": "[Request interrupted by user for tool use]"}]}),
+            human("2026-03-02T09:11:02Z", "e", "keep the build folder")])
+        code, out = run("moments", path)
+        self.assertEqual([(m["kind"], m["id"], m.get("waited_minutes")) for m in out["moments"]],
+                         [("stop", "b", 10.0), ("refusal", "c", None), ("correction", "e", None)])
+
     def test_a_refusal_isnt_counted_as_an_error(self):
         path = write(self.tmp, "r.jsonl", [human("2026-03-02T09:00:00Z", "a", "Go"),
             tool_use("2026-03-02T09:01:00Z", "b", "t1", "Bash", {"command": "rm -rf build"}),
