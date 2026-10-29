@@ -645,6 +645,13 @@ class Redaction(TempDir):
         self.assertEqual(out["sessions"][0]["session"], "Fix login for [email]")
         self.assertEqual(out["moments"][0]["session"], "Fix login for [email]")
 
+    def test_config_values_are_replaced_as_whole_words(self):
+        config = os.path.join(self.tmp, "words.yml")
+        with open(config, "w") as f:
+            f.write("stack:\n  database:\n    host: postgres\n")
+        out = self.redacted("run postgres, not postgresql or mypostgres", ("--config", config))
+        self.assertEqual(out, "run [config: database.host], not postgresql or mypostgres")
+
     def test_file_names_ids_and_shas_are_kept(self):
         for text in ("Read src/components/UsageTableReport2024Final.tsx",
                      "session 7d3f2a11-5b6c-4e8d-9f01-23456789abce/subagents",
