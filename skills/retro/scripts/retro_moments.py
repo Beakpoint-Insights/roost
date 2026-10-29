@@ -416,13 +416,21 @@ class Session:
 
 def normalise(command, cwd=None):
     """The command with whitespace collapsed, and a leading `cd <dir> && ` dropped when it goes to the
-    call's own working directory; a cd elsewhere stays, so `cd frontend && npm run build` and
-    `cd backend && npm run build` are two steps."""
+    call's own working directory. A cd elsewhere stays, written relative to the working directory
+    (./, a trailing /, quotes and ~ normalised), so `cd ./frontend` and `cd frontend` are one step and
+    `cd frontend` and `cd backend` are two."""
     command = re.sub(r"\s+", " ", command.strip())
-    m = re.match(r"^cd (\S+) && (.*)$", command)
-    if m and cwd and os.path.normpath(os.path.join(cwd, m.group(1))) == os.path.normpath(cwd):
+    m = re.match(r"""^cd ("[^"]+"|'[^']+'|\S+) && (.*)$""", command)
+    if not m:
+        return command
+    folder = os.path.expanduser(unquote(m.group(1)))
+    if not cwd:
+        return "cd %s && %s" % (os.path.normpath(folder), m.group(2))
+    base = os.path.normpath(os.path.expanduser(cwd))
+    target = os.path.normpath(os.path.join(base, folder))
+    if target == base:
         return m.group(2)
-    return command
+    return "cd %s && %s" % (os.path.relpath(target, base), m.group(2))
 
 
 def is_search(call):
