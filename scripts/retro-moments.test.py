@@ -537,6 +537,38 @@ class Unparseable(unittest.TestCase):
         self.assertEqual((out["unreadable"][0]["session"], out["unreadable"][0]["path"]), (SID.format(9)[:8], missing))
         self.assertTrue(out["unreadable"][0]["reason"].startswith("can't read the file"))
 
+    def test_an_unreadable_path_is_redacted(self):
+        tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp)
+        config = os.path.join(tmp, "c.yml")
+        with open(config, "w") as f:
+            f.write("stack:\n  database:\n    host: acmedb\n")
+        folder = os.path.join(tmp, "-home-acme-src-acmedb")
+        os.makedirs(folder)
+        missing = os.path.join(folder, SID.format(9) + ".jsonl")
+        code, out = run("moments", missing, "--config", config)
+        self.assertNotIn("acmedb", json.dumps(out))
+        self.assertTrue(out["unreadable"][0]["path"].endswith("-home-acme-src-[config: database.host]/" + SID.format(9) + ".jsonl"))
+        self.assertEqual(out["unreadable"][0]["session"], SID.format(9)[:8])
+        readable = write(folder, SID.format(8) + ".jsonl", [human("2026-03-02T09:00:00Z", "a", "Go")])
+        code, out = run("moments", readable, "--config", config)
+        self.assertNotIn("acmedb", json.dumps(out))  # a session's path is redacted the same way
+
+    def test_a_project_folder_and_a_short_name_are_redacted(self):
+        tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp)
+        config = os.path.join(tmp, "c.yml")
+        with open(config, "w") as f:
+            f.write("web:\n  domain: acme.example.com\n  db_host: acmedb\n")
+        folder = os.path.join(tmp, "-home-acme-src-acme-example-com")  # the folder name writes . as -
+        os.makedirs(folder)
+        readable = write(folder, "acmedb-notes.jsonl", [human("2026-03-02T09:00:00Z", "a", "Go")])
+        missing = os.path.join(folder, "acmedb-gone.jsonl")
+        code, out = run("moments", readable, missing, "--config", config)
+        text = json.dumps(out)
+        for value in ("acme-example-com", "acme.example.com", "acmedb"):
+            self.assertNotIn(value, text)
+
     def test_fixtures_are_synthetic(self):
         """No real transcript is committed: every fixture record has a made-up session and an Acme cwd."""
         checked = 0
