@@ -418,16 +418,20 @@ class Session:
 def normalise(command, cwd=None):
     """The command with whitespace collapsed, and a leading `cd <dir> && ` dropped when it goes to the
     call's own working directory. A cd elsewhere stays, written relative to the working directory
-    (./, a trailing /, quotes and ~ normalised), so `cd ./frontend` and `cd frontend` are one step and
-    `cd frontend` and `cd backend` are two."""
+    (./, a trailing / and quotes normalised), so `cd ./frontend` and `cd frontend` are one step and
+    `cd frontend` and `cd backend` are two. A ~ is never expanded: it would be the home folder of
+    whoever runs the retro, not the session's, and would print their username."""
     command = re.sub(r"\s+", " ", command.strip())
     m = re.match(r"""^cd ("[^"]+"|'[^']+'|\S+) && (.*)$""", command)
     if not m:
         return command
-    folder = os.path.expanduser(unquote(m.group(1)))
+    folder = unquote(m.group(1))
     if not cwd:
         return "cd %s && %s" % (os.path.normpath(folder), m.group(2))
-    base = os.path.normpath(os.path.expanduser(cwd))
+    base = os.path.normpath(cwd)
+    if folder == "~" or folder.startswith("~/"):
+        target = os.path.normpath(folder)
+        return m.group(2) if target == base else "cd %s && %s" % (target, m.group(2))
     target = os.path.normpath(os.path.join(base, folder))
     if target == base:
         return m.group(2)
