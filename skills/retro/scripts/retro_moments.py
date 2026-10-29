@@ -179,6 +179,9 @@ class Session:
         self.unknown_types = {}
         self.unknown_shapes = {"hook": [], "delivery": []}
         self.breaks = set()     # positions in calls where a human or peer message came in
+        self.turns = []         # turns at least TURN_MINUTES long
+        self.totals = {"turns": 0, "tool_calls": {}, "errors": 0, "minutes": 0}
+        self.first = self.last = None   # first and last timestamped record in the window
 
     @property
     def name(self):
@@ -205,6 +208,11 @@ class Session:
                 self.title = rec["agentName"]
             self.id = self.id or rec.get("sessionId")
             self.cwd = self.cwd or rec.get("cwd")
+            self.count(rec)
+            if (kind == "system" and rec.get("subtype") == "turn_duration"
+                    and (rec.get("durationMs") or 0) >= TURN_MINUTES * 60000):
+                self.turns.append({"session": None, "time": rec.get("timestamp"), "id": rec.get("uuid"),
+                                   "minutes": round(rec["durationMs"] / 60000, 1)})
             if kind == "system" and rec.get("subtype") == "stop_hook_summary" and rec.get("preventedContinuation"):
                 self.unknown_shapes["hook"].append({"session": None, "line": n, "id": rec.get("uuid")})
             if kind == "assistant":
@@ -226,6 +234,27 @@ class Session:
                 if rec.get("usageLimitNote"):
                     self.events.append(self.moment("blocked", rec, why="usage_limit", excerpt=plain_text(rec)))
                 self.read_results(rec, n, pending)
+
+    def count(self, rec):
+        """Adds a record to the session's totals, if it's in the window."""
+        t = rec.get("timestamp")
+        if t is None or not self.opts.inside(t):
+            return
+        self.first = self.first or t
+        self.last = t
+        totals = self.totals
+        origin = (rec.get("origin") or {}).get("kind")
+        if rec.get("type") == "user":
+            if human_text(rec) is not None or origin in ("peer", "task-notification"):
+                totals["turns"] += 1
+            totals["errors"] += sum(1 for b in blocks(rec) if b.get("type") == "tool_result" and b.get("is_error"))
+        elif rec.get("type") == "assistant":
+            if rec.get("isApiErrorMessage"):
+                totals["errors"] += 1
+            for b in blocks(rec):
+                if b.get("type") == "tool_use":
+                    totals["tool_calls"][b.get("name")] = totals["tool_calls"].get(b.get("name"), 0) + 1
+        totals["minutes"] = minutes_between(self.first, self.last) or 0
 
     def read_assistant(self, rec, pending):
         if rec.get("isApiErrorMessage"):
@@ -318,6 +347,11 @@ class Session:
             seconds = seconds_between(start, end)
             if seconds is None or seconds < SLOW_SECONDS or call["name"] in USER_WAIT_TOOLS:
                 continue
+            # waits on the user aren't slow steps: a call the user approved, or one left running
+            if str((call["result"]["rec"].get("permissionDecision") or {}).get("source", "")).startswith("user"):
+                continue
+            if call["input"].get("run_in_background"):
+                continue
             command = normalise(summary(call["name"], call["input"]))
             repo = repo_of(call["rec"].get("cwd"), self.opts.repo_map)
             out.append(((command, repo), {"session": self.name, "time": start, "id": call["rec"].get("uuid"),
@@ -351,6 +385,11 @@ def group_slow(runs):
                     "count": len(group), "total_minutes": round(sum(r["minutes"] for r in group), 1),
                     "excerpt": last})
     return out
+
+
+def turn_moments(turns, repo):
+    return [{"kind": "slow", "kind_of": "turn", "command": None, "repo": repo, "runs": [t], "count": 1,
+             "total_minutes": t["minutes"], "excerpt": "one turn of %s minutes" % t["minutes"]} for t in turns]
 
 
 def subagent_count(paths):
@@ -398,28 +437,31 @@ def moments(opts):
         s = Session(path, opts)
         s.read()
         sessions.append(s)
-    out_moments, slow, unparseable, unknown_types = [], [], [], {}
+    out_moments, slow, turn_slow, unparseable, unknown_types = [], [], [], [], {}
     shapes = {"hook": [], "delivery": []}
     for s in sessions:
         for m in s.events + s.call_moments():
             m["session"] = s.name
-            out_moments.append(m)
-        slow += s.slow_runs()
+            if opts.inside(m["time"]):
+                out_moments.append(m)
+        slow += [(key, r) for key, r in s.slow_runs() if opts.inside(r["time"])]
+        turns = [dict(t, session=s.name) for t in s.turns if opts.inside(t["time"])]
         for u in s.unparseable:
             unparseable.append(dict(u, session=s.name))
         for k, v in s.unknown_types.items():
             unknown_types[k] = unknown_types.get(k, 0) + v
         for k in shapes:
             shapes[k] += [dict(x, session=s.name) for x in s.unknown_shapes[k]]
-    slow_moments = sorted(group_slow(slow), key=lambda m: -m["total_minutes"])
+        turn_slow += turn_moments(turns, repo_of(s.cwd, opts.repo_map))
+    slow_moments = sorted(group_slow(slow) + turn_slow, key=lambda m: -m["total_minutes"])
     for m in out_moments + slow_moments:
         if m.get("excerpt") is not None:
             m["excerpt"] = trim(m["excerpt"])
     out_moments.sort(key=lambda m: time_key(m["time"]))
     return {
         "window": [opts.since, opts.until],
-        "sessions": [{"session": s.name, "id": s.id, "path": s.path, "repo": repo_of(s.cwd, opts.repo_map)}
-                     for s in sessions],
+        "sessions": [{"session": s.name, "id": s.id, "path": s.path, "repo": repo_of(s.cwd, opts.repo_map),
+                      "totals": s.totals} for s in sessions],
         "moments": slow_moments + out_moments,
         "unparseable": unparseable,
         "unknown_types": unknown_types,
@@ -438,6 +480,18 @@ def parse_args(argv):
     m.add_argument("--config", action="append", default=[], metavar="FILE")
     m.add_argument("--repo-of", action="append", default=[], metavar="PATH=REPO")
     opts = parser.parse_args(argv)
+    since, until = parse_time(opts.since), parse_time(opts.until)
+    for name, given, parsed in (("--since", opts.since, since), ("--until", opts.until, until)):
+        if given and parsed is None:
+            parser.error("%s takes an ISO time, not %r" % (name, given))
+
+    def inside(value):
+        """True when a time is in the window; with no window, always. A record with no time is outside a window."""
+        if since is None and until is None:
+            return True
+        t = parse_time(value)
+        return t is not None and (since is None or t >= since) and (until is None or t <= until)
+    opts.inside = inside
     opts.repo_map = []
     for item in opts.repo_of:
         if "=" not in item:
