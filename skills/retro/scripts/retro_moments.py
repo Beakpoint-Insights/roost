@@ -236,20 +236,54 @@ FULL_PATH = re.compile(
     % {"c": PATH_CHARS, "w": WEB_SCHEMES})
 
 
-def without_paths(value):
-    """The output with every full path in every string, and every key, written as [path], so no folder,
-    home or username is printed; the last pass over everything the script prints. A repo-relative path
-    (src/a.ts) stays. Punctuation that ends a sentence after a path is kept."""
+# The username in a home folder at the start of a cwd, or at the start of a project folder's name.
+CWD_USER = re.compile(r"^(?:/mnt/[a-z])?(?:/Users|/home|/var/home)/([^/\\]+)|^[A-Za-z]:[\\/]+Users[\\/]+([^/\\]+)")
+# Accounts many people share (CI runners, containers, cloud images): their names are ordinary words too.
+SHARED_ACCOUNTS = {"shared", "guest", "node", "runner", "ubuntu", "ec2-user", "vscode", "codespace", "admin",
+                   "user", "app", "dev", "docker", "root"}
+FOLDER_USER = re.compile(r"^-(?:Users|home)-([^-]+)")
+
+
+def usernames(cwds, transcripts):
+    """The usernames in the sessions' home folders: from each cwd, and from each transcript's project folder
+    name (its first word only: a - in the name can't be told from a /). Never a shared account's name
+    (SHARED_ACCOUNTS), nor one under 3 characters."""
+    found = set()
+    for cwd in cwds:
+        m = CWD_USER.match(cwd or "")
+        if m:
+            found.add(m.group(1) or m.group(2))
+    for path in transcripts:
+        m = FOLDER_USER.match(os.path.basename(os.path.dirname(os.path.abspath(path))))
+        if m:
+            found.add(m.group(1))
+    # longest first, so quillon.zephyrine is replaced whole before quillon (from its project folder) is
+    return sorted((u for u in found if len(u) >= 3 and u.lower() not in SHARED_ACCOUNTS), key=lambda u: (-len(u), u))
+
+
+def strip_paths(text):
+    """The text with every full path written as [path]. Punctuation that ends a sentence after a path is
+    kept."""
+    def replace(m):
+        path = m.group(0)
+        tail = len(path) - len(path.rstrip(".,:;?!"))
+        return "[path]" + (path[len(path) - tail:] if tail else "")
+    return FULL_PATH.sub(replace, text)
+
+
+def scrub(value, users=()):
+    """The last pass over everything the script prints, every string and every key: each full path becomes
+    [path] and each session's username, as a word of its own, [user]. So no folder, home or username is
+    printed. A repo-relative path (src/a.ts) stays."""
     if isinstance(value, str):
-        def replace(m):
-            path = m.group(0)
-            tail = len(path) - len(path.rstrip(".,:;?!"))
-            return "[path]" + (path[len(path) - tail:] if tail else "")
-        return FULL_PATH.sub(replace, value)
+        value = strip_paths(value)
+        for user in users:
+            value = re.sub(whole_word(user), "[user]", value, flags=re.I)
+        return value
     if isinstance(value, list):
-        return [without_paths(v) for v in value]
+        return [scrub(v, users) for v in value]
     if isinstance(value, dict):
-        return {without_paths(k): without_paths(v) for k, v in value.items()}
+        return {scrub(k, users): scrub(v, users) for k, v in value.items()}
     return value
 
 
@@ -262,6 +296,7 @@ class Session:
         self.id = None
         self.title = None
         self.cwd = None
+        self.cwds = set()       # every cwd its records name, for the usernames in them
         self.events = []        # (time, moment) found in this transcript, before the window
         self.calls = []         # tool calls in order: dicts with name, input, id, time, result info
         self.unparseable = []
@@ -305,6 +340,8 @@ class Session:
                 self.title = rec["agentName"]
             self.id = self.id or rec.get("sessionId")
             self.cwd = self.cwd or rec.get("cwd")
+            if rec.get("cwd"):
+                self.cwds.add(rec["cwd"])
             # rejecting a permission prompt also writes an interruption: one refusal, not a correction or a turn too
             echo = kind == "user" and after_refusal and human_text(rec) == REJECTED_INTERRUPTION
             self.count(rec, echo)
@@ -728,7 +765,14 @@ def redact_path(path, private):
     return "/".join(redact(part, private)[0] or "[withheld]" if part else part for part in path.split("/"))
 
 
-def redact_moments(found, private):
+def replace_users(text, users):
+    """The text with each username, as a word of its own, written as [user]."""
+    for user in users:
+        text = re.sub(whole_word(user), "[user]", text, flags=re.I)
+    return text
+
+
+def redact_moments(found, private, users=()):
     summary_ = {"redacted": 0, "dropped": []}
     for m in found:
         if m.get("command"):
@@ -749,7 +793,8 @@ def redact_moments(found, private):
         else:
             if text != m["excerpt"]:
                 summary_["redacted"] += 1
-            m["excerpt"] = trim(text)
+            # before the cut, which could split a name; paths first, since a [user] inside one would end it
+            m["excerpt"] = trim(replace_users(strip_paths(text), users))
     return summary_
 
 
@@ -781,8 +826,9 @@ def moments(opts):
         for k in shapes:
             shapes[k] += [dict(x, session=s.name) for x in s.unknown_shapes[k]]
         turn_slow += turn_moments(turns, repo_of(s.cwd, opts.repo_map))
+    opts.users = usernames(set().union(*[s.cwds for s in sessions]), opts.transcripts)
     slow_moments = sorted(group_slow(slow) + turn_slow, key=lambda m: -m["total_minutes"])
-    redaction = redact_moments(slow_moments + out_moments, opts.private)
+    redaction = redact_moments(slow_moments + out_moments, opts.private, opts.users)
     out_moments.sort(key=lambda m: time_key(m["time"]))
     for m in slow_moments:   # a repo named after its folder can hold a configured value
         m["repo"] = m["repo"] and redact_path(m["repo"], opts.private)
@@ -848,7 +894,7 @@ def main(argv=None):
         code = 0
     except Exception as e:  # its own failure: say what, never a traceback
         result, code = {"error": "%s: %s" % (type(e).__name__, e)}, 1
-    json.dump(without_paths(result), sys.stdout, indent=2)
+    json.dump(scrub(result, getattr(opts, "users", ())), sys.stdout, indent=2)
     sys.stdout.write("\n")
     return code
 
