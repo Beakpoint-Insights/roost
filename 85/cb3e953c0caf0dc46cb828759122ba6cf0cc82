@@ -1,0 +1,54 @@
+docs/plans/2026-10-28-issue-92-retro.md
+  s_317ca7d8caddc7::t_e4c56e5624c347 1-12,15-53,55-99,101-104,106-108,110,113-115,117-118,124-126,138-193,195-224,230,232-259,261-265,268-275,281-285,289,297-309,311-330,339-366,368-449,451-543,547-597,599-600,602-677,679-689,691-700,702-704,706-711,713-717,719-789,791-829,831-868,870-895
+  s_317ca7d8caddc7::t_993cfb2a598590 13-14,105,119-120,128,225-229,231,266-267,276-280,286-288,290-296,310,331-338,367,450,544-546,690,701,705,712,718,790,830,869
+  s_ba08d587b09f6c::t_61970156292445 194
+  s_ba08d587b09f6c::t_7ae95b7b366779 678
+  s_317ca7d8caddc7::t_b548adc8bf6372 54
+  s_317ca7d8caddc7::t_1867aa16e0e5bc 260
+evals/retro-ticket-the-check/graders/check-not-change.md
+  s_317ca7d8caddc7::t_f585f8340e3c38 1-9
+evals/retro-ranks-and-routes/graders/checks-and-review-rules.md
+  s_317ca7d8caddc7::t_f585f8340e3c38 1-9
+scripts/retro-moments.test.py
+  s_317ca7d8caddc7::t_6df2782e8175a3 1-85
+evals/retro-ranks-and-routes/prompt.md
+  s_317ca7d8caddc7::t_f585f8340e3c38 1-32
+evals/retro-ticket-the-check/graders/other-decisions.md
+  s_317ca7d8caddc7::t_f585f8340e3c38 1-9
+evals/retro-ticket-the-check/graders/uses-retro.md
+  s_317ca7d8caddc7::t_f585f8340e3c38 1-6
+evals/retro-ranks-and-routes/graders/slow-step-hypothesis.md
+  s_317ca7d8caddc7::t_f585f8340e3c38 1-9
+evals/retro-ranks-and-routes/graders/one-ranked-list.md
+  s_317ca7d8caddc7::t_f585f8340e3c38 1-9
+evals/retro-ranks-and-routes/graders/uses-retro.md
+  s_317ca7d8caddc7::t_f585f8340e3c38 1-6
+evals/retro-ticket-the-check/prompt.md
+  s_317ca7d8caddc7::t_f585f8340e3c38 1-18
+evals/retro-ranks-and-routes/graders/waits-for-decisions.md
+  s_317ca7d8caddc7::t_f585f8340e3c38 1-9
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "85cb3e953c0caf0dc46cb828759122ba6cf0cc82",
+  "prompts": {},
+  "sessions": {
+    "s_317ca7d8caddc7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "42bf6ed7-c0ea-476a-a622-d52d0b8672e1",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Alan Cox <acox@beakpointinsights.com>"
+    },
+    "s_ba08d587b09f6c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f7bf185a-4710-40d6-b8b2-e7b942cb7524",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Alan Cox <acox@beakpointinsights.com>"
+    }
+  }
+}
