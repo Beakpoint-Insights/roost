@@ -29,8 +29,9 @@ KNOWN_TYPES = {"user", "assistant", "system", "attachment", "summary", "api-requ
                "file-history-delta", "frame-link", "tools-used", "artifact-autoreact-ledger", "cost-state",
                "artifact-comment-monitor"}
 SEARCH_TOOLS = {"Read", "Grep", "Glob", "LS"}
-# A read-only command: no redirect into a file (2>&1 and 2>/dev/null are fine) and no here-doc.
-READ_ONLY_BASH = re.compile(r"^(?!.*(?:<<|(?<![2&])>(?!&)))(?:cd \S+ && )?(?:grep|rg|find|ls|cat|head|tail|sed -n|wc|git (?:log|show|grep|diff|status))\b", re.S)
+# A read-only command: no redirect into a file (2>&1 and 2>/dev/null are fine) and no here-doc,
+# outside quotes (a pattern like '=> ' is fine).
+READ_ONLY_BASH = re.compile(r"""^(?!(?:[^'"]|'[^']*'|"[^"]*")*?(?:<<|(?<![2&])>(?!&)))(?:cd \S+ && )?(?:grep|rg|find|ls|cat|head|tail|sed -n|wc|git (?:log|show|grep|diff|status))\b""", re.S)
 EDIT_TOOLS = {"Edit", "Write", "MultiEdit", "NotebookEdit"}
 USER_WAIT_TOOLS = {"AskUserQuestion"}
 NOT_TYPED = ("<command-", "<local-command-", "<bash-", "<system-reminder>", "<task-notification",
@@ -247,7 +248,8 @@ class Session:
         if rec.get("type") == "user":
             if human_text(rec) is not None or origin in ("peer", "task-notification"):
                 totals["turns"] += 1
-            totals["errors"] += sum(1 for b in blocks(rec) if b.get("type") == "tool_result" and b.get("is_error"))
+            if not rec.get("toolDenialKind"):  # a refusal isn't an error
+                totals["errors"] += sum(1 for b in blocks(rec) if b.get("type") == "tool_result" and b.get("is_error"))
         elif rec.get("type") == "assistant":
             if rec.get("isApiErrorMessage"):
                 totals["errors"] += 1
@@ -307,9 +309,18 @@ class Session:
 
     def call_moments(self):
         """Retries, searches and slow calls, from the tool calls in order."""
+        # only the calls in the window; a message just before a kept call still ends a search there
+        calls, breaks, pending = [], set(), False
+        for i, call in enumerate(self.calls):
+            pending = pending or i in self.breaks
+            if self.opts.inside(call["rec"].get("timestamp")):
+                if pending:
+                    breaks.add(len(calls))
+                    pending = False
+                calls.append(call)
         out = []
         groups = {}
-        for i, call in enumerate(self.calls):
+        for i, call in enumerate(calls):
             key = (call["name"], json.dumps(call["input"], sort_keys=True))
             g = groups.get(key)
             if g and g["last"] >= i - RETRY_WINDOW:
@@ -321,9 +332,9 @@ class Session:
         moments = [self.moment("retry", g["first"]["rec"], tool=g["first"]["name"], count=g["count"],
                                excerpt=summary(g["first"]["name"], g["first"]["input"])) for g in out if g["count"] > 1]
         run = []
-        for i, call in enumerate(self.calls + [None]):
+        for i, call in enumerate(calls + [None]):
             # a run of searches ends at an edit, a new human or peer message, or the end; other tools pass
-            if call is not None and i not in self.breaks:
+            if call is not None and i not in breaks:
                 if is_search(call):
                     run.append(call)
                 if call["name"] not in EDIT_TOOLS:
@@ -334,7 +345,7 @@ class Session:
                                            minutes=minutes_between(run[0]["rec"].get("timestamp"), end.get("timestamp")),
                                            excerpt=summary(run[0]["name"], run[0]["input"]) + " … "
                                            + summary(run[-1]["name"], run[-1]["input"])))
-            run = [call] if call is not None and i in self.breaks and is_search(call) else []
+            run = [call] if call is not None and i in breaks and is_search(call) else []
         return moments
 
     def slow_runs(self):
