@@ -51,11 +51,11 @@ DELIVERY = re.compile(r"^\[Cross-session delivery notice\]", re.M)
 SECRET_PATTERNS = [
     (re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----.*?-----END [A-Z ]*PRIVATE KEY-----", re.S), "[private key]"),
     (re.compile(r"""(?i)\bauthorization["']?\s*[:=]\s*["']?[^\s"']+(?:\s+[^\s"',}]+)?["']?"""), "Authorization: [redacted]"),
-    (re.compile(r"\b([a-z][a-z0-9+.-]*)://[^\s/:@]+:[^\s/@]+@\S+"), r"\1://[redacted]"),
+    (re.compile(r"\b([a-z][a-z0-9+.-]*)://[^\s/:@]*:[^\s/@]+@\S+"), r"\1://[redacted]"),
     (re.compile(r"\b(?:gh[pousr]_[A-Za-z0-9]{20,}|github_pat_\w{20,}|sk-ant-[\w-]{20,}|sk-[A-Za-z0-9]{20,}|AKIA[0-9A-Z]{16}"
                 r"|xox[abposr]-[\w-]{10,}|eyJ[\w-]+\.[\w-]+\.[\w-]+)"), "[token]"),
     # a secret's name, also inside a longer one (PGPASSWORD, GITHUB_TOKEN, client_secret) or in JSON quotes
-    (re.compile(r"""(?i)\b([\w-]*?(?:password|passwd|pwd|token|secret|api[_-]?key))["']?\s*[=:]\s*(?:"[^"]*"|'[^']*'|[^\s"',;}]+)"""),
+    (re.compile(r"""(?i)\b([\w-]*?(?:password|passwd|pwd|token|secret|api[_-]?key))["']?\s*[=:]\s*(?:"(?:[^"\\]|\\.)*"|'[^']*'|[^\s"',;}]+)"""),
      r"\1=[redacted]"),
     (re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+"), "[email]"),
 ]
@@ -63,6 +63,8 @@ UNFINISHED_KEY = re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----")
 TOKEN_LIKE = re.compile(r"[A-Za-z0-9+/=_-]{32,}")
 PRIVATE_KEYS = {"site", "cloud_id", "host", "hostname", "domain", "url", "test_account_email"}
 PRIVATE_SUFFIXES = ("_id", "_url", "_host", "_hostname", "_domain")
+# values of private keys that name a kind of thing, not a team's own (vcs.host: github)
+SYMBOLIC_VALUES = {"github", "gitlab", "bitbucket", "jira", "linear", "local", "docker", "none", "null", "true", "false"}
 HOSTNAME = re.compile(r"(?<![.\w/-])[\w-]+(?:\.[\w-]+)*\.[a-z]{2,}\b", re.I)
 FILE_EXTENSIONS = {"yml", "yaml", "json", "md", "py", "sh", "ts", "tsx", "js", "jsx", "txt", "html", "toml",
                    "lock", "cfg", "ini", "xml", "csv", "sql", "rb", "go", "rs", "java", "cs", "css"}
@@ -120,9 +122,13 @@ def records(path):
         if not isinstance(rec, dict):
             yield n, None, "not a JSON object"
             continue
-        if rec.get("type") in ("user", "assistant") and not isinstance(rec.get("message"), dict):
-            yield n, None, "missing message"
-            continue
+        if rec.get("type") in ("user", "assistant"):
+            if not isinstance(rec.get("message"), dict):
+                yield n, None, "missing message"
+                continue
+            if not isinstance(rec["message"].get("content"), (str, list, type(None))):
+                yield n, None, "unsupported message content"
+                continue
         yield n, rec, None
 
 
@@ -156,7 +162,7 @@ def human_text(rec):
     if origin:
         if origin.get("kind") != "human":
             return None
-    elif rec.get("promptSource") != "typed":
+    elif rec.get("promptSource") != "typed" and not plain_text(rec).startswith("[Request interrupted by user"):
         return None
     if any(b.get("type") == "tool_result" for b in blocks(rec)):
         return None
@@ -218,7 +224,12 @@ class Session:
 
     @property
     def name(self):
-        return self.title or (self.id or os.path.basename(self.path))[:8]
+        """The session's title, redacted like any quote, or the start of its id."""
+        fallback = (self.id or os.path.basename(self.path))[:8]
+        if not self.title:
+            return fallback
+        title, _ = redact(self.title, getattr(self.opts, "private", []))
+        return title or fallback
 
     def moment(self, kind, rec, **fields):
         return dict({"kind": kind, "session": None, "time": rec.get("timestamp"), "id": rec.get("uuid")}, **fields)
@@ -395,7 +406,7 @@ class Session:
                 continue
             if call["input"].get("run_in_background"):
                 continue
-            command = normalise(summary(call["name"], call["input"]))
+            command = normalise(summary(call["name"], call["input"]), call["rec"].get("cwd"))
             repo = repo_of(call["rec"].get("cwd"), self.opts.repo_map)
             out.append(((command, repo), {"session": self.name, "time": start, "id": call["rec"].get("uuid"),
                                           "minutes": round(seconds / 60, 1),
@@ -403,9 +414,15 @@ class Session:
         return out
 
 
-def normalise(command):
-    command = re.sub(r"^cd \S+ && ", "", command.strip())
-    return re.sub(r"\s+", " ", command)
+def normalise(command, cwd=None):
+    """The command with whitespace collapsed, and a leading `cd <dir> && ` dropped when it goes to the
+    call's own working directory; a cd elsewhere stays, so `cd frontend && npm run build` and
+    `cd backend && npm run build` are two steps."""
+    command = re.sub(r"\s+", " ", command.strip())
+    m = re.match(r"^cd (\S+) && (.*)$", command)
+    if m and cwd and os.path.normpath(os.path.join(cwd, m.group(1))) == os.path.normpath(cwd):
+        return m.group(2)
+    return command
 
 
 def is_search(call):
@@ -551,7 +568,7 @@ def private_values(paths):
             if not keys:
                 continue
             key, label = keys[-1], ".".join(keys[-2:])
-            if (key in PRIVATE_KEYS or key.endswith(PRIVATE_SUFFIXES)) and re.search(r"[.:/@\d]", value):
+            if (key in PRIVATE_KEYS or key.endswith(PRIVATE_SUFFIXES)) and value.lower() not in SYMBOLIC_VALUES:
                 add(value, label)
             for url in URL.findall(value):
                 authority = re.split(r"[/?#]", url.split("://", 1)[1])[0]
@@ -643,12 +660,17 @@ def redact_moments(found, private):
 
 
 def moments(opts):
-    sessions = []
+    sessions, unparseable = [], []
     for path in opts.transcripts:
         s = Session(path, opts)
-        s.read()
+        try:
+            s.read()
+        except OSError as e:  # one unreadable transcript doesn't stop the others
+            unparseable.append({"session": os.path.basename(path), "line": None,
+                                "reason": "can't read the file: %s" % (e.strerror or e)})
+            continue
         sessions.append(s)
-    out_moments, slow, turn_slow, unparseable, unknown_types = [], [], [], [], {}
+    out_moments, slow, turn_slow, unknown_types = [], [], [], {}
     shapes = {"hook": [], "delivery": []}
     for s in sessions:
         for m in s.events + s.call_moments():
