@@ -19,12 +19,12 @@ A mechanical mistake becomes a check, and a review miss becomes a review rule, s
 
 ### An example of each (the Acme team)
 
-- **Finding things:** 14 `Grep`/`Read` calls over 6 minutes to find where acme-api builds its OpenAPI spec (scripts/openapi/build.ts). Fix: a pointer in acme-api's `CLAUDE.md`.
-- **Automated checks:** the user corrected a `moment` import three times; acme-api uses date-fns. Fix: ESLint's `no-restricted-imports` for `moment` in acme-api, which fails in CI.
-- **Review rules:** review passed `GET /api/usage` with no page size; the user caught it (2M rows for a big tenant). Fix: "list endpoints are paged" in acme-api's `review_focus`.
+- **Finding things:** 12 `Grep`/`Read` calls over 5 minutes to find where acme-web defines its feature flags. Fix: a pointer in acme-web's `CLAUDE.md`.
+- **Automated checks:** the user twice corrected a whole-library `lodash` import in acme-web, which imports single functions. Fix: a lint rule in acme-web that fails CI on `import _ from "lodash"`.
+- **Review rules:** review passed an upload endpoint with no size limit; the user caught it before release. Fix: "uploads have a size limit" in acme-api's review rules.
 - **Agent instructions:** acme-web's `CLAUDE.md` is 900 lines and the agent missed its testing section twice. Fix: move the rules into acme-web's coding standards and keep `CLAUDE.md` to pointers.
 - **Tool use:** the agent read the same 4,000-line migration log five times to find one table. Fix: a script in acme-api that prints a table's migrations.
-- **Slow steps:** `npm run seed -- --tenant qa` ran 5 times, 100 minutes in all, with the same output each time. Fix (a Hypothesis until checked): start the stack from a snapshot of the seeded database.
+- **Slow steps:** acme-web's full Storybook build ran before every test run, 6 times at about 12 minutes. Fix (a Hypothesis until checked): build Storybook only when a component changed.
 - **Access:** the agent couldn't read the API's logs and asked the user to paste them three times. Fix: a read-only log command in `stack.telemetry`.
 - **roost itself:** `run-slice` stopped to ask which branch to use, when the kickoff comment named it. Fix: a roost issue.
 
@@ -32,7 +32,7 @@ A mechanical mistake becomes a check, and a review miss becomes a review rule, s
 
 Area, what happened, evidence (a quote from the script's output with its session and time, or a state-file or tracker line), what skipping it costs with a concrete case, the recommendation, and where the change goes.
 
-**What skipping it costs** is concrete, not "it could cause problems": "the next list endpoint ships unpaged, and a big tenant's page load returns 2M rows", or "every slice spends another 20 minutes seeding, 100 minutes per epic of five".
+**What skipping it costs** is concrete, not "it could cause problems": "the next upload endpoint ships without a limit, and one large file fills the disk", or "every slice spends another 12 minutes building Storybook, an hour per epic of five".
 
 A finding whose problem has no evidence in the transcripts or the tracker isn't reported, however likely it seems.
 
@@ -56,9 +56,9 @@ A hypothesis ranks by what it would save if true, but keeps its label, so "saves
 At the checkpoint, a hypothesis offers three choices:
 
 1. **Check it now.** The user runs the check, or tells a repo session to. The retro waits, reads the result, and the finding becomes Checked or is dropped. The retro never runs the check itself.
-2. **Ticket the check, not the change.** A check a repo session can run becomes a ticket for that repo, with a `cross-repo-handoff` prompt. A check only the user can run becomes a person-owned task (`tracker.person_task_label`) with the user as owner, its steps written out, and what result confirms or refutes the hypothesis. The change waits for the result.
+2. **Ticket the check, not the change.** A check a repo session can run becomes a ticket for that repo, with a `cross-repo-handoff` prompt. A check only the user can run becomes a person-owned task (labelled `tracker.person_task_label`, default `person-owned`) with the user as owner, its steps written out, and what result confirms or refutes the hypothesis. The change waits for the result.
 3. **Skip.**
 
 ### A worked case
 
-The seed above, as a Hypothesis: "Start the stack from a snapshot of the seeded qa tenant instead of seeding each time. Check: restore last month's snapshot from the shared backup bucket and confirm the usage totals match a fresh seed. Only the user can run it (the bucket needs their cloud sign-in); about 15 minutes, against about 100 minutes per epic. Skipping it costs 20 minutes on every slice."
+The Storybook build above, as a Hypothesis: "Build Storybook only when a file under `src/components/` changed. Check: on the last five merged PRs, compare which ones changed a component with which ones had a Storybook failure; a failure on a PR with no component change refutes it. A repo session can run it in about 10 minutes, against about an hour per epic. Skipping it costs 12 minutes on every test run."

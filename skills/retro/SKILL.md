@@ -21,6 +21,8 @@ For now the retro covers one session: this one, or one the user names. It reads 
 
 ## 1. Find the transcript
 
+If the user already gave you the script's output for the session, skip to step 3: don't look for the transcript or run the script again.
+
 Transcripts are in `~/.claude/projects/<the working directory, with / as ->/<session id>.jsonl`.
 
 - **"This session":** this session's own transcript: in this working directory's project folder, the newest `.jsonl` that contains the user's last message. Say which file.
@@ -68,7 +70,7 @@ Only after the user decides, and only for what they accepted:
 - **A change in a repo:** a ticket for that repo with a `cross-repo-handoff` prompt that its session can act on.
 - **A change to roost:** a roost issue, drafted and shown to the user first.
 - **A hypothesis, "check now":** give the user the check's steps (or what to tell the repo session), wait for the result, then mark the finding Checked or drop it.
-- **A hypothesis, "ticket the check":** ticket the check, not the change. A check a repo session can run is a ticket for that repo, with a `cross-repo-handoff` prompt. A check only the user can run is a person-owned task (labelled `tracker.person_task_label`) for the user, with its steps and the result that confirms or refutes the hypothesis. The change waits for that result.
+- **A hypothesis, "ticket the check":** ticket the check, not the change. A check a repo session can run is a ticket for that repo, with a `cross-repo-handoff` prompt. A check only the user can run is a person-owned task (labelled `tracker.person_task_label`, default `person-owned`) for the user, with its steps and the result that confirms or refutes the hypothesis. The change waits for that result.
 - **Skipped or rejected:** nothing is filed.
 
 ## Report
