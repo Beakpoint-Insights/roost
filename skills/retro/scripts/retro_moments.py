@@ -417,25 +417,33 @@ class Session:
 
 def normalise(command, cwd=None):
     """The command with whitespace collapsed, and a leading `cd <dir> && ` dropped when it goes to the
-    call's own working directory. A cd elsewhere stays, written relative to the working directory
-    (./, a trailing / and quotes normalised), so `cd ./frontend` and `cd frontend` are one step and
-    `cd frontend` and `cd backend` are two. A ~ is never expanded: it would be the home folder of
-    whoever runs the retro, not the session's, and would print their username."""
+    call's own working directory. A cd elsewhere stays: an absolute folder (or one under ~) as written,
+    so the same folder is one step whatever the call's cwd; a relative one resolved against the call's
+    cwd and written relative to it (./, a trailing / and quotes normalised), so `cd ./frontend` and
+    `cd frontend` are one step and `cd frontend` and `cd backend` are two. A ~ is never expanded: it
+    would be the home folder of whoever runs the retro, not the session's, and would print their
+    username. For the same reason a home folder (/home/<user>, /Users/<user>) is written as ~."""
     command = re.sub(r"\s+", " ", command.strip())
     m = re.match(r"""^cd ("[^"]+"|'[^']+'|\S+) && (.*)$""", command)
     if not m:
         return command
     folder = unquote(m.group(1))
-    if not cwd:
-        return "cd %s && %s" % (os.path.normpath(folder), m.group(2))
-    base = os.path.normpath(cwd)
-    if folder == "~" or folder.startswith("~/"):
-        target = os.path.normpath(folder)
+    base = home_as_tilde(os.path.normpath(cwd)) if cwd else None
+    if folder.startswith("/") or folder == "~" or folder.startswith("~/") or base is None:
+        target = home_as_tilde(os.path.normpath(folder))
         return m.group(2) if target == base else "cd %s && %s" % (target, m.group(2))
     target = os.path.normpath(os.path.join(base, folder))
     if target == base:
         return m.group(2)
     return "cd %s && %s" % (os.path.relpath(target, base), m.group(2))
+
+
+HOME = re.compile(r"^/(?:home|Users)/[^/]+(?=/|$)|^/root(?=/|$)")
+
+
+def home_as_tilde(path):
+    """The path with a leading home folder written as ~, so it carries no username."""
+    return HOME.sub("~", path)
 
 
 def is_search(call):
