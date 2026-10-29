@@ -388,5 +388,46 @@ class Window(TempDir):
         self.assertEqual(out["moments"], [])
 
 
+class Unparseable(unittest.TestCase):
+    def setUp(self):
+        code, self.out = run("moments", os.path.join(FIXTURES, "broken.jsonl"))
+        self.assertEqual(code, 0)
+
+    def test_a_line_that_isnt_json_is_reported_and_the_rest_still_read(self):
+        self.assertIn({"session": SID.format(3)[:8], "line": 2, "reason": "not JSON"}, self.out["unparseable"])
+        self.assertEqual([(m["kind"], m["id"]) for m in self.out["moments"]], [("correction", "k-5")])
+
+    def test_an_unknown_type_is_counted_not_an_error(self):
+        self.assertEqual(self.out["unknown_types"], {"some-new-type": 1})
+
+    def test_an_incomplete_last_line_is_reported(self):
+        self.assertIn({"session": SID.format(3)[:8], "line": 6, "reason": "incomplete last line (still being written?)"},
+                      self.out["unparseable"])
+
+    def test_a_record_missing_its_message_is_reported(self):
+        self.assertIn({"session": SID.format(3)[:8], "line": 4, "reason": "missing message"}, self.out["unparseable"])
+        self.assertEqual(len(self.out["unparseable"]), 3)
+
+    def test_fixtures_are_synthetic(self):
+        """No real transcript is committed: every fixture record has a made-up session and an Acme cwd."""
+        checked = 0
+        for folder, _, files in os.walk(FIXTURES):
+            for name in files:
+                if not name.endswith(".jsonl"):
+                    continue
+                with open(os.path.join(folder, name), encoding="utf-8") as f:
+                    for line in f:
+                        try:
+                            r = json.loads(line)
+                        except ValueError:
+                            continue
+                        if "sessionId" in r:
+                            self.assertTrue(r["sessionId"].startswith("00000000-"), (name, r["sessionId"]))
+                            checked += 1
+                        if "cwd" in r:
+                            self.assertTrue(r["cwd"].startswith("/home/acme/"), (name, r["cwd"]))
+        self.assertGreater(checked, 20)
+
+
 if __name__ == "__main__":
     unittest.main()
