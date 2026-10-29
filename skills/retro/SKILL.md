@@ -26,7 +26,7 @@ If the user already gave you the script's output for the session, skip to step 3
 Transcripts are in `~/.claude/projects/<the working directory, with / as ->/<session id>.jsonl`.
 
 - **"This session":** this session's own transcript: in this working directory's project folder, the newest `.jsonl` that contains the user's last message. Say which file.
-- **A named session:** match the name against each transcript's `custom-title` and `agent-name` records (`"customTitle": "<name>"` or `"agentName": "<name>"`). If none matches, or more than one does, list what you found and ask which.
+- **A named session:** search every folder under `~/.claude/projects/`, not only this directory's: a repo session's transcript is in its own repo's folder. Match the name against each transcript's `custom-title` and `agent-name` records (`"customTitle": "<name>"` or `"agentName": "<name>"`). If none matches, or more than one does, list what you found and ask which.
 
 ## 2. Run the script
 
