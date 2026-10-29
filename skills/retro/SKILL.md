@@ -62,7 +62,9 @@ Show one ranked list, most severe first:
 - **Recommendation:** starts `Checked:` with its evidence, or `Hypothesis:` with the check, who can run it and how long it takes against what the problem costs.
 - **Where:** `Team config` (and the key), a repo's name, or `roost`.
 
-End with: "Decide each by number: yes, no, or for a hypothesis, check now / ticket the check / skip." Then stop and wait.
+End with: "Decide each by number: a Checked finding takes yes or no; a Hypothesis takes check now, ticket the check, or skip." Then stop and wait.
+
+A "yes" on a Hypothesis isn't one of its choices: ask again which of the three it is. Never treat it as approving the change: the change waits for the check.
 
 ## 6. Give each accepted finding a home
 
