@@ -257,6 +257,11 @@ class Kinds(TempDir):
         code, out = run("moments", path)
         self.assertEqual((code, [m["kind"] for m in out["moments"]]), (0, ["error"]))
 
+    def test_an_interruption_without_an_origin_counts(self):
+        path = write(self.tmp, "i.jsonl", [human("2026-03-02T09:00:00Z", "a", "Go"),
+            rec("user", "2026-03-02T09:01:00Z", "b", message={"role": "user", "content": "[Request interrupted by user]"})])
+        self.assertEqual([(m["kind"], m["id"]) for m in self.output(path)["moments"]], [("correction", "b")])
+
     def test_excerpts_are_trimmed_and_collapsed(self):
         long = "no,   use\n\n date-fns " + "x" * 1000
         path = write(self.tmp, "long.jsonl", [human("2026-03-02T09:00:00Z", "a", "Go"),
@@ -328,6 +333,15 @@ class Slow(TempDir):
         commands = [m["command"] for m in self.slow(*two_sessions_with_seed_runs(self.tmp))]
         for waited in ("npm run migrate", "npm run dev", "npm run e2e", "Which tenant?"):
             self.assertNotIn(waited, commands)
+
+    def test_the_same_command_in_two_folders_is_two_slow_steps(self):
+        recs = [human("2026-03-02T09:00:00Z", "h", "Build")]
+        for i, folder in enumerate(["frontend", "backend", "frontend"]):
+            recs += [tool_use("2026-03-02T1%d:00:00Z" % i, "u%d" % i, "t%d" % i, "Bash", {"command": "cd %s && npm run build" % folder}),
+                     tool_result("2026-03-02T1%d:05:00Z" % i, "r%d" % i, "t%d" % i, "built")]
+        slow = self.slow(write(self.tmp, "mono.jsonl", recs))
+        self.assertEqual(sorted((m["command"], m["count"]) for m in slow),
+                         [("cd backend && npm run build", 1), ("cd frontend && npm run build", 2)])
 
     def test_the_repo_comes_from_repo_of(self):
         paths = two_sessions_with_seed_runs(self.tmp)
@@ -439,6 +453,24 @@ class Unparseable(unittest.TestCase):
     def test_a_record_missing_its_message_is_reported(self):
         self.assertIn({"session": SID.format(3)[:8], "line": 4, "reason": "missing message"}, self.out["unparseable"])
         self.assertEqual(len(self.out["unparseable"]), 3)
+
+    def test_a_message_whose_content_isnt_text_or_a_list_is_reported(self):
+        tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp)
+        path = write(tmp, "c.jsonl", [human("2026-03-02T09:00:00Z", "a", "Go"),
+                                      rec("user", "2026-03-02T09:01:00Z", "b", message={"role": "user", "content": 42}),
+                                      human("2026-03-02T09:02:00Z", "c", "no, the other one")])
+        code, out = run("moments", path)
+        self.assertEqual(code, 0)
+        self.assertEqual(out["unparseable"][0]["reason"], "unsupported message content")
+        self.assertEqual([m["id"] for m in out["moments"]], ["c"])
+
+    def test_a_missing_transcript_is_reported_and_the_rest_still_read(self):
+        code, out = run("moments", "/home/acme/no-such.jsonl", os.path.join(FIXTURES, "kinds", "correction.jsonl"))
+        self.assertEqual(code, 0)
+        self.assertEqual([m["id"] for m in out["moments"]], ["c-5"])
+        self.assertEqual(out["unparseable"][0]["line"], None)
+        self.assertTrue(out["unparseable"][0]["reason"].startswith("can't read the file"))
 
     def test_fixtures_are_synthetic(self):
         """No real transcript is committed: every fixture record has a made-up session and an Acme cwd."""
@@ -588,6 +620,30 @@ class Redaction(TempDir):
         self.assertIn("pa55word", values)
         for word in ("postgres", "admin", "Next.js", "env.test", "seed.prod", "x.internal"):
             self.assertNotIn(word, values)
+
+    def test_a_password_only_url_and_an_escaped_quote_are_redacted(self):
+        self.assertNotIn("s3cr3t", self.redacted("connect redis://:s3cr3t@cache.test:6379/0 failed"))
+        out = self.redacted('{"password": "correct \\"horse\\" battery"}')
+        for word in ("correct", "horse", "battery"):
+            self.assertNotIn(word, out)
+
+    def test_private_keys_without_dots_are_private_but_symbolic_hosts_arent(self):
+        config = os.path.join(self.tmp, "plain.yml")
+        with open(config, "w") as f:
+            f.write("vcs:\n  host: github\nstack:\n  database:\n    host: zephyrdb\n  frontend_host: bastion\n")
+        values = dict(retro_moments.private_values([config]))
+        self.assertIn("zephyrdb", values)
+        self.assertIn("bastion", values)
+        self.assertNotIn("github", values)
+
+    def test_a_session_title_is_redacted(self):
+        path = write(self.tmp, "t.jsonl", [
+            {"type": "custom-title", "customTitle": "Fix login for dana.k@zephyr-corp.com", "sessionId": SID.format(1)},
+            human("2026-03-02T09:00:00Z", "a", "Go"), human("2026-03-02T09:01:00Z", "b", "no")])
+        code, out = run("moments", path, *CONFIGS)
+        self.assertNotIn("dana.k", json.dumps(out))
+        self.assertEqual(out["sessions"][0]["session"], "Fix login for [email]")
+        self.assertEqual(out["moments"][0]["session"], "Fix login for [email]")
 
     def test_file_names_ids_and_shas_are_kept(self):
         for text in ("Read src/components/UsageTableReport2024Final.tsx",
