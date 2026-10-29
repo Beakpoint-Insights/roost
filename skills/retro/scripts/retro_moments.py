@@ -629,7 +629,8 @@ def redact(text, private):
     for pattern, replacement in SECRET_PATTERNS:
         text = pattern.sub(replacement, text)
     for value, label in private:
-        text = re.sub(re.escape(value), "[config: %s]" % label, text, flags=re.I)
+        # whole words only: host postgres leaves postgresql alone
+        text = re.sub(r"(?<![A-Za-z0-9_])%s(?![A-Za-z0-9_])" % re.escape(value), "[config: %s]" % label, text, flags=re.I)
     why = unsure(text)
     return (None, why) if why else (text, None)
 
