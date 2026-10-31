@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.0](https://github.com/Beakpoint-Insights/roost/compare/roost-v1.3.1...roost-v1.4.0) (2026-10-31)
+
+
+### Features
+
+* **#111:** retro on one session ([#119](https://github.com/Beakpoint-Insights/roost/issues/119)) ([a30f018](https://github.com/Beakpoint-Insights/roost/commit/a30f018a33500d7069c2b58148eb08137a4d686b))
+
 ## [1.3.1](https://github.com/Beakpoint-Insights/roost/compare/roost-v1.3.0...roost-v1.3.1) (2026-10-28)
 
 
