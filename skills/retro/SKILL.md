@@ -83,6 +83,17 @@ Only after the user decides, and only for what they accepted:
 - **A hypothesis, "ticket the check":** ticket the check, not the change. A check a repo session can run is a ticket for that repo, with a `cross-repo-handoff` prompt. A check only the user can run is a person-owned task (labelled `tracker.person_task_label`, default `person-owned`) for the user, with its steps and the result that confirms or refutes the hypothesis. The change waits for that result.
 - **Skipped or rejected:** nothing is filed.
 
+**Before filing any ticket or person-owned task,** check its text, so no path, username or configured value leaves this machine:
+
+1. Write its full text (title, body and any `cross-repo-handoff` prompt) to a file and show it to the user.
+2. Run the check with the same configs and the run's transcripts:
+
+   ```bash
+   python3 <this skill's folder>/scripts/retro_moments.py check <draft file> --config <team config> [--config <override>] --transcript <transcript>...
+   ```
+
+3. File it only when the check passes (exit 0, `"passed": true`). On a hit (exit 3), show the user each one (`kind`: `path`, `config`, `user`, `secret` or `unsure`, a string `redact` would withhold; `line`, `column`, `length`; and `key` for a configured value or `reason` for `unsure`), fix the text, and check again. Never file a draft that failed, and never work around a hit by rewording the check's input.
+
 ## Report
 
 One line: "Retro on acme-api-3f: 4 findings, 2 accepted, 1 check ticketed, 1 skipped." Then each home made, with its link. Then, when there are any, each of these, never skipped silently:

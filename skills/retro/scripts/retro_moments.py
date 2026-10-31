@@ -7,13 +7,18 @@
       can't be opened is listed in "unreadable" and the others are still read.
   redact [--config FILE]...      (text on stdin)
       The text with secrets and the team config's identifying values taken out.
+  check [FILE] [--config FILE]... [--cwd PATH]... [--transcript FILE]...   (or text on stdin)
+      Before a draft leaves the machine: each full path, configured value, username (from the
+      cwds and the transcripts' records) and secret it would take out, and a token-like string
+      redact would withhold, by line, column and length, never the text itself. Exit 3 when
+      there's any.
 
 Every quote it prints is redacted: generic secrets by pattern, then each identifying value in
 the team config and its overrides (--config, in roost-config's order). A quote it can't clean
 with confidence is dropped, and its moment kept.
 
-Exit 0 whatever it finds (unreadable records are in the JSON), 2 for bad arguments,
-1 for a failure of its own, with {"error": "<type>: <message>"}.
+Exit 0 whatever it finds (unreadable records are in the JSON; check exits 3 when a draft
+has something to take out), 2 for bad arguments, 1 for a failure of its own, with {"error": "<type>: <message>"}.
 
 Standard library only. Run it from the skill's own folder: <skill folder>/scripts/.
 """
@@ -261,14 +266,21 @@ def usernames(cwds, transcripts):
     return sorted((u for u in found if len(u) >= 3 and u.lower() not in SHARED_ACCOUNTS), key=lambda u: (-len(u), u))
 
 
+def apply_spans(text, spans):
+    """The text with each (start, end, replacement) span replaced; the spans don't overlap."""
+    for start, end, replacement in sorted(spans, reverse=True):
+        text = text[:start] + replacement + text[end:]
+    return text
+
+
+def path_spans(text):
+    """(start, end) of every full path. Punctuation that ends a sentence after a path isn't part of it."""
+    return [(m.start(), m.start() + len(m.group(0).rstrip(".,:;?!"))) for m in FULL_PATH.finditer(text)]
+
+
 def strip_paths(text):
-    """The text with every full path written as [path]. Punctuation that ends a sentence after a path is
-    kept."""
-    def replace(m):
-        path = m.group(0)
-        tail = len(path) - len(path.rstrip(".,:;?!"))
-        return "[path]" + (path[len(path) - tail:] if tail else "")
-    return FULL_PATH.sub(replace, text)
+    """The text with every full path written as [path]."""
+    return apply_spans(text, [(a, b, "[path]") for a, b in path_spans(text)])
 
 
 ISO_TIME = re.compile(r"\d{4}-\d{2}-\d{2}T[\d:.]+(?:Z|[+-]\d{2}:?\d{2})?")
@@ -728,12 +740,14 @@ def token_like(piece):
     return len(words) >= 8 and sum(len(w) <= 2 for w in words) / len(words) >= 0.4
 
 
-def unsure(text):
-    """Why a redacted text still can't be trusted, or None: a private key with no end, or a run of 32 or
-    more token characters that reads as random. UUIDs are kept, and so is a 40-character hex commit SHA
-    when the words before it are about git or it's part of a range (sha..main)."""
-    if UNFINISHED_KEY.search(text):
-        return "a private key with no end"
+def unsure_span(text):
+    """(why, start, end) for the first part of a redacted text that still can't be trusted, or None: a
+    private key with no end, or a run of 32 or more token characters that reads as random. UUIDs are
+    kept, and so is a 40-character hex commit SHA when the words before it are about git or it's part of
+    a range (sha..main)."""
+    m = UNFINISHED_KEY.search(text)
+    if m:
+        return "a private key with no end", m.start(), m.end()
     text = UUID.sub(lambda m: " " * len(m.group(0)), text)
     for m in TOKEN_LIKE.finditer(text):
         run = m.group(0)
@@ -741,10 +755,16 @@ def unsure(text):
             if (GIT_CONTEXT.search(text[max(0, m.start() - 30):m.start()])
                     or text[m.end():m.end() + 2] == ".." or text[max(0, m.start() - 2):m.start()] == ".."):
                 continue
-            return "40 hex characters that aren't a commit"
+            return "40 hex characters that aren't a commit", m.start(), m.end()
         if token_like(re.sub(r"[-_=+/]", "", run)):
-            return "a long token-like string"
+            return "a long token-like string", m.start(), m.end()
     return None
+
+
+def unsure(text):
+    """Why a redacted text still can't be trusted, or None (see unsure_span)."""
+    found = unsure_span(text)
+    return found and found[0]
 
 
 def whole_word(value):
@@ -766,16 +786,38 @@ def whole_word(value):
 DATE_OR_TIME = re.compile(r"\d{4}-\d{2}-\d{2}(?:T[\d:.]+(?:Z|[+-]\d{2}:?\d{2})?)?")
 
 
+def mask(text, spans):
+    """The text with each span blanked out (as NULs, which are no letter, digit or path character), so a
+    later search sees a replaced part as a word break and never matches inside it, as if it had been
+    replaced, while every position stays the same."""
+    for start, end, *_ in spans:
+        text = text[:start] + MASK * (end - start) + text[end:]
+    return text
+
+
+MASK = "\x00"
+
+
+def config_spans(text, private):
+    """(start, end, key) of each configured value as a word of its own, longest values first, each value
+    looked for with the earlier ones already taken out (so 4821 next to a replaced acmedb is still a word);
+    a number is never a group of a session id or other UUID, nor part of a time or a date."""
+    found = []
+    skip = [m.span() for m in UUID.finditer(text)] + [m.span() for m in DATE_OR_TIME.finditer(text)]
+    for value, label in private:
+        masked = mask(text, found)
+        if value.isdigit():
+            matches = [m for m in re.finditer(whole_word(value), masked)
+                       if not any(a <= m.start() < b for a, b in skip)]
+        else:
+            matches = list(re.finditer(whole_word(value), masked, flags=re.I))
+        found += [(m.start(), m.end(), label) for m in matches]
+    return found
+
+
 def replace_config(text, private):
     """The text with each configured value, as a word of its own, written as [config: <key>]."""
-    for value, label in private:
-        if value.isdigit():  # never a group of a session id or other UUID, nor part of a time or a date
-            spans = [m.span() for m in UUID.finditer(text)] + [m.span() for m in DATE_OR_TIME.finditer(text)]
-            text = re.sub(whole_word(value), lambda m: m.group(0) if any(a <= m.start() < b for a, b in spans)
-                          else "[config: %s]" % label, text)
-        else:
-            text = re.sub(whole_word(value), "[config: %s]" % label, text, flags=re.I)
-    return text
+    return apply_spans(text, [(a, b, "[config: %s]" % label) for a, b, label in config_spans(text, private)])
 
 
 def redact(text, private):
@@ -796,11 +838,55 @@ def redact_path(path, private):
     return "/".join(redact(part, private)[0] or "[withheld]" if part else part for part in path.split("/"))
 
 
+def user_spans(text, users):
+    """(start, end) of each username as a word of its own, longest first."""
+    found = []
+    for user in users:
+        found += [m.span() for m in re.finditer(whole_word(user), mask(text, found), flags=re.I)]
+    return found
+
+
 def replace_users(text, users):
     """The text with each username, as a word of its own, written as [user]."""
-    for user in users:
-        text = re.sub(whole_word(user), "[user]", text, flags=re.I)
-    return text
+    return apply_spans(text, [(a, b, "[user]") for a, b in user_spans(text, users)])
+
+
+def check(text, private, users):
+    """What would be taken out of a draft before it leaves the machine (a ticket, a task), by the last
+    pass's rules and redact()'s together: each full path, configured value, username and generic secret,
+    in the order the last pass takes them, and the first token-like string redact() would withhold
+    (`unsure`, with its reason). Each with its line, column and length, never the text it found: a
+    configured value is named by its key."""
+    taken = [(a, b, "path", None) for a, b in path_spans(text)]
+    taken += [(a, b, "config", key) for a, b, key in config_spans(mask(text, taken), private)]
+    taken += [(a, b, "user", None) for a, b in user_spans(mask(text, taken), users)]
+    for pattern, _ in SECRET_PATTERNS:
+        taken += [(m.start(), m.end(), "secret", None) for m in pattern.finditer(mask(text, taken))
+                  if MASK not in m.group(0)]
+    left = unsure_span(mask(text, taken))
+    if left:
+        taken.append((left[1], left[2], "unsure", left[0]))
+    if not taken and scrub(text, users, private) != text:  # the pass changed something no span shows
+        taken = [(0, len(text), "other", None)]
+    hits = []
+    for start, end, kind, detail in sorted(taken):
+        line = text.count("\n", 0, start) + 1
+        hit = {"kind": kind, "line": line, "column": start - (text.rfind("\n", 0, start) + 1) + 1, "length": end - start}
+        if detail:
+            hit["key" if kind == "config" else "reason"] = detail
+        hits.append(hit)
+    return {"passed": not hits, "hits": hits}
+
+
+def transcript_cwds(paths):
+    """Every cwd the transcripts' records name; a transcript that can't be read gives none."""
+    cwds = set()
+    for path in paths:
+        try:
+            cwds.update(rec["cwd"] for _, rec, _ in records(path) if rec and isinstance(rec.get("cwd"), str))
+        except OSError:
+            pass
+    return cwds
 
 
 def redact_moments(found, private, users=()):
@@ -886,8 +972,13 @@ def parse_args(argv):
     m.add_argument("--repo-of", action="append", default=[], metavar="PATH=REPO")
     r = sub.add_parser("redact", help="the text on stdin with secrets and config values taken out")
     r.add_argument("--config", action="append", default=[], metavar="FILE")
+    c = sub.add_parser("check", help="what the last pass would change in a draft (a file, or stdin)")
+    c.add_argument("draft", nargs="?", metavar="FILE")
+    c.add_argument("--config", action="append", default=[], metavar="FILE")
+    c.add_argument("--cwd", action="append", default=[], metavar="PATH", help="a session's cwd, for its username")
+    c.add_argument("--transcript", action="append", default=[], metavar="FILE", help="a run's transcript, for its usernames")
     opts = parser.parse_args(argv)
-    if opts.command == "redact":
+    if opts.command in ("redact", "check"):
         return opts
     since, until = parse_time(opts.since), parse_time(opts.until)
     for name, given, parsed in (("--since", opts.since, since), ("--until", opts.until, until)):
@@ -917,10 +1008,18 @@ def main(argv=None):
         if opts.command == "redact":
             text, why = redact(sys.stdin.read(), opts.private)
             result = {"text": text, "dropped": text is None, "reason": why}
+        elif opts.command == "check":
+            if opts.draft:
+                with open(opts.draft, encoding="utf-8") as f:
+                    text = f.read()
+            else:
+                text = sys.stdin.read()
+            opts.users = usernames(set(opts.cwd) | transcript_cwds(opts.transcript), opts.transcript)
+            result = check(text, opts.private, opts.users)
         else:
             opts.signing_errors = read_config_lists(opts.config, "signing_errors")
             result = moments(opts)
-        code = 0
+        code = 3 if opts.command == "check" and not result["passed"] else 0
     except Exception as e:  # its own failure: say what, never a traceback
         result, code = {"error": "%s: %s" % (type(e).__name__, e)}, 1
         if not hasattr(opts, "private"):  # a config couldn't be read: the values of those that can

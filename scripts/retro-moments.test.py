@@ -838,6 +838,60 @@ class Home(TempDir):
         self.assertEqual(out["text"], "see [path] and [path] and [path]")
 
 
+class Check(TempDir):
+    def setUp(self):
+        super().setUp()
+        self.config = os.path.join(self.tmp, "c.yml")
+        with open(self.config, "w") as f:
+            f.write("stack:\n  database:\n    host: acmedb\n")
+        self.transcript = write(self.tmp, "s.jsonl", [human("2026-03-02T09:00:00Z", "a", "Go", cwd="/home/zephyrine/src/x")])
+
+    def check(self, text, *extra):
+        return run("check", "--config", self.config, *extra, stdin=text)
+
+    def test_a_draft_with_a_username_a_home_path_and_a_value_fails_with_each_listed(self):
+        draft = "Ask zephyrine to look at /home/zephyrine/src/x/a.ts\nbefore acmedb restarts."
+        for extra in (("--cwd", "/home/zephyrine/src/x"), ("--transcript", self.transcript)):
+            with self.subTest(extra=extra):
+                code, out = self.check(draft, *extra)
+                self.assertEqual(code, 3)
+                self.assertFalse(out["passed"])
+                self.assertEqual([(h["kind"], h["line"], h["column"], h["length"]) for h in out["hits"]],
+                                 [("user", 1, 5, 9), ("path", 1, 26, 26), ("config", 2, 8, 6)])
+                self.assertEqual(out["hits"][2]["key"], "database.host")
+                self.assertNotIn("zephyrine", json.dumps(out))  # the hits never repeat what they found
+                self.assertNotIn("acmedb", json.dumps(out))
+
+    def test_a_value_next_to_one_already_replaced_is_still_found(self):
+        config = os.path.join(self.tmp, "two.yml")
+        with open(config, "w") as f:
+            f.write("stack:\n  database:\n    host: acmedb\njira:\n  board_id: 4821\n")
+        out = run("redact", "--config", config, stdin="4821acmedb_replica")[1]
+        self.assertEqual(out["text"], "[config: jira.board_id][config: database.host]_replica")
+        code, out = run("check", "--config", config, stdin="4821acmedb_replica")
+        self.assertEqual([(h["kind"], h["column"], h["length"]) for h in out["hits"]], [("config", 1, 4), ("config", 5, 6)])
+
+    def test_a_secret_or_a_token_redact_would_withhold_fails_the_check(self):
+        for draft, kind in (("token ghp_A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8 here", "secret"),
+                            ("key wJalrXUtnFEMI1K7MDE2NGbPx3RfiCY4EXAM5PLEKEY6", "unsure")):
+            with self.subTest(kind=kind):
+                code, out = run("check", stdin=draft)
+                self.assertEqual((code, [h["kind"] for h in out["hits"]]), (3, [kind]))
+        self.assertEqual(out["hits"][0]["column"], 5)
+        self.assertEqual(out["hits"][0]["reason"], "a long token-like string")
+
+    def test_a_clean_draft_passes(self):
+        code, out = self.check("Add a lint rule in acme-web that fails on src/a.ts.", "--cwd", "/home/zephyrine/src/x")
+        self.assertEqual((code, out), (0, {"passed": True, "hits": []}))
+
+    def test_a_draft_file_is_checked_too(self):
+        draft = os.path.join(self.tmp, "draft.md")
+        with open(draft, "w") as f:
+            f.write("see /Users/quillon/notes.txt")
+        code, out = run("check", draft)
+        self.assertEqual((code, [h["kind"] for h in out["hits"]]), (3, ["path"]))
+
+
 PLANTED = ["ghp_A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8", "eyJhbGciOiJIUzI1NiJ9", "s3cret", "b3BlbnNzaC1rZXktdjEAAAAABG5vbmU",
            "dana.k@zephyr-corp.com", "zephyr-corp.atlassian.net", "7d3f2a10-5b6c-4e8d-9f01-23456789abcd",
            "api.zephyr-corp.internal", "10.20.30.40", "qa+7@zephyr-corp.com", "zephyr-corp.com", "hunter2",
