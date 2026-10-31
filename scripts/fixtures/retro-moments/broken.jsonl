@@ -1,0 +1,6 @@
+{"type": "user", "timestamp": "2026-03-02T09:00:00Z", "uuid": "k-1", "sessionId": "00000000-0000-0000-0000-000000000003", "cwd": "/home/acme/src/acme-web", "origin": {"kind": "human"}, "promptSource": "typed", "message": {"role": "user", "content": "Build the usage page"}}
+{"type": "assistant", "timestamp": "2026-03-02T09:01:00Z", "uuid": "k-2", "message": {"role": "assist
+{"type": "some-new-type", "timestamp": "2026-03-02T09:02:00Z", "uuid": "k-3", "sessionId": "00000000-0000-0000-0000-000000000003", "cwd": "/home/acme/src/acme-web", "payload": {"x": 1}}
+{"type": "user", "timestamp": "2026-03-02T09:03:00Z", "uuid": "k-4", "sessionId": "00000000-0000-0000-0000-000000000003", "cwd": "/home/acme/src/acme-web", "origin": {"kind": "human"}, "promptSource": "typed"}
+{"type": "user", "timestamp": "2026-03-02T09:04:00Z", "uuid": "k-5", "sessionId": "00000000-0000-0000-0000-000000000003", "cwd": "/home/acme/src/acme-web", "origin": {"kind": "human"}, "promptSource": "typed", "message": {"role": "user", "content": "no, the usage page lives under /reports, not /settings"}}
+{"type": "user", "timestamp": "2026-03-02T09:05:00Z", "uuid": "k-6", "mess

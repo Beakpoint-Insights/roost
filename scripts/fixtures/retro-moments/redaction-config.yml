@@ -1,0 +1,19 @@
+# A made-up team for the redaction tests. Its values appear nowhere else in roost.
+team:
+  name: Zephyr
+tracker:
+  kind: jira
+  jira:
+    site: zephyr-corp.atlassian.net      # the tracker site
+    cloud_id: "7d3f2a10-5b6c-4e8d-9f01-23456789abcd"
+    project: ZEP
+vcs:
+  host: github
+stack:
+  services:
+    - { name: API, url: "https://api.zephyr-corp.internal:8443" }
+    - { name: web app, url: "http://localhost:3000" }
+  database:
+    host: 10.20.30.40
+qa:
+  test_account_email: 'qa+<n>@zephyr-corp.com'
