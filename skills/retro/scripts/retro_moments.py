@@ -7,18 +7,19 @@
       can't be opened is listed in "unreadable" and the others are still read.
   redact [--config FILE]...      (text on stdin)
       The text with secrets and the team config's identifying values taken out.
-  check [FILE] [--config FILE]... [--cwd PATH]... [--transcript FILE]...   (or text on stdin)
+  check [FILE] [--config FILE]... [--cwd PATH]... [--transcript FILE]... [--no-users]   (or stdin)
       Before a draft leaves the machine: each full path, configured value, username (from the
       cwds and the transcripts' records) and secret it would take out, and a token-like string
       redact would withhold, by line, column and length, never the text itself. Exit 3 when
-      there's any.
+      there's any; exit 4, with a reason, when it can't check: a transcript it can't open, or
+      no usernames to look for (unless --no-users).
 
 Every quote it prints is redacted: generic secrets by pattern, then each identifying value in
 the team config and its overrides (--config, in roost-config's order). A quote it can't clean
 with confidence is dropped, and its moment kept.
 
 Exit 0 whatever it finds (unreadable records are in the JSON; check exits 3 when a draft
-has something to take out), 2 for bad arguments, 1 for a failure of its own, with {"error": "<type>: <message>"}.
+has something to take out, and 4 when it can't check), 2 for bad arguments, 1 for a failure of its own, with {"error": "<type>: <message>"}.
 
 Standard library only. Run it from the skill's own folder: <skill folder>/scripts/.
 """
@@ -117,33 +118,47 @@ def time_key(value):
 
 
 def records(path):
-    """Yields (line number, record, None) for each JSON line, and (line number, None, reason) for each it can't read."""
+    """Yields (line number, record, None, cwd) for each JSON line, and (line number, None, reason, cwd) for each
+    it can't read. cwd is the line's own cwd when it's text, even on a line that can't be read, so its
+    username is still known."""
     with open(path, encoding="utf-8", errors="replace") as f:
         lines = f.readlines()
     for n, line in enumerate(lines, 1):
         if not line.strip():
             continue
         try:
-            rec = json.loads(line)
-        except ValueError:
-            last = n == len(lines) and not line.endswith("\n")
-            yield n, None, "incomplete last line (still being written?)" if last else "not JSON"
-            continue
-        if not isinstance(rec, dict):
-            yield n, None, "not a JSON object"
-            continue
-        why = wrong_types(rec)
-        if why:
-            yield n, None, why
-            continue
-        if rec.get("type") in ("user", "assistant"):
-            if not isinstance(rec.get("message"), dict):
-                yield n, None, "missing message"
-                continue
-            if not isinstance(rec["message"].get("content"), (str, list, type(None))):
-                yield n, None, "unsupported message content"
-                continue
-        yield n, rec, None
+            rec, why = read_line(line, last=n == len(lines) and not line.endswith("\n"))
+        except Exception:  # anything else about a line (a number too big to compare) lists it alone
+            rec, why = None, "fields of an unexpected type"
+        yield n, (None if why else rec), why, line_cwd(line)
+
+
+def line_cwd(line):
+    """A line's cwd when it's JSON with a cwd that's text, or None."""
+    try:
+        cwd = json.loads(line).get("cwd")
+    except Exception:
+        return None
+    return cwd if isinstance(cwd, str) else None
+
+
+def read_line(line, last):
+    """(record, None), or (None, why it can't be read)."""
+    try:
+        rec = json.loads(line)
+    except ValueError:
+        return None, "incomplete last line (still being written?)" if last else "not JSON"
+    if not isinstance(rec, dict):
+        return None, "not a JSON object"
+    why = wrong_types(rec)
+    if why:
+        return None, why
+    if rec.get("type") in ("user", "assistant"):
+        if not isinstance(rec.get("message"), dict):
+            return None, "missing message"
+        if not isinstance(rec["message"].get("content"), (str, list, type(None))):
+            return None, "unsupported message content"
+    return rec, None
 
 
 TOOL_TEXT_INPUTS = ("command", "file_path", "pattern", "path", "url", "query")
@@ -160,6 +175,10 @@ def wrong_types(rec):
         return "a cwd that isn't text"
     if not text_or_none(rec.get("sessionId")):
         return "a session id that isn't text"
+    if not text_or_none(rec.get("uuid"), rec.get("parentUuid")):
+        return "a record id that isn't text"
+    if not text_or_none(rec.get("timestamp")):
+        return "a time that isn't text"
     if not text_or_none(rec.get("customTitle"), rec.get("agentName")):
         return "a title that isn't text"
     if not isinstance(rec.get("permissionDecision"), (dict, type(None))):
@@ -411,7 +430,10 @@ class Session:
         seen_human = False
         last_assistant = None
         after_refusal = False   # a user-rejected refusal with no assistant record or typed message since
-        for n, rec, reason in records(self.path):
+        for n, rec, reason, cwd in records(self.path):
+            if cwd:  # its username is known even when the record can't be read
+                self.cwds.add(cwd)
+            saved = self.save(pending, (seen_human, last_assistant, after_refusal))
             try:
                 if rec is None:
                     self.unparseable.append({"session": None, "line": n, "reason": reason})
@@ -462,7 +484,8 @@ class Session:
                 if rec.get("cwd"):
                     self.cwds.add(rec["cwd"])
                 self.count(rec, echo)
-            except (TypeError, AttributeError, KeyError, ValueError):  # a shape wrong_types() doesn't know
+            except Exception:  # a shape wrong_types() doesn't know: list it, and undo all it did
+                seen_human, last_assistant, after_refusal = self.restore(saved, pending)
                 self.unparseable.append({"session": None, "line": n, "reason": "fields of an unexpected type"})
 
     def count(self, rec, echo=False):
@@ -488,6 +511,30 @@ class Session:
                     totals["tool_calls"][b.get("name")] = totals["tool_calls"].get(b.get("name"), 0) + 1
         totals["minutes"] = minutes_between(self.first, self.last) or 0
 
+    def save(self, pending, local):
+        """Everything one record can change, to put back if reading it fails partway."""
+        return {"local": local, "pending": dict(pending), "events": len(self.events), "calls": len(self.calls),
+                "turns": len(self.turns), "shapes": {k: len(v) for k, v in self.unknown_shapes.items()},
+                "unparseable": len(self.unparseable), "unknown_types": dict(self.unknown_types),
+                "breaks": set(self.breaks), "cwds": set(self.cwds),
+                "totals": dict(self.totals, tool_calls=dict(self.totals["tool_calls"])),
+                "scalars": (self.title, self.id, self.cwd, self.first, self.last)}
+
+    def restore(self, saved, pending):
+        """Puts back what save() kept, and returns the loop's own state."""
+        for call in saved["pending"].values():  # a call still waiting had no result before this record
+            call["result"] = None
+        pending.clear()
+        pending.update(saved["pending"])
+        del self.events[saved["events"]:], self.calls[saved["calls"]:], self.turns[saved["turns"]:]
+        del self.unparseable[saved["unparseable"]:]
+        for k, n in saved["shapes"].items():
+            del self.unknown_shapes[k][n:]
+        self.unknown_types, self.breaks, self.cwds = saved["unknown_types"], saved["breaks"], saved["cwds"]
+        self.totals = saved["totals"]
+        self.title, self.id, self.cwd, self.first, self.last = saved["scalars"]
+        return saved["local"]
+
     def read_assistant(self, rec, pending):
         if rec.get("isApiErrorMessage"):
             if rec.get("apiErrorStatus") == 429:
@@ -499,6 +546,12 @@ class Session:
             if b.get("type") == "tool_use":
                 inp = b.get("input")
                 call = {"name": b.get("name"), "input": inp if isinstance(inp, dict) else {}, "rec": rec, "result": None}
+                # everything later passes need from the call, worked out now, so a call that can't be read
+                # fails with its record
+                call["what"] = summary(call["name"], call["input"])
+                call["key"] = (call["name"], json.dumps(call["input"], sort_keys=True))
+                call["search"] = is_search(call)
+                call["step"] = FULL_PATH.sub("[path]", normalise(call["what"]))  # grouped as printed
                 pending[b.get("id")] = call
                 self.calls.append(call)
                 if call["name"] in USER_WAIT_TOOLS:
@@ -513,7 +566,7 @@ class Session:
             call = pending.pop(b.get("tool_use_id"), None)
             text = block_text(b)
             name = call["name"] if call else None
-            what = summary(name, call["input"]) if call else ""
+            what = call["what"] if call else ""
             if call:
                 call["result"] = {"rec": rec, "text": text, "error": bool(b.get("is_error"))}
                 if call.get("stop"):
@@ -551,7 +604,7 @@ class Session:
         out = []
         groups = {}
         for i, call in enumerate(calls):
-            key = (call["name"], json.dumps(call["input"], sort_keys=True))
+            key = call["key"]
             g = groups.get(key)
             if g and g["last"] >= i - RETRY_WINDOW:
                 g["count"] += 1
@@ -560,12 +613,12 @@ class Session:
                 groups[key] = g = {"first": call, "count": 1, "last": i}
                 out.append(g)
         moments = [self.moment("retry", g["first"]["rec"], tool=g["first"]["name"], count=g["count"],
-                               excerpt=summary(g["first"]["name"], g["first"]["input"])) for g in out if g["count"] > 1]
+                               excerpt=g["first"]["what"]) for g in out if g["count"] > 1]
         run = []
         for i, call in enumerate(calls + [None]):
             # a run of searches ends at an edit, a new human or peer message, or the end; other tools pass
             if call is not None and i not in breaks:
-                if is_search(call):
+                if call["search"]:
                     run.append(call)
                 if call["name"] not in EDIT_TOOLS:
                     continue
@@ -573,9 +626,8 @@ class Session:
                 end = (run[-1]["result"] or {}).get("rec") or run[-1]["rec"]
                 moments.append(self.moment("search", run[0]["rec"], count=len(run),
                                            minutes=minutes_between(run[0]["rec"].get("timestamp"), end.get("timestamp")),
-                                           excerpt=summary(run[0]["name"], run[0]["input"]) + " … "
-                                           + summary(run[-1]["name"], run[-1]["input"])))
-            run = [call] if call is not None and i in breaks and is_search(call) else []
+                                           excerpt=run[0]["what"] + " … " + run[-1]["what"]))
+            run = [call] if call is not None and i in breaks and call["search"] else []
         return moments
 
     def slow_runs(self):
@@ -593,9 +645,8 @@ class Session:
                 continue
             if call["input"].get("run_in_background"):
                 continue
-            command = FULL_PATH.sub("[path]", normalise(summary(call["name"], call["input"])))  # group as printed
             repo = self.repo(call["rec"].get("cwd"))
-            out.append(((command, repo), {"session": self.name, "time": start, "id": call["rec"].get("uuid"),
+            out.append(((call["step"], repo), {"session": self.name, "time": start, "id": call["rec"].get("uuid"),
                                           "minutes": round(seconds / 60, 1),
                                           "last_line": ((call["result"]["text"] or "").strip().splitlines() or [""])[-1]}))
         return out
@@ -939,14 +990,14 @@ def check(text, private, users):
 
 
 def transcript_cwds(paths):
-    """Every cwd the transcripts' records name; a transcript that can't be read gives none."""
-    cwds = set()
+    """(every cwd the transcripts' records name, how many transcripts couldn't be opened)."""
+    cwds, missing = set(), 0
     for path in paths:
         try:
-            cwds.update(rec["cwd"] for _, rec, _ in records(path) if rec and isinstance(rec.get("cwd"), str))
+            cwds.update(cwd for _, _, _, cwd in records(path) if cwd)
         except OSError:
-            pass
-    return cwds
+            missing += 1
+    return cwds, missing
 
 
 def redact_moments(found, private, users=()):
@@ -981,28 +1032,35 @@ def moments(opts):
         s = Session(path, opts)
         try:
             s.read()
-        except OSError as e:  # one unreadable transcript doesn't stop the others
+            # everything this transcript adds, worked out before any of it is kept
+            found = [m for m in s.events + s.call_moments() if opts.inside(m["time"])]
+            for m in found:
+                m["session"] = s.name
+            s.found = (found, [(key, r) for key, r in s.slow_runs() if opts.inside(r["time"])],
+                       turn_moments([dict(t, session=s.name) for t in s.turns if opts.inside(t["time"])], s.repo(s.cwd)))
+        except Exception as e:  # one transcript that can't be read doesn't stop the others
             # by its short id only: a title is in the file. The reason never carries the path.
+            reason = ("can't read the file: %s" % (e.strerror or type(e).__name__) if isinstance(e, OSError)
+                      else "couldn't be read: %s" % type(e).__name__)
+            s._name = None
+            s.title = None
             unreadable.append({"session": s.name, "path": redact_path(os.path.basename(path), opts.private),
-                               "reason": "can't read the file: %s" % (e.strerror or type(e).__name__)})
+                               "reason": reason})
             continue
         sessions.append(s)
     out_moments, slow, turn_slow, unknown_types = [], [], [], {}
     shapes = {"hook": [], "delivery": []}
     for s in sessions:
-        for m in s.events + s.call_moments():
-            m["session"] = s.name
-            if opts.inside(m["time"]):
-                out_moments.append(m)
-        slow += [(key, r) for key, r in s.slow_runs() if opts.inside(r["time"])]
-        turns = [dict(t, session=s.name) for t in s.turns if opts.inside(t["time"])]
+        found, runs, turns = s.found
+        out_moments += found
+        slow += runs
+        turn_slow += turns
         for u in s.unparseable:
             unparseable.append(dict(u, session=s.name))
         for k, v in s.unknown_types.items():
             unknown_types[k] = unknown_types.get(k, 0) + v
         for k in shapes:
             shapes[k] += [dict(x, session=s.name) for x in s.unknown_shapes[k]]
-        turn_slow += turn_moments(turns, s.repo(s.cwd))
     opts.users = usernames(set().union(*[s.cwds for s in sessions]), opts.transcripts)
     slow_moments = sorted(group_slow(slow, opts.private, opts.users) + turn_slow, key=lambda m: -m["total_minutes"])
     redaction = redact_moments(slow_moments + out_moments, opts.private, opts.users)
@@ -1037,6 +1095,7 @@ def parse_args(argv):
     c.add_argument("--config", action="append", default=[], metavar="FILE")
     c.add_argument("--cwd", action="append", default=[], metavar="PATH", help="a session's cwd, for its username")
     c.add_argument("--transcript", action="append", default=[], metavar="FILE", help="a run's transcript, for its usernames")
+    c.add_argument("--no-users", action="store_true", help="check without usernames (there's no session to name one)")
     opts = parser.parse_args(argv)
     if opts.command in ("redact", "check"):
         return opts
@@ -1074,12 +1133,22 @@ def main(argv=None):
                     text = f.read()
             else:
                 text = sys.stdin.read()
-            opts.users = usernames(set(opts.cwd) | transcript_cwds(opts.transcript), opts.transcript)
-            result = check(text, opts.private, opts.users)
+            cwds, missing = transcript_cwds(opts.transcript)
+            opts.users = usernames(set(opts.cwd) | cwds, opts.transcript)
+            # fail closed: a check that doesn't know whose name to look for can't pass a draft
+            if missing:
+                # --no-users or not: a transcript given that can't be opened is a mistake to fix
+                result = {"passed": False, "hits": [], "reason": "can't open a transcript (%d of %d): check the "
+                          "paths and pass the run's transcripts" % (missing, len(opts.transcript))}
+            elif not opts.users and not opts.no_users:
+                result = {"passed": False, "hits": [], "reason": "no usernames to check for: pass the run's "
+                          "--transcript or the session's --cwd (a home folder), or --no-users"}
+            else:
+                result = check(text, opts.private, opts.users)
         else:
             opts.signing_errors = read_config_lists(opts.config, "signing_errors")
             result = moments(opts)
-        code = 3 if opts.command == "check" and not result["passed"] else 0
+        code = (4 if result.get("reason") else 3) if opts.command == "check" and not result["passed"] else 0
     except Exception as e:  # its own failure: say what, never a traceback
         result, code = {"error": "%s: %s" % (type(e).__name__, e)}, 1
         if not hasattr(opts, "private"):  # a config couldn't be read: the values of those that can
@@ -1087,7 +1156,11 @@ def main(argv=None):
                 opts.private = private_values([p for p in opts.config if os.path.isfile(p)])
             except Exception:
                 opts.private = []
-    json.dump(scrub(result, getattr(opts, "users", ()), opts.private), sys.stdout, indent=2)
+    try:
+        out = scrub(result, getattr(opts, "users", ()), opts.private)
+    except Exception as e:  # never a traceback, even from the last pass
+        out, code = {"error": "%s: the output couldn't be cleaned" % type(e).__name__}, 1
+    json.dump(out, sys.stdout, indent=2)
     sys.stdout.write("\n")
     return code
 

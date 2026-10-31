@@ -648,6 +648,75 @@ class Unparseable(unittest.TestCase):
                          (0, 2, "fields of an unexpected type"))
         self.assertEqual([m["id"] for m in out["moments"]], ["e"])
 
+    def run_with(self, bad, tmp):
+        """moments on [Go, *bad, a correction] plus a good transcript: (code, out, the bad one's session)."""
+        recs = [human("2026-03-02T09:00:00Z", "a", "Go")] + bad + [human("2026-03-02T09:30:00Z", "b", "no, the other one")]
+        first = write(tmp, "bad.jsonl", recs)
+        second = write(tmp, "good.jsonl", [human("2026-03-02T10:00:00Z", "c", "Go", sid=SID.format(2)),
+                                           human("2026-03-02T10:01:00Z", "d", "not that", sid=SID.format(2))])
+        code, out = run("moments", first, second)
+        return code, out, out["sessions"][0] if out.get("sessions") else None
+
+    def test_a_record_that_fails_anywhere_is_listed_and_leaves_nothing_behind(self):
+        tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp)
+        ask_null = lambda t, u, i: tool_use(t, u, i, "AskUserQuestion", {"questions": None})
+        cases = {
+            "command null": [tool_use("2026-03-02T09:01:00Z", "u1", "t1", "Bash", {"command": None}),
+                             tool_result("2026-03-02T09:05:00Z", "r1", "t1", "ok")],
+            "questions null": [ask_null("2026-03-02T09:01:00Z", "u1", "t1"),
+                               tool_result("2026-03-02T09:02:00Z", "r1", "t1", "yes")],
+            "questions null, twice": [ask_null("2026-03-02T09:01:00Z", "u1", "t1"), ask_null("2026-03-02T09:02:00Z", "u2", "t2")],
+            "a 400-digit duration": [rec("system", "2026-03-02T09:01:00Z", "d1", subtype="turn_duration", durationMs=10 ** 400)],
+            "a deeply nested uuid": [dict(human("2026-03-02T09:01:00Z", "x", "no"), uuid=json.loads("[" * 3000 + "]" * 3000))],
+            "a time that isn't text": [human(12345, "x", "no")],
+            "origin x on a titled record": [
+                {"type": "custom-title", "customTitle": "bad-title", "origin": "x", "sessionId": SID.format(1),
+                 "timestamp": "2026-03-02T09:00:30Z"},  # timed, so its totals read origin and fail
+                tool_use("2026-03-02T09:01:00Z", "u1", "t1", "Read", {"file_path": "a.ts"}, origin="x"),
+                tool_use("2026-03-02T09:02:00Z", "u2", "t2", "Read", {"file_path": "a.ts"}, origin="x"),
+                rec("system", "2026-03-02T09:03:00Z", "d1", subtype="turn_duration", durationMs=4000000, origin="x")],
+            "null text in a tool_result list": [
+                rec("assistant", "2026-03-02T09:01:00Z", "u1", message={"role": "assistant", "content": [
+                    {"type": "tool_use", "id": "t1", "name": "Bash", "input": {"command": "make"}},
+                    {"type": "tool_use", "id": "t2", "name": "Bash", "input": {"command": "make test"}}]}),
+                rec("user", "2026-03-02T09:05:00Z", "r1", message={"role": "user", "content": [
+                    {"type": "tool_result", "tool_use_id": "t1", "is_error": True, "content": "boom"},
+                    {"type": "tool_result", "tool_use_id": "t2", "is_error": False, "content": [{"type": "text", "text": None}]}]})],
+        }
+        for name, bad in cases.items():
+            with self.subTest(name):
+                code, out, first = self.run_with(bad, tmp)
+                self.assertEqual(code, 0, out.get("error"))
+                self.assertEqual(len(out["sessions"]), 2)
+                kinds = [(m["kind"], m["id"]) for m in out["moments"] if m["kind"] != "correction"]
+                listed = [u["line"] for u in out["unparseable"]]
+                self.assertTrue(listed, json.dumps(out)[:300])
+                # nothing of a listed record is kept: no moment, title, count or slow step from it
+                self.assertEqual(kinds, [], kinds)
+                self.assertEqual(first["session"], SID.format(1)[:8])
+                self.assertEqual((first["totals"]["tool_calls"], first["totals"]["errors"]),
+                                 ({} if name != "null text in a tool_result list" else {"Bash": 2}, 0))
+                self.assertEqual([m["id"] for m in out["moments"] if m["kind"] == "correction"], ["b", "d"])
+
+    def test_a_transcript_that_fails_is_listed_alone(self):
+        tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp)
+        real = retro_moments.Session.call_moments
+        def boom(session):
+            if session.path.endswith("bad.jsonl"):
+                raise RuntimeError("boom")
+            return real(session)
+        retro_moments.Session.call_moments = boom
+        try:
+            code, out, _ = self.run_with([], tmp)
+        finally:
+            retro_moments.Session.call_moments = real
+        self.assertEqual(code, 0)
+        self.assertEqual([u["path"] for u in out["unreadable"]], ["bad.jsonl"])
+        self.assertEqual(out["unreadable"][0]["reason"], "couldn't be read: RuntimeError")
+        self.assertEqual([m["id"] for m in out["moments"]], ["d"])
+
     def test_fixtures_are_synthetic(self):
         """No real transcript is committed: every fixture record has a made-up session and an Acme cwd."""
         checked = 0
@@ -766,6 +835,18 @@ class Home(TempDir):
             {"type": "custom-title", "customTitle": "quillon's run", "sessionId": SID.format(3)}]),
             os.path.join(other, "gone.jsonl"))
         self.assertNotIn("quillon", json.dumps(out).lower())
+
+    def test_a_username_is_learned_from_a_rejected_record(self):
+        folder = os.path.join(self.tmp, "acme-bob")  # a folder name that gives no username
+        os.makedirs(folder)
+        path = write(folder, SID.format(5) + ".jsonl", [
+            rec("system", "2026-03-02T09:00:00Z", "d", subtype="turn_duration", durationMs="5 min", cwd="/var/home/bob/acme"),
+            human("2026-03-02T09:01:00Z", "a", "Go", cwd=None), human("2026-03-02T09:02:00Z", "b", "no, ask bob instead", cwd=None)])
+        code, out = run("moments", path)
+        self.assertEqual(out["unparseable"][0]["line"], 1)
+        self.assertEqual(out["moments"][0]["excerpt"], "no, ask [user] instead")
+        code, out = run("check", "--transcript", path, stdin="ask bob")
+        self.assertEqual((code, [h["kind"] for h in out["hits"]]), (3, ["user"]))
 
     def test_a_username_cut_by_the_excerpt_limit_is_still_redacted(self):
         cwd = {"cwd": "/home/zephyrine/src/x"}
@@ -916,17 +997,33 @@ class Check(TempDir):
             f.write("stack:\n  database:\n    host: acmedb\njira:\n  board_id: 4821\n")
         out = run("redact", "--config", config, stdin="4821acmedb_replica")[1]
         self.assertEqual(out["text"], "[config: jira.board_id][config: database.host]_replica")
-        code, out = run("check", "--config", config, stdin="4821acmedb_replica")
+        code, out = run("check", "--config", config, "--no-users", stdin="4821acmedb_replica")
         self.assertEqual([(h["kind"], h["column"], h["length"]) for h in out["hits"]], [("config", 1, 4), ("config", 5, 6)])
 
     def test_a_secret_or_a_token_redact_would_withhold_fails_the_check(self):
         for draft, kind in (("token ghp_A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8 here", "secret"),
                             ("key wJalrXUtnFEMI1K7MDE2NGbPx3RfiCY4EXAM5PLEKEY6", "unsure")):
             with self.subTest(kind=kind):
-                code, out = run("check", stdin=draft)
+                code, out = run("check", "--no-users", stdin=draft)
                 self.assertEqual((code, [h["kind"] for h in out["hits"]]), (3, [kind]))
         self.assertEqual(out["hits"][0]["column"], 5)
         self.assertEqual(out["hits"][0]["reason"], "a long token-like string")
+
+    def test_check_fails_closed_without_usernames(self):
+        for extra, why in (((), "no usernames to check for"),
+                           (("--cwd", "/srv/app"), "no usernames to check for"),
+                           (("--transcript", os.path.join(self.tmp, "gone.jsonl")), "can't open a transcript")):
+            with self.subTest(extra=extra):
+                code, out = self.check("ask bob about it", *extra)
+                self.assertEqual(code, 4)
+                self.assertFalse(out["passed"])
+                self.assertTrue(out["reason"].startswith(why), out["reason"])
+        code, out = self.check("a clean line", "--no-users")
+        self.assertEqual((code, out["passed"]), (0, True))
+        # a transcript that can't be opened is a mistake to fix, --no-users or not
+        code, out = self.check("a clean line", "--no-users", "--transcript", os.path.join(self.tmp, "gone.jsonl"))
+        self.assertEqual(code, 4)
+        self.assertNotIn("--no-users", out["reason"])
 
     def test_a_clean_draft_passes(self):
         code, out = self.check("Add a lint rule in acme-web that fails on src/a.ts.", "--cwd", "/home/zephyrine/src/x")
@@ -936,7 +1033,7 @@ class Check(TempDir):
         draft = os.path.join(self.tmp, "draft.md")
         with open(draft, "w") as f:
             f.write("see /Users/quillon/notes.txt")
-        code, out = run("check", draft)
+        code, out = run("check", draft, "--no-users")
         self.assertEqual((code, [h["kind"] for h in out["hits"]]), (3, ["path"]))
 
 
