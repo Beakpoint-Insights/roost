@@ -1,0 +1,19 @@
+docs/plans/2026-10-28-issue-92-retro.md
+  s_317ca7d8caddc7::t_0d4fdf6ece6566 85,694
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "67d87c1ab5ee2c8d897c2fa019a4d4c99b099b2b",
+  "prompts": {},
+  "sessions": {
+    "s_317ca7d8caddc7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "42bf6ed7-c0ea-476a-a622-d52d0b8672e1",
+        "model": "unknown"
+      },
+      "human_author": "Alan Cox <acox@beakpointinsights.com>"
+    }
+  }
+}
