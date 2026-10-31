@@ -117,7 +117,9 @@ def time_key(value):
 
 
 def records(path):
-    """Yields (line number, record, None) for each JSON line, and (line number, None, reason) for each it can't read."""
+    """Yields (line number, record, None, cwd) for each JSON line, and (line number, None, reason, cwd) for each
+    it can't read. cwd is the line's own cwd when it's text, even on a line that can't be read, so its
+    username is still known."""
     with open(path, encoding="utf-8", errors="replace") as f:
         lines = f.readlines()
     for n, line in enumerate(lines, 1):
@@ -127,7 +129,16 @@ def records(path):
             rec, why = read_line(line, last=n == len(lines) and not line.endswith("\n"))
         except Exception:  # anything else about a line (a number too big to compare) lists it alone
             rec, why = None, "fields of an unexpected type"
-        yield n, (None if why else rec), why
+        yield n, (None if why else rec), why, line_cwd(line)
+
+
+def line_cwd(line):
+    """A line's cwd when it's JSON with a cwd that's text, or None."""
+    try:
+        cwd = json.loads(line).get("cwd")
+    except Exception:
+        return None
+    return cwd if isinstance(cwd, str) else None
 
 
 def read_line(line, last):
@@ -418,7 +429,9 @@ class Session:
         seen_human = False
         last_assistant = None
         after_refusal = False   # a user-rejected refusal with no assistant record or typed message since
-        for n, rec, reason in records(self.path):
+        for n, rec, reason, cwd in records(self.path):
+            if cwd:  # its username is known even when the record can't be read
+                self.cwds.add(cwd)
             saved = self.save(pending, (seen_human, last_assistant, after_refusal))
             try:
                 if rec is None:
@@ -980,7 +993,7 @@ def transcript_cwds(paths):
     cwds = set()
     for path in paths:
         try:
-            cwds.update(rec["cwd"] for _, rec, _ in records(path) if rec and isinstance(rec.get("cwd"), str))
+            cwds.update(cwd for _, _, _, cwd in records(path) if cwd)
         except OSError:
             pass
     return cwds

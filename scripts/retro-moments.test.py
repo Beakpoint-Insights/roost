@@ -836,6 +836,18 @@ class Home(TempDir):
             os.path.join(other, "gone.jsonl"))
         self.assertNotIn("quillon", json.dumps(out).lower())
 
+    def test_a_username_is_learned_from_a_rejected_record(self):
+        folder = os.path.join(self.tmp, "acme-bob")  # a folder name that gives no username
+        os.makedirs(folder)
+        path = write(folder, SID.format(5) + ".jsonl", [
+            rec("system", "2026-03-02T09:00:00Z", "d", subtype="turn_duration", durationMs="5 min", cwd="/var/home/bob/acme"),
+            human("2026-03-02T09:01:00Z", "a", "Go", cwd=None), human("2026-03-02T09:02:00Z", "b", "no, ask bob instead", cwd=None)])
+        code, out = run("moments", path)
+        self.assertEqual(out["unparseable"][0]["line"], 1)
+        self.assertEqual(out["moments"][0]["excerpt"], "no, ask [user] instead")
+        code, out = run("check", "--transcript", path, stdin="ask bob")
+        self.assertEqual((code, [h["kind"] for h in out["hits"]]), (3, ["user"]))
+
     def test_a_username_cut_by_the_excerpt_limit_is_still_redacted(self):
         cwd = {"cwd": "/home/zephyrine/src/x"}
         path = write(self.tmp, "cut.jsonl", [human("2026-03-02T09:00:00Z", "a", "Go", **cwd),
