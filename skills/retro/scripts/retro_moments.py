@@ -7,18 +7,19 @@
       can't be opened is listed in "unreadable" and the others are still read.
   redact [--config FILE]...      (text on stdin)
       The text with secrets and the team config's identifying values taken out.
-  check [FILE] [--config FILE]... [--cwd PATH]... [--transcript FILE]...   (or text on stdin)
+  check [FILE] [--config FILE]... [--cwd PATH]... [--transcript FILE]... [--no-users]   (or stdin)
       Before a draft leaves the machine: each full path, configured value, username (from the
       cwds and the transcripts' records) and secret it would take out, and a token-like string
       redact would withhold, by line, column and length, never the text itself. Exit 3 when
-      there's any.
+      there's any; exit 4, with a reason, when it can't check: a transcript it can't open, or
+      no usernames to look for (unless --no-users).
 
 Every quote it prints is redacted: generic secrets by pattern, then each identifying value in
 the team config and its overrides (--config, in roost-config's order). A quote it can't clean
 with confidence is dropped, and its moment kept.
 
 Exit 0 whatever it finds (unreadable records are in the JSON; check exits 3 when a draft
-has something to take out), 2 for bad arguments, 1 for a failure of its own, with {"error": "<type>: <message>"}.
+has something to take out, and 4 when it can't check), 2 for bad arguments, 1 for a failure of its own, with {"error": "<type>: <message>"}.
 
 Standard library only. Run it from the skill's own folder: <skill folder>/scripts/.
 """
@@ -989,14 +990,14 @@ def check(text, private, users):
 
 
 def transcript_cwds(paths):
-    """Every cwd the transcripts' records name; a transcript that can't be read gives none."""
-    cwds = set()
+    """(every cwd the transcripts' records name, how many transcripts couldn't be opened)."""
+    cwds, missing = set(), 0
     for path in paths:
         try:
             cwds.update(cwd for _, _, _, cwd in records(path) if cwd)
         except OSError:
-            pass
-    return cwds
+            missing += 1
+    return cwds, missing
 
 
 def redact_moments(found, private, users=()):
@@ -1094,6 +1095,7 @@ def parse_args(argv):
     c.add_argument("--config", action="append", default=[], metavar="FILE")
     c.add_argument("--cwd", action="append", default=[], metavar="PATH", help="a session's cwd, for its username")
     c.add_argument("--transcript", action="append", default=[], metavar="FILE", help="a run's transcript, for its usernames")
+    c.add_argument("--no-users", action="store_true", help="check without usernames (there's no session to name one)")
     opts = parser.parse_args(argv)
     if opts.command in ("redact", "check"):
         return opts
@@ -1131,12 +1133,22 @@ def main(argv=None):
                     text = f.read()
             else:
                 text = sys.stdin.read()
-            opts.users = usernames(set(opts.cwd) | transcript_cwds(opts.transcript), opts.transcript)
-            result = check(text, opts.private, opts.users)
+            cwds, missing = transcript_cwds(opts.transcript)
+            opts.users = usernames(set(opts.cwd) | cwds, opts.transcript)
+            # fail closed: a check that doesn't know whose name to look for can't pass a draft
+            if missing:
+                # --no-users or not: a transcript given that can't be opened is a mistake to fix
+                result = {"passed": False, "hits": [], "reason": "can't open a transcript (%d of %d): check the "
+                          "paths and pass the run's transcripts" % (missing, len(opts.transcript))}
+            elif not opts.users and not opts.no_users:
+                result = {"passed": False, "hits": [], "reason": "no usernames to check for: pass the run's "
+                          "--transcript or the session's --cwd (a home folder), or --no-users"}
+            else:
+                result = check(text, opts.private, opts.users)
         else:
             opts.signing_errors = read_config_lists(opts.config, "signing_errors")
             result = moments(opts)
-        code = 3 if opts.command == "check" and not result["passed"] else 0
+        code = (4 if result.get("reason") else 3) if opts.command == "check" and not result["passed"] else 0
     except Exception as e:  # its own failure: say what, never a traceback
         result, code = {"error": "%s: %s" % (type(e).__name__, e)}, 1
         if not hasattr(opts, "private"):  # a config couldn't be read: the values of those that can

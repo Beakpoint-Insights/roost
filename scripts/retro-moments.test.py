@@ -997,17 +997,33 @@ class Check(TempDir):
             f.write("stack:\n  database:\n    host: acmedb\njira:\n  board_id: 4821\n")
         out = run("redact", "--config", config, stdin="4821acmedb_replica")[1]
         self.assertEqual(out["text"], "[config: jira.board_id][config: database.host]_replica")
-        code, out = run("check", "--config", config, stdin="4821acmedb_replica")
+        code, out = run("check", "--config", config, "--no-users", stdin="4821acmedb_replica")
         self.assertEqual([(h["kind"], h["column"], h["length"]) for h in out["hits"]], [("config", 1, 4), ("config", 5, 6)])
 
     def test_a_secret_or_a_token_redact_would_withhold_fails_the_check(self):
         for draft, kind in (("token ghp_A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8 here", "secret"),
                             ("key wJalrXUtnFEMI1K7MDE2NGbPx3RfiCY4EXAM5PLEKEY6", "unsure")):
             with self.subTest(kind=kind):
-                code, out = run("check", stdin=draft)
+                code, out = run("check", "--no-users", stdin=draft)
                 self.assertEqual((code, [h["kind"] for h in out["hits"]]), (3, [kind]))
         self.assertEqual(out["hits"][0]["column"], 5)
         self.assertEqual(out["hits"][0]["reason"], "a long token-like string")
+
+    def test_check_fails_closed_without_usernames(self):
+        for extra, why in (((), "no usernames to check for"),
+                           (("--cwd", "/srv/app"), "no usernames to check for"),
+                           (("--transcript", os.path.join(self.tmp, "gone.jsonl")), "can't open a transcript")):
+            with self.subTest(extra=extra):
+                code, out = self.check("ask bob about it", *extra)
+                self.assertEqual(code, 4)
+                self.assertFalse(out["passed"])
+                self.assertTrue(out["reason"].startswith(why), out["reason"])
+        code, out = self.check("a clean line", "--no-users")
+        self.assertEqual((code, out["passed"]), (0, True))
+        # a transcript that can't be opened is a mistake to fix, --no-users or not
+        code, out = self.check("a clean line", "--no-users", "--transcript", os.path.join(self.tmp, "gone.jsonl"))
+        self.assertEqual(code, 4)
+        self.assertNotIn("--no-users", out["reason"])
 
     def test_a_clean_draft_passes(self):
         code, out = self.check("Add a lint rule in acme-web that fails on src/a.ts.", "--cwd", "/home/zephyrine/src/x")
@@ -1017,7 +1033,7 @@ class Check(TempDir):
         draft = os.path.join(self.tmp, "draft.md")
         with open(draft, "w") as f:
             f.write("see /Users/quillon/notes.txt")
-        code, out = run("check", draft)
+        code, out = run("check", draft, "--no-users")
         self.assertEqual((code, [h["kind"] for h in out["hits"]]), (3, ["path"]))
 
 

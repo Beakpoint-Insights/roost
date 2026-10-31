@@ -86,13 +86,15 @@ Only after the user decides, and only for what they accepted:
 **Before filing any ticket or person-owned task,** check its text, so no path, username or configured value leaves this machine:
 
 1. Write its full text (title, body and any `cross-repo-handoff` prompt) to a file and show it to the user.
-2. Run the check with the same configs and the run's transcripts:
+2. Run the check with the same configs and the run's transcripts, so it knows the session's username:
 
    ```bash
    python3 <this skill's folder>/scripts/retro_moments.py check <draft file> --config <team config> [--config <override>] --transcript <transcript>...
    ```
 
-3. File it only when the check passes (exit 0, `"passed": true`). On a hit (exit 3), show the user each one (`kind`: `path`, `config`, `user`, `secret` or `unsure`, a string `redact` would withhold; `line`, `column`, `length`; and `key` for a configured value or `reason` for `unsure`), fix the text, and check again. Never file a draft that failed, and never work around a hit by rewording the check's input.
+   When the user gave you the script's output instead of a transcript (step 1), there's no transcript to pass: ask them for the session's working directory and pass it as `--cwd <directory>`. Pass `--no-users` only when the user says the session ran outside any home folder.
+
+3. File it only when the check passes (exit 0, `"passed": true`). On a hit (exit 3), show the user each one (`kind`: `path`, `config`, `user`, `secret` or `unsure`, a string `redact` would withhold; `line`, `column`, `length`; and `key` for a configured value or `reason` for `unsure`), fix the text, and check again. When the check can't run (exit 4, with a `reason`: a transcript it can't open, or no usernames to look for), file nothing: give it the transcripts or `--cwd` it asks for, and check again. Never file a draft that failed, and never work around a hit by rewording the check's input.
 
 ## Report
 
