@@ -600,6 +600,54 @@ class Unparseable(unittest.TestCase):
         for value in ("acme-example-com", "acme.example.com", "acmedb"):
             self.assertNotIn(value, text)
 
+    def test_a_record_with_fields_of_the_wrong_type_is_listed_and_the_run_goes_on(self):
+        tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp)
+        bad = [
+            ("a question that isn't text", tool_use("2026-03-02T09:01:00Z", "q", "t1", "AskUserQuestion",
+                                                   {"questions": [{"question": None}]})),
+            ("a type that isn't text", rec(["user"], "2026-03-02T09:02:00Z", "y", message={"role": "user", "content": "x"})),
+            ("a tool name that isn't text", tool_use("2026-03-02T09:03:00Z", "n", "t2", ["Bash"], {"command": "ls"})),
+            ("a duration that isn't a number", rec("system", "2026-03-02T09:04:00Z", "d", subtype="turn_duration",
+                                                   durationMs="31 minutes")),
+            ("a tool result that isn't text or a list", tool_result("2026-03-02T09:05:00Z", "r", "t3", 42)),
+            ("a cwd that isn't text", human("2026-03-02T09:05:10Z", "c1", "x", cwd=5)),
+            ("a cwd that isn't text", human("2026-03-02T09:05:20Z", "c2", "x", cwd=["/home/bob"])),
+            ("a session id that isn't text", human("2026-03-02T09:05:30Z", "s1", "x", sid=12345678901)),
+            ("a title that isn't text", {"type": "custom-title", "customTitle": ["a"], "sessionId": SID.format(1)}),
+            ("a tool input that isn't text", tool_use("2026-03-02T09:05:40Z", "i1", "t4", "Bash", {"command": 5})),
+            ("a permission decision that isn't an object", tool_result("2026-03-02T09:05:50Z", "p1", "t5", "ok",
+                                                                       permission="allow")),
+            ("a tool call id that isn't text", tool_use("2026-03-02T09:06:00Z", "i2", ["t6"], "Read", {"file_path": "a"})),
+            ("a tool call id that isn't text", tool_result("2026-03-02T09:06:10Z", "i3", ["t6"], "boom", error=True)),
+            ("a text that isn't text", rec("user", "2026-03-02T09:06:20Z", "i4", message={"role": "user", "content": [
+                {"type": "tool_result", "tool_use_id": "t7", "is_error": True, "content": [{"type": "text", "text": 5}]}]})),
+            ("a duration that isn't a number", rec("system", "2026-03-02T09:06:30Z", "d2", subtype="turn_duration",
+                                                   durationMs=float("inf"))),
+        ]
+        recs = [human("2026-03-02T09:00:00Z", "a", "Go")] + [r for _, r in bad] + [
+            human("2026-03-02T09:07:00Z", "b", "no, the other one")]
+        first = write(tmp, "bad.jsonl", recs)
+        second = write(tmp, "good.jsonl", [human("2026-03-02T10:00:00Z", "c", "Go", sid=SID.format(2)),
+                                           human("2026-03-02T10:01:00Z", "d", "not that", sid=SID.format(2))])
+        code, out = run("moments", first, second)
+        self.assertEqual(code, 0)
+        self.assertEqual([m["id"] for m in out["moments"] if m["kind"] == "correction"], ["b", "d"])
+        listed = [(u["session"], u["line"]) for u in out["unparseable"]]
+        self.assertEqual(listed, [(SID.format(1)[:8], line) for line in range(2, 2 + len(bad))])
+        for (why, _), u in zip(bad, out["unparseable"]):
+            self.assertEqual(u["reason"], why)
+        totals = out["sessions"][0]["totals"]  # a listed record isn't half counted
+        self.assertEqual((totals["tool_calls"], totals["errors"], totals["turns"]), ({}, 0, 2))
+        # a shape nobody listed (an origin that's text) is caught too, and the run still goes on
+        odd = write(tmp, "odd.jsonl", [human("2026-03-02T09:00:00Z", "a", "Go"),
+                                       rec("user", "2026-03-02T09:01:00Z", "o", origin="peer", message={"role": "user", "content": "x"}),
+                                       human("2026-03-02T09:02:00Z", "e", "no")])
+        code, out = run("moments", odd)
+        self.assertEqual((code, out["unparseable"][0]["line"], out["unparseable"][0]["reason"]),
+                         (0, 2, "fields of an unexpected type"))
+        self.assertEqual([m["id"] for m in out["moments"]], ["e"])
+
     def test_fixtures_are_synthetic(self):
         """No real transcript is committed: every fixture record has a made-up session and an Acme cwd."""
         checked = 0

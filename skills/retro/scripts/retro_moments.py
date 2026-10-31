@@ -26,6 +26,7 @@ import argparse
 import datetime
 import glob
 import json
+import math
 import os
 import re
 import sys
@@ -131,6 +132,10 @@ def records(path):
         if not isinstance(rec, dict):
             yield n, None, "not a JSON object"
             continue
+        why = wrong_types(rec)
+        if why:
+            yield n, None, why
+            continue
         if rec.get("type") in ("user", "assistant"):
             if not isinstance(rec.get("message"), dict):
                 yield n, None, "missing message"
@@ -139,6 +144,57 @@ def records(path):
                 yield n, None, "unsupported message content"
                 continue
         yield n, rec, None
+
+
+TOOL_TEXT_INPUTS = ("command", "file_path", "pattern", "path", "url", "query")
+
+
+def wrong_types(rec):
+    """Why a record's fields can't be read (a field of the wrong type), or None. A record listed for this
+    is skipped whole: nothing of it is counted."""
+    def text_or_none(*values):
+        return all(isinstance(v, (str, type(None))) for v in values)
+    if not text_or_none(rec.get("type")):
+        return "a type that isn't text"
+    if not text_or_none(rec.get("cwd")):
+        return "a cwd that isn't text"
+    if not text_or_none(rec.get("sessionId")):
+        return "a session id that isn't text"
+    if not text_or_none(rec.get("customTitle"), rec.get("agentName")):
+        return "a title that isn't text"
+    if not isinstance(rec.get("permissionDecision"), (dict, type(None))):
+        return "a permission decision that isn't an object"
+    duration = rec.get("durationMs")
+    if duration is not None and (isinstance(duration, bool) or not isinstance(duration, (int, float))
+                                 or not math.isfinite(duration)):
+        return "a duration that isn't a number"
+    content = (rec.get("message") or {}).get("content") if isinstance(rec.get("message"), dict) else None
+    for b in content if isinstance(content, list) else []:
+        if not isinstance(b, dict):
+            continue
+        if not text_or_none(b.get("text")):
+            return "a text that isn't text"
+        if b.get("type") == "tool_use":
+            if not isinstance(b.get("name"), str):
+                return "a tool name that isn't text"
+            if not text_or_none(b.get("id")):
+                return "a tool call id that isn't text"
+            inp = b.get("input") if isinstance(b.get("input"), dict) else {}
+            if not text_or_none(*(inp.get(k) for k in TOOL_TEXT_INPUTS)):
+                return "a tool input that isn't text"
+            questions = inp.get("questions")
+            if questions is not None and (not isinstance(questions, list) or any(
+                    not isinstance(q, dict) or not isinstance(q.get("question", ""), str) for q in questions)):
+                return "a question that isn't text"
+        if b.get("type") == "tool_result":
+            if not text_or_none(b.get("tool_use_id")):
+                return "a tool call id that isn't text"
+            if not isinstance(b.get("content"), (str, list, type(None))):
+                return "a tool result that isn't text or a list"
+            for c in b["content"] if isinstance(b.get("content"), list) else []:
+                if isinstance(c, dict) and not text_or_none(c.get("text")):
+                    return "a text that isn't text"
+    return None
 
 
 def blocks(rec):
@@ -356,54 +412,58 @@ class Session:
         last_assistant = None
         after_refusal = False   # a user-rejected refusal with no assistant record or typed message since
         for n, rec, reason in records(self.path):
-            if rec is None:
-                self.unparseable.append({"session": None, "line": n, "reason": reason})
-                continue
-            kind = rec.get("type")
-            if kind not in KNOWN_TYPES:
-                self.unknown_types[kind] = self.unknown_types.get(kind, 0) + 1
-                continue
-            if kind == "custom-title" and rec.get("customTitle"):
-                self.title = rec["customTitle"]
-            elif kind == "agent-name" and rec.get("agentName") and not self.title:
-                self.title = rec["agentName"]
-            self.id = self.id or rec.get("sessionId")
-            self.cwd = self.cwd or rec.get("cwd")
-            if rec.get("cwd"):
-                self.cwds.add(rec["cwd"])
-            # rejecting a permission prompt also writes an interruption: one refusal, not a correction or a turn too
-            echo = kind == "user" and after_refusal and human_text(rec) == REJECTED_INTERRUPTION
-            self.count(rec, echo)
-            if (kind == "system" and rec.get("subtype") == "turn_duration"
-                    and (rec.get("durationMs") or 0) >= TURN_MINUTES * 60000):
-                self.turns.append({"session": None, "time": rec.get("timestamp"), "id": rec.get("uuid"),
-                                   "minutes": round(rec["durationMs"] / 60000, 1)})
-            if kind == "system" and rec.get("subtype") == "stop_hook_summary" and rec.get("preventedContinuation"):
-                self.unknown_shapes["hook"].append({"session": None, "line": n, "id": rec.get("uuid")})
-            if kind == "assistant":
-                last_assistant = self.read_assistant(rec, pending) or last_assistant
-                after_refusal = False
-            elif kind == "user":
-                text = human_text(rec)
-                if DELIVERY.search(plain_text(rec)):
-                    self.unknown_shapes["delivery"].append({"session": None, "line": n, "id": rec.get("uuid")})
-                if text is not None and not echo:   # the user's answer is still to come
-                    if last_assistant is not None and plain_text(last_assistant).rstrip().endswith("?"):
-                        self.events.append(self.moment("stop", last_assistant, excerpt=plain_text(last_assistant),
-                                                       waited_minutes=minutes_between(last_assistant.get("timestamp"), rec.get("timestamp"))))
-                    if seen_human:
-                        self.events.append(self.moment("correction", rec, excerpt=text))
-                    seen_human = True
-                    last_assistant = None
-                if text is not None or (rec.get("origin") or {}).get("kind") == "peer":
-                    self.breaks.add(len(self.calls))  # a new message ends a run of searches
-                if rec.get("usageLimitNote"):
-                    self.events.append(self.moment("blocked", rec, why="usage_limit", excerpt=plain_text(rec)))
-                self.read_results(rec, n, pending)
-                if rec.get("toolDenialKind") == "user-rejected":
-                    after_refusal = True
-                elif text is not None:   # another call's result between them doesn't end it
+            try:
+                if rec is None:
+                    self.unparseable.append({"session": None, "line": n, "reason": reason})
+                    continue
+                kind = rec.get("type")
+                if kind not in KNOWN_TYPES:
+                    self.unknown_types[kind] = self.unknown_types.get(kind, 0) + 1
+                    continue
+                # rejecting a permission prompt also writes an interruption: one refusal, not a correction or a turn too
+                echo = kind == "user" and after_refusal and human_text(rec) == REJECTED_INTERRUPTION
+                if (kind == "system" and rec.get("subtype") == "turn_duration"
+                        and (rec.get("durationMs") or 0) >= TURN_MINUTES * 60000):
+                    self.turns.append({"session": None, "time": rec.get("timestamp"), "id": rec.get("uuid"),
+                                       "minutes": round(rec["durationMs"] / 60000, 1)})
+                if kind == "system" and rec.get("subtype") == "stop_hook_summary" and rec.get("preventedContinuation"):
+                    self.unknown_shapes["hook"].append({"session": None, "line": n, "id": rec.get("uuid")})
+                if kind == "assistant":
+                    last_assistant = self.read_assistant(rec, pending) or last_assistant
                     after_refusal = False
+                elif kind == "user":
+                    text = human_text(rec)
+                    if DELIVERY.search(plain_text(rec)):
+                        self.unknown_shapes["delivery"].append({"session": None, "line": n, "id": rec.get("uuid")})
+                    if text is not None and not echo:   # the user's answer is still to come
+                        if last_assistant is not None and plain_text(last_assistant).rstrip().endswith("?"):
+                            self.events.append(self.moment("stop", last_assistant, excerpt=plain_text(last_assistant),
+                                                           waited_minutes=minutes_between(last_assistant.get("timestamp"), rec.get("timestamp"))))
+                        if seen_human:
+                            self.events.append(self.moment("correction", rec, excerpt=text))
+                        seen_human = True
+                        last_assistant = None
+                    if text is not None or (rec.get("origin") or {}).get("kind") == "peer":
+                        self.breaks.add(len(self.calls))  # a new message ends a run of searches
+                    if rec.get("usageLimitNote"):
+                        self.events.append(self.moment("blocked", rec, why="usage_limit", excerpt=plain_text(rec)))
+                    self.read_results(rec, n, pending)
+                    if rec.get("toolDenialKind") == "user-rejected":
+                        after_refusal = True
+                    elif text is not None:   # another call's result between them doesn't end it
+                        after_refusal = False
+                # last, so a record that fails on the way is neither counted nor names the session
+                if kind == "custom-title" and rec.get("customTitle"):
+                    self.title = rec["customTitle"]
+                elif kind == "agent-name" and rec.get("agentName") and not self.title:
+                    self.title = rec["agentName"]
+                self.id = self.id or rec.get("sessionId")
+                self.cwd = self.cwd or rec.get("cwd")
+                if rec.get("cwd"):
+                    self.cwds.add(rec["cwd"])
+                self.count(rec, echo)
+            except (TypeError, AttributeError, KeyError, ValueError):  # a shape wrong_types() doesn't know
+                self.unparseable.append({"session": None, "line": n, "reason": "fields of an unexpected type"})
 
     def count(self, rec, echo=False):
         """Adds a record to the session's totals, if it's in the window. `echo` is the interruption a
