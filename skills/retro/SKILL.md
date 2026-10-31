@@ -36,7 +36,7 @@ python3 <this skill's folder>/scripts/retro_moments.py moments <transcript> --co
 
 The script is `skills/retro/scripts/retro_moments.py`; run it from this skill's own folder. Pass the team config and then each override file `roost-config` applied, in that order: the script redacts their identifying values (the tracker site and IDs, hostnames, URLs, IP addresses, the test account pattern) and generic secrets from every quote, and drops a quote it can't clean.
 
-It prints one JSON object: `moments` (each with its kind, session, time, record id and excerpt; slow steps grouped by command with each run), `sessions` with `totals` per session, `unreadable` transcripts (files it couldn't open), `unparseable` records, `unknown_types`, `unknown_shapes` (records that look like a hook's block or a delivery notice, in a shape the script doesn't read yet), `subagents_not_read` and `redaction`.
+It prints one JSON object: `moments` (each with its kind, session, time, record id and excerpt; slow steps grouped by command with each run), `sessions` with `totals` per session, `unreadable` transcripts (files it couldn't open, or that failed while being read), `unparseable` records, `unknown_types`, `unknown_shapes` (records that look like a hook's block or a delivery notice, in a shape the script doesn't read yet), `subagents_not_read` and `redaction`.
 
 ## 3. Read the moments
 
@@ -98,7 +98,7 @@ Only after the user decides, and only for what they accepted:
 
 One line: "Retro on acme-api-3f: 4 findings, 2 accepted, 1 check ticketed, 1 skipped." Then each home made, with its link. Then, when there are any, each of these, never skipped silently:
 
-- **A transcript that couldn't be opened** (`unreadable`): which session, and why; the retro covers the rest. These are whole files, not the unreadable records below.
+- **A transcript that couldn't be opened or read** (`unreadable`): which session, and why ("can't read the file", or "couldn't be read" when it failed partway); the retro covers the rest. These are whole files, not the unreadable records below.
 - **Unreadable records** (`unparseable`, `unknown_types`): "3 records couldn't be read (2 not JSON, 1 incomplete last line); 1 unknown record type."
 - **Unknown shapes** (`unknown_shapes`): "2 records look like a hook's block; retro doesn't read that shape yet, so they aren't in the findings: <session>, lines 77 and 140."
 - **Subagent transcripts** (`subagents_not_read`): "2 subagent transcripts weren't read; retro reads only the sessions' own transcripts."

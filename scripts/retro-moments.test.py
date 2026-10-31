@@ -648,6 +648,75 @@ class Unparseable(unittest.TestCase):
                          (0, 2, "fields of an unexpected type"))
         self.assertEqual([m["id"] for m in out["moments"]], ["e"])
 
+    def run_with(self, bad, tmp):
+        """moments on [Go, *bad, a correction] plus a good transcript: (code, out, the bad one's session)."""
+        recs = [human("2026-03-02T09:00:00Z", "a", "Go")] + bad + [human("2026-03-02T09:30:00Z", "b", "no, the other one")]
+        first = write(tmp, "bad.jsonl", recs)
+        second = write(tmp, "good.jsonl", [human("2026-03-02T10:00:00Z", "c", "Go", sid=SID.format(2)),
+                                           human("2026-03-02T10:01:00Z", "d", "not that", sid=SID.format(2))])
+        code, out = run("moments", first, second)
+        return code, out, out["sessions"][0] if out.get("sessions") else None
+
+    def test_a_record_that_fails_anywhere_is_listed_and_leaves_nothing_behind(self):
+        tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp)
+        ask_null = lambda t, u, i: tool_use(t, u, i, "AskUserQuestion", {"questions": None})
+        cases = {
+            "command null": [tool_use("2026-03-02T09:01:00Z", "u1", "t1", "Bash", {"command": None}),
+                             tool_result("2026-03-02T09:05:00Z", "r1", "t1", "ok")],
+            "questions null": [ask_null("2026-03-02T09:01:00Z", "u1", "t1"),
+                               tool_result("2026-03-02T09:02:00Z", "r1", "t1", "yes")],
+            "questions null, twice": [ask_null("2026-03-02T09:01:00Z", "u1", "t1"), ask_null("2026-03-02T09:02:00Z", "u2", "t2")],
+            "a 400-digit duration": [rec("system", "2026-03-02T09:01:00Z", "d1", subtype="turn_duration", durationMs=10 ** 400)],
+            "a deeply nested uuid": [dict(human("2026-03-02T09:01:00Z", "x", "no"), uuid=json.loads("[" * 3000 + "]" * 3000))],
+            "a time that isn't text": [human(12345, "x", "no")],
+            "origin x on a titled record": [
+                {"type": "custom-title", "customTitle": "bad-title", "origin": "x", "sessionId": SID.format(1),
+                 "timestamp": "2026-03-02T09:00:30Z"},  # timed, so its totals read origin and fail
+                tool_use("2026-03-02T09:01:00Z", "u1", "t1", "Read", {"file_path": "a.ts"}, origin="x"),
+                tool_use("2026-03-02T09:02:00Z", "u2", "t2", "Read", {"file_path": "a.ts"}, origin="x"),
+                rec("system", "2026-03-02T09:03:00Z", "d1", subtype="turn_duration", durationMs=4000000, origin="x")],
+            "null text in a tool_result list": [
+                rec("assistant", "2026-03-02T09:01:00Z", "u1", message={"role": "assistant", "content": [
+                    {"type": "tool_use", "id": "t1", "name": "Bash", "input": {"command": "make"}},
+                    {"type": "tool_use", "id": "t2", "name": "Bash", "input": {"command": "make test"}}]}),
+                rec("user", "2026-03-02T09:05:00Z", "r1", message={"role": "user", "content": [
+                    {"type": "tool_result", "tool_use_id": "t1", "is_error": True, "content": "boom"},
+                    {"type": "tool_result", "tool_use_id": "t2", "is_error": False, "content": [{"type": "text", "text": None}]}]})],
+        }
+        for name, bad in cases.items():
+            with self.subTest(name):
+                code, out, first = self.run_with(bad, tmp)
+                self.assertEqual(code, 0, out.get("error"))
+                self.assertEqual(len(out["sessions"]), 2)
+                kinds = [(m["kind"], m["id"]) for m in out["moments"] if m["kind"] != "correction"]
+                listed = [u["line"] for u in out["unparseable"]]
+                self.assertTrue(listed, json.dumps(out)[:300])
+                # nothing of a listed record is kept: no moment, title, count or slow step from it
+                self.assertEqual(kinds, [], kinds)
+                self.assertEqual(first["session"], SID.format(1)[:8])
+                self.assertEqual((first["totals"]["tool_calls"], first["totals"]["errors"]),
+                                 ({} if name != "null text in a tool_result list" else {"Bash": 2}, 0))
+                self.assertEqual([m["id"] for m in out["moments"] if m["kind"] == "correction"], ["b", "d"])
+
+    def test_a_transcript_that_fails_is_listed_alone(self):
+        tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp)
+        real = retro_moments.Session.call_moments
+        def boom(session):
+            if session.path.endswith("bad.jsonl"):
+                raise RuntimeError("boom")
+            return real(session)
+        retro_moments.Session.call_moments = boom
+        try:
+            code, out, _ = self.run_with([], tmp)
+        finally:
+            retro_moments.Session.call_moments = real
+        self.assertEqual(code, 0)
+        self.assertEqual([u["path"] for u in out["unreadable"]], ["bad.jsonl"])
+        self.assertEqual(out["unreadable"][0]["reason"], "couldn't be read: RuntimeError")
+        self.assertEqual([m["id"] for m in out["moments"]], ["d"])
+
     def test_fixtures_are_synthetic(self):
         """No real transcript is committed: every fixture record has a made-up session and an Acme cwd."""
         checked = 0
