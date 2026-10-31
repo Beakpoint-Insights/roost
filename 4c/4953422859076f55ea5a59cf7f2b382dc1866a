@@ -1,0 +1,31 @@
+scripts/retro-moments.test.py
+  s_317ca7d8caddc7::t_a6eafe1d5aadc4 540-552,556
+  s_317ca7d8caddc7::t_4be23f1f4488f9 553-555
+  s_317ca7d8caddc7::t_b6cb6b3cc0fa79 377,388-395
+  s_317ca7d8caddc7::t_0b6a8790fd9d58 396
+  s_317ca7d8caddc7::t_0cf7de54363b9d 277-287
+  s_317ca7d8caddc7::t_17c7592f71d4b7 557-571
+skills/retro/scripts/retro_moments.py
+  s_317ca7d8caddc7::t_4be23f1f4488f9 677,686-687,720-722,746
+  s_317ca7d8caddc7::t_5a70db37a4d953 678,685
+  s_317ca7d8caddc7::t_7998e1c0f9d25f 433,439,441,449-454
+  s_317ca7d8caddc7::t_8da19f0c6de821 455-456
+  s_317ca7d8caddc7::t_0cf7de54363b9d 243,286-289
+  s_317ca7d8caddc7::t_9ae660a1e9f046 228-230,679-684
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "4c4953422859076f55ea5a59cf7f2b382dc1866a",
+  "prompts": {},
+  "sessions": {
+    "s_317ca7d8caddc7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "42bf6ed7-c0ea-476a-a622-d52d0b8672e1",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Alan Cox <acox@beakpointinsights.com>"
+    }
+  }
+}
