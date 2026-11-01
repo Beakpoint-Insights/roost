@@ -1,0 +1,19 @@
+docs/design/issue-125-website-content.md
+  s_d632d2998e4d5a::t_538174dc46e3c3 1-181
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1ccf0e3dc9d50ca625f98ea20eab0ea7da836ffe",
+  "prompts": {},
+  "sessions": {
+    "s_d632d2998e4d5a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "715ac851-a1e4-48b9-99e2-f8a5888eef28",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Alan Cox <acox@beakpointinsights.com>"
+    }
+  }
+}
