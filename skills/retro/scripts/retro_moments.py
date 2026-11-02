@@ -433,7 +433,7 @@ class Session:
         for n, rec, reason, cwd in records(self.path):
             if cwd:  # its username is known even when the record can't be read
                 self.cwds.add(cwd)
-            saved = self.save(pending, (seen_human, last_assistant, after_refusal))
+            saved = self.save(pending, (seen_human, last_assistant, after_refusal), rec)
             try:
                 if rec is None:
                     self.unparseable.append({"session": None, "line": n, "reason": reason})
@@ -511,26 +511,54 @@ class Session:
                     totals["tool_calls"][b.get("name")] = totals["tool_calls"].get(b.get("name"), 0) + 1
         totals["minutes"] = minutes_between(self.first, self.last) or 0
 
-    def save(self, pending, local):
+    def save(self, pending, local, rec):
         """Everything one record can change, to put back if reading it fails partway."""
-        return {"local": local, "pending": dict(pending), "events": len(self.events), "calls": len(self.calls),
+        touched = {}
+        if rec and rec.get("type") in ("assistant", "user"):
+            for block in blocks(rec):
+                if block.get("type") == "tool_use":
+                    key = block.get("id")
+                elif block.get("type") == "tool_result":
+                    key = block.get("tool_use_id")
+                else:
+                    continue
+                if key not in touched:
+                    call = pending.get(key)
+                    touched[key] = (key in pending, call, call.get("result") if call else None)
+        cwd = rec.get("cwd") if rec else None
+        kind = rec.get("type") if rec else None
+        break_at = len(self.calls)
+        return {"local": local, "pending": touched, "events": len(self.events), "calls": len(self.calls),
                 "turns": len(self.turns), "shapes": {k: len(v) for k, v in self.unknown_shapes.items()},
-                "unparseable": len(self.unparseable), "unknown_types": dict(self.unknown_types),
-                "breaks": set(self.breaks), "cwds": set(self.cwds),
+                "unparseable": len(self.unparseable),
+                "unknown_type": (kind, kind in self.unknown_types, self.unknown_types.get(kind)),
+                "break": (break_at, break_at in self.breaks), "cwd": (cwd, cwd in self.cwds),
                 "totals": dict(self.totals, tool_calls=dict(self.totals["tool_calls"])),
                 "scalars": (self.title, self.id, self.cwd, self.first, self.last)}
 
     def restore(self, saved, pending):
         """Puts back what save() kept, and returns the loop's own state."""
-        for call in saved["pending"].values():  # a call still waiting had no result before this record
-            call["result"] = None
-        pending.clear()
-        pending.update(saved["pending"])
+        for key, (existed, call, result) in saved["pending"].items():
+            if existed:
+                call["result"] = result
+                pending[key] = call
+            else:
+                pending.pop(key, None)
         del self.events[saved["events"]:], self.calls[saved["calls"]:], self.turns[saved["turns"]:]
         del self.unparseable[saved["unparseable"]:]
         for k, n in saved["shapes"].items():
             del self.unknown_shapes[k][n:]
-        self.unknown_types, self.breaks, self.cwds = saved["unknown_types"], saved["breaks"], saved["cwds"]
+        kind, existed, count = saved["unknown_type"]
+        if existed:
+            self.unknown_types[kind] = count
+        else:
+            self.unknown_types.pop(kind, None)
+        break_at, existed = saved["break"]
+        if not existed:
+            self.breaks.discard(break_at)
+        cwd, existed = saved["cwd"]
+        if cwd and not existed:
+            self.cwds.discard(cwd)
         self.totals = saved["totals"]
         self.title, self.id, self.cwd, self.first, self.last = saved["scalars"]
         return saved["local"]

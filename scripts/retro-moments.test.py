@@ -455,6 +455,19 @@ class Totals(TempDir):
         self.assertEqual(out["sessions"][0]["totals"],
                          {"turns": 3, "tool_calls": {"Bash": 2, "Read": 1}, "errors": 2, "minutes": 30.0})
 
+    def test_record_rollback_checkpoint_only_copies_pending_entries_it_can_change(self):
+        session = retro_moments.Session("unused", None)
+        pending = {"waiting-%d" % i: {"result": None} for i in range(1000)}
+        pending["target"] = {"result": None}
+        record = rec("user", "2026-03-02T09:00:00Z", "r",
+                     message={"role": "user", "content": [{"type": "tool_result", "tool_use_id": "target"}]})
+
+        saved = session.save(pending, (False, None, False), record)
+
+        self.assertEqual(set(saved["pending"]), {"target"})
+        self.assertNotIn("breaks", saved)
+        self.assertNotIn("cwds", saved)
+
     def test_the_interruption_after_a_rejected_prompt_isnt_a_turn(self):
         path = write(self.tmp, "rt.jsonl", [human("2026-03-02T09:00:00Z", "a", "Go"),
             tool_use("2026-03-02T09:01:00Z", "b", "t1", "Bash", {"command": "rm -rf build"}),
