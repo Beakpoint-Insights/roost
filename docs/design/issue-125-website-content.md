@@ -52,7 +52,7 @@ repos:
     role: website              # how roost finds the site's repo
     session: Site session
     order: 3
-    owns: the marketing site: its pages, components and images
+    owns: "the marketing site: its pages, components and images"
     tests: the site's build (npm run build), checked in its preview
     local_stack: false         # the site doesn't run on the product's stack
     production: merge
