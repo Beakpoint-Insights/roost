@@ -27,8 +27,9 @@ flowchart LR
   A -->|new to the site + website repo configured| ST1[Story in the website repo]
   A -->|new to the site + no website repo| MB[Manual / blocked; no slice]
   A -->|shots| ST2[Shots story in the UI repo]
-  ST1 --> RS[run-slice]
-  ST2 --> RS
+  ST1 --> H[Planning/handoff:<br/>repo kickoff comments]
+  ST2 --> H
+  H --> RS[run-slice]
   A --> K[package]
   SH[What shipped<br/>release-notes steps 1-2] --> K
   RS -->|capture script| K
@@ -40,8 +41,9 @@ flowchart LR
 1. **Read the site.** Each source in `website.sources` reads the site fresh, in the structure its designers gave it (decision 1, 2).
 2. **Propose.** From the site, the epic's facts, the team's positioning and its notes, a numbered comment on the epic (decision 3). Each image is a shot: a story with a scenario and assertions (decision 5).
 3. **Approve.** The user answers by number; the comment is edited in place. Before approving a new-to-the-site change for automated build work, require a configured `repos` entry with `role: website`. Without one (URL/site-only config), mark it manual/blocked and create no story or `run-slice` work until a website repo is configured. Approved buildable changes and the shots become stories under the epic.
-4. **Build.** `run-slice` builds those stories, unchanged.
-5. **Package.** Copy written for each approved change and checked against what shipped, shots captured and asserted, all written as the package (decision 4).
+4. **Plan and hand off.** Follow the existing planning/handoff flow for each story, producing a kickoff comment for its repo: the website repo for approved buildable new-to-the-site stories and `website.screenshots.repo` for the shots story.
+5. **Build.** `run-slice` builds those stories, unchanged.
+6. **Package.** Copy written for each approved change and checked against what shipped, shots captured and asserted, all written as the package (decision 4).
 
 ## Config
 
@@ -106,7 +108,7 @@ With both, the repo is the authority on names and structure, the live site on wh
 - **what it needs:** the copy, and the shots (decision 5);
 - **for new to the site,** a spec: what the element is, how it behaves, the existing component it's closest to, and an example.
 
-Then **considered, not proposed** (each place left out, and why, so the user can add it back), and which `website.notes` rules shaped it. The user answers in the conversation ("approve 1, 3; cut 2; 4: Growth plan only"); the comment is edited in place to show each change's state. An approved new-to-the-site change becomes a story under the epic in the website repo, its spec as the description, only when that repo is configured; otherwise it stays manual/blocked and creates no slice. The approved shots become one story in `website.screenshots.repo`. `run-slice` builds both. "Nothing" is a valid proposal.
+Then **considered, not proposed** (each place left out, and why, so the user can add it back), and which `website.notes` rules shaped it. The user answers in the conversation ("approve 1, 3; cut 2; 4: Growth plan only"); the comment is edited in place to show each change's state. An approved new-to-the-site change becomes a story under the epic in the website repo, its spec as the description, only when that repo is configured; otherwise it stays manual/blocked and creates no slice. The approved shots become one story in `website.screenshots.repo`. Before `run-slice`, follow the existing planning/handoff flow for each created story so its repo has a kickoff comment. "Nothing" is a valid proposal.
 
 **Considered:** a file in `team.drafts_dir`; a sub-issue per change.
 
