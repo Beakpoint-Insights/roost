@@ -11,7 +11,7 @@
       "name": "roost",
       "source": "./",
       "description": "Skills that take a product idea to a release: shape an epic, build it slice by slice through one Claude session per repo, review, close out, QA and run the rollout. Configured per team.",
-      "version": "1.3.1"
+      "version": "1.4.0"
     }
   ]
 }
