@@ -717,6 +717,28 @@ class Unparseable(unittest.TestCase):
         self.assertEqual(out["unreadable"][0]["reason"], "couldn't be read: RuntimeError")
         self.assertEqual([m["id"] for m in out["moments"]], ["d"])
 
+    def test_a_failed_transcript_still_contributes_usernames_to_redaction(self):
+        tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp)
+        bad = write(tmp, "bad.jsonl", [human("2026-03-02T09:00:00Z", "a", "Go", cwd="/home/zephyrine/src/x")])
+        good = write(tmp, "good.jsonl", [human("2026-03-02T10:00:00Z", "c", "Go", sid=SID.format(2)),
+            human("2026-03-02T10:01:00Z", "d", "zephyrine made this correction", sid=SID.format(2))])
+        real = retro_moments.Session.call_moments
+
+        def boom(session):
+            if session.path == bad:
+                raise RuntimeError("boom")
+            return real(session)
+
+        retro_moments.Session.call_moments = boom
+        try:
+            code, out = run("moments", bad, good)
+        finally:
+            retro_moments.Session.call_moments = real
+        self.assertEqual(code, 0)
+        self.assertEqual(len(out["unreadable"]), 1)
+        self.assertEqual(out["moments"][0]["excerpt"], "[user] made this correction")
+
     def test_fixtures_are_synthetic(self):
         """No real transcript is committed: every fixture record has a made-up session and an Acme cwd."""
         checked = 0

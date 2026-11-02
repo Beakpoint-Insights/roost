@@ -1028,6 +1028,7 @@ def redact_moments(found, private, users=()):
 
 def moments(opts):
     sessions, unparseable, unreadable = [], [], []
+    cwds = set()
     for path in opts.transcripts:
         s = Session(path, opts)
         try:
@@ -1047,6 +1048,8 @@ def moments(opts):
             unreadable.append({"session": s.name, "path": redact_path(os.path.basename(path), opts.private),
                                "reason": reason})
             continue
+        finally:
+            cwds.update(s.cwds)
         sessions.append(s)
     out_moments, slow, turn_slow, unknown_types = [], [], [], {}
     shapes = {"hook": [], "delivery": []}
@@ -1061,7 +1064,7 @@ def moments(opts):
             unknown_types[k] = unknown_types.get(k, 0) + v
         for k in shapes:
             shapes[k] += [dict(x, session=s.name) for x in s.unknown_shapes[k]]
-    opts.users = usernames(set().union(*[s.cwds for s in sessions]), opts.transcripts)
+    opts.users = usernames(cwds, opts.transcripts)
     slow_moments = sorted(group_slow(slow, opts.private, opts.users) + turn_slow, key=lambda m: -m["total_minutes"])
     redaction = redact_moments(slow_moments + out_moments, opts.private, opts.users)
     out_moments.sort(key=lambda m: time_key(m["time"]))
