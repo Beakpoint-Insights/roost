@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.4.0](https://github.com/Beakpoint-Insights/roost/compare/roost-v1.3.1...roost-v1.4.0) (2026-11-02)
+
+
+### Features
+
+* **#111:** retro on one session ([#119](https://github.com/Beakpoint-Insights/roost/issues/119)) ([a30f018](https://github.com/Beakpoint-Insights/roost/commit/a30f018a33500d7069c2b58148eb08137a4d686b))
+
+
+### Bug Fixes
+
+* **#111:** retro survives bad records and checks drafts before filing ([#133](https://github.com/Beakpoint-Insights/roost/issues/133)) ([20ab305](https://github.com/Beakpoint-Insights/roost/commit/20ab30503a67831ad832c465953876fc5a673cd0))
+
 ## [1.3.1](https://github.com/Beakpoint-Insights/roost/compare/roost-v1.3.0...roost-v1.3.1) (2026-10-28)
 
 
