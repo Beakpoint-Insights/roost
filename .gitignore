@@ -7,3 +7,6 @@ __pycache__/
 
 # This machine's roost config for working on roost; copy .roost/config.example.yml to make yours.
 .roost/config.yml
+
+# Written by `python3 demo/replay.py --tape`; see README.md
+demo/roost.tape
