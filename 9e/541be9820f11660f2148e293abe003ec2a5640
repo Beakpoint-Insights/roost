@@ -1,0 +1,42 @@
+demo/replay.py
+  s_ab733f0b930352::t_48d205db633853 98
+  s_ab733f0b930352::t_4a3e6fc4515a2e 95
+  s_ab733f0b930352::t_d9ed60127ff194 89
+  s_ab733f0b930352::t_4a50ece35a4fad 4-10,16,124-145,171-172,182-188,204-205,207-269
+  s_ab733f0b930352::t_dc6d719b52cdb8 2,11-13,34-49,51-66,70-72,75-77,79-84,87-88,90,94,97,99-111,114-120
+  s_ab733f0b930352::t_b6f7d8de74514e 112-113
+  s_84e0f5214ed156::t_c665f5b39e0c9f 206
+  s_ab733f0b930352::t_6cf90ede2a2b11 91-93
+  s_ab733f0b930352::t_a4a466e78e0a2f 69,78,150-151
+  s_84e0f5214ed156::t_d30643213c9740 33
+  s_ab733f0b930352::t_80b59c2a6212bf 149
+README.md
+  s_ab733f0b930352::t_3313177c20dbec 21
+  s_ab733f0b930352::t_6c7f322f5972ad 23
+.gitignore
+  s_ab733f0b930352::t_63979e306a0344 10-12
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9e541be9820f11660f2148e293abe003ec2a5640",
+  "prompts": {},
+  "sessions": {
+    "s_84e0f5214ed156": {
+      "agent_id": {
+        "tool": "github-copilot-jetbrains",
+        "id": "1793804675081",
+        "model": "unknown"
+      },
+      "human_author": "Alan Cox <acox@beakpointinsights.com>"
+    },
+    "s_ab733f0b930352": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "9c24ab97-9ec6-4d89-b3d1-055fc727ca4a",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Alan Cox <acox@beakpointinsights.com>"
+    }
+  }
+}
