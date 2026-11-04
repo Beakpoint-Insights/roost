@@ -18,9 +18,9 @@ roost is a set of skills, not an agent: it hosts nothing and runs inside your co
 
 **Brought to you by [Beakpoint](https://beakpointinsights.com).** Beakpoint built roost and uses it every day to build its own product. Winston, the bird at the top of this page, is Beakpoint's mascot.
 
-![A made-up roost session: shaping an epic with recommended answers, approving the plan, progress updates and a YOUR TURN, a slice checkpoint, and the release call](demo/roost.gif)
+![roost building roost: shaping epic #56 with recommended answers, approving the plan, a status check and a YOUR TURN, slice checkpoints with the maintainer's decisions, the whole-epic review, and the release](demo/roost.gif)
 
-*A made-up session, sped up. Re-record it with [VHS](https://github.com/charmbracelet/vhs) and [gifsicle](https://www.lcdf.org/gifsicle/): `vhs demo/roost.tape && gifsicle -b -O3 --colors 64 --lossy=30 demo/roost.gif`.*
+*roost building roost: the real conversation for [#56](https://github.com/Beakpoint-Insights/roost/issues/56), release notes, from shaping to release over three days. Condensed and sped up: the replies are the maintainer's own, and roost's messages are shortened from what it said. The conversation is in `demo/replay.py`. Re-record it with [VHS](https://github.com/charmbracelet/vhs) and [gifsicle](https://www.lcdf.org/gifsicle/): `python3 demo/replay.py --tape > demo/roost.tape && vhs demo/roost.tape && gifsicle -b -O3 --colors 64 --lossy=30 demo/roost.gif`.*
 
 ## What you need
 
