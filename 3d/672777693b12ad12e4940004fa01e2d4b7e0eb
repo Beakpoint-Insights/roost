@@ -1,0 +1,23 @@
+skills/release-qa/SKILL.md
+  s_2d8f671602abcc::t_8a037e7f6f0bd4 72,75
+skills/run-slice/SKILL.md
+  s_2d8f671602abcc::t_2102375d46e79a 74,206
+skills/slice-handoff/SKILL.md
+  s_2d8f671602abcc::t_a241ea439ca761 36,79
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3d672777693b12ad12e4940004fa01e2d4b7e0eb",
+  "prompts": {},
+  "sessions": {
+    "s_2d8f671602abcc": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e0738b23-0234-4f73-bd6e-d0301d6c240d",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Alan Cox <acox@beakpointinsights.com>"
+    }
+  }
+}
