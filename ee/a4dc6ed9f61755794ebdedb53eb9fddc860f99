@@ -1,0 +1,32 @@
+evals/bdd-files-to-repo/prompt.md
+  s_2d8f671602abcc::t_8a0e9c6cd180ad 1-24
+evals/phase-5-drafts-scenarios/graders/no-xray-filing.md
+  s_2d8f671602abcc::t_8a0e9c6cd180ad 1-8
+evals/phase-5-drafts-scenarios/prompt.md
+  s_2d8f671602abcc::t_75fda4b9c2fdaa 2
+  s_2d8f671602abcc::t_8a0e9c6cd180ad 1,3-19
+evals/bdd-files-to-repo/graders/files-to-repo.md
+  s_2d8f671602abcc::t_8a0e9c6cd180ad 1-9
+CONTRIBUTING.md
+  s_2d8f671602abcc::t_75fda4b9c2fdaa 88-89
+evals/phase-5-drafts-scenarios/graders/drafts-on-stories.md
+  s_2d8f671602abcc::t_8a0e9c6cd180ad 1-13
+evals/bdd-files-to-repo/graders/no-xray-filing.md
+  s_2d8f671602abcc::t_8a0e9c6cd180ad 1-8
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "eea4dc6ed9f61755794ebdedb53eb9fddc860f99",
+  "prompts": {},
+  "sessions": {
+    "s_2d8f671602abcc": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e0738b23-0234-4f73-bd6e-d0301d6c240d",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Alan Cox <acox@beakpointinsights.com>"
+    }
+  }
+}
