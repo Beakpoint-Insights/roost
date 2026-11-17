@@ -85,6 +85,8 @@ Why: checks that give the same answer every time and cost nothing run on every c
 | `repo-gherkin-needs-e2e` | With `repo-gherkin` and no repo with `e2e.scenarios_dir` and `e2e.run_tags`, `roost-config` stops and names both keys instead of guessing them |
 | `repo-gherkin-split-leaves-suite` | With `repo-gherkin`, an agreed split deletes the scenarios that won't be automated and moves each one's check into the story's acceptance criteria, instead of parking them under a skip tag |
 | `xray-split-makes-new-test` | With Xray, an agreed split still puts the scenarios that won't be automated on a new, unlabelled test made with `create-xray-test` |
+| `phase-5-drafts-scenarios` | With `repo-gherkin`, `shape-epic` phase 5 drafts each story's tests as a `scenarios:` comment with full `.feature` text tagged with its key, puts a cross-cutting test on the last story it needs, and files no Xray tests |
+| `bdd-files-to-repo` | With `repo-gherkin`, `live-verified-bdd` files approved scenarios as a `.feature` file on the current branch, tagged with the story's key, not through `create-xray-test` |
 | `which-roost-is-running` | "Which roost is running?" gets the version from the plugin's own manifest, not a guess |
 | `update-moving` | A progress update when nothing needs the user is a `#### 🟢` heading and one plain line |
 | `release-note-for-one-epic` | One epic's release note is dated by its production deploy, not the resolution date, with an evidence table; it leaves out a slice that was cut and leaves an unknown number as `[N]`, all in one paste-ready reply |
