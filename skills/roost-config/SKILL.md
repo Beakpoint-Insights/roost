@@ -61,7 +61,7 @@ Write it as one line: "roost 1.0.0, installed" or "roost 1.0.0, checkout at ~/sr
 
 If the config names one that isn't supported yet, stop and say which key and value, and that roost doesn't support it yet.
 
-**Keys a tests kind needs.** With `tests.kind: repo-gherkin`, at least one repo needs both `e2e.scenarios_dir` and `e2e.run_tags`. If none has them, stop and say so, naming both keys. Suggest values only from what the user or the repo shows (a Cucumber config, a test script), for them to confirm; never go on with guessed values as if they were in the config.
+**Keys a tests kind needs.** With `tests.kind: repo-gherkin`, at least one repo needs both `e2e.scenarios_dir` and `e2e.run_tags` (a repo with only one of them doesn't count). If none has them, stop and say so, naming both keys. Suggest values only from what the user or the repo shows (a Cucumber config, a test script), for them to confirm; never go on with guessed values as if they were in the config.
 
 **Skills the config names must be installed.** When a step uses a skill the config names (for example `roadmap.skill`) and it isn't in this session's skill list, stop that step and tell the user which skill is missing and which plugin provides it. Don't look for its files on disk or do the step from memory: a fix that only works on this machine is worse than a clear stop. Carry on with steps that don't need it.
 
