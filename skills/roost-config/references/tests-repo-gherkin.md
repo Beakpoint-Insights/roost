@@ -26,7 +26,7 @@ At least one repo with `e2e.scenarios_dir` and `e2e.run_tags` (with `{tags}`); `
 | **Split a test** | "Splitting a test": the scenarios that won't be automated leave the file and the suite, and their checks go into the story's acceptance criteria; every other scenario stays. |
 | **Retire a test** | "Retiring a test". |
 | **Shared setup** | A `Background:` in the file, or step definitions the files share. Never a ticket. |
-| **Manual tests** | "Manual tests", when the config has `tests.manual_label`. Without it there are none: a check no scenario can make goes into the story's acceptance criteria, checked on the PR with evidence. |
+| **Manual tests** | "Manual tests", when the config has `tests.manual_label`. Without it there are none: a check no scenario can make goes into the story's acceptance criteria, checked on the PR with evidence. Don't suggest turning manual tests on unless the user asks; whether to have them is the team's choice. |
 
 ## What a test is
 
@@ -88,8 +88,8 @@ Some checks are one-off on purpose: run once, by hand, against a real environmen
 
 - **Tagged** `@<tests.manual_label>` (on the scenario, or on its `Feature:` line), decided while shaping (`shape-epic` phase 5), never later to get out of automating something.
 - **Its Gherkin description says how to run it:** the free text under `Scenario:` (or `Feature:`) gives the environment, the steps or commands, and what passing looks like, and a line `When: after release` if it can only pass after the epic ships. Its steps are for reading; they have no definitions.
-- **A file is all manual or all automated.** A file that mixes them is reported as needing its manual scenarios moved into their own file; nothing is deleted, and neither part is split.
-- **Closed by a recorded run, not by automation.** Whoever runs it adds a comment on the story starting `manual run:` with the date, who ran it, the environment, a pass or fail for each scenario, and the evidence. Its status comes from the newest `manual run:` comment (Manual: passed, failed, not run yet, or after release); there's nothing else to close.
+- **A file is all manual or all automated.** Flag a file that mixes them, and propose separating them: move its manual scenarios into a file of their own, in the story's PR. Nothing is deleted.
+- **Closed by a recorded run, not by automation.** Whoever runs it adds a comment on the story starting `manual run:` with the date, who ran it, the environment, a pass or fail for each scenario, and the evidence. Its status comes from the newest `manual run:` comment: Manual: passed, Manual: failed, or, with no run, Manual: not run yet (say "not run yet, for after release" when its description says `When: after release`). There's nothing else to close.
 - **Who runs it:** the session of the repo that owns the story's work runs what it can read-only. Anything that changes a shared or production resource, needs access the session doesn't have, or is in `deploy.runbooks.never_run_against`, goes to the user as a 🙋 **Your turn** action; the session records the run from their answer.
 - **Not automated, ever:** no skill reports a manual scenario as "not automated", proposes splitting it, or writes step definitions for it. It's run once.
 - **After release:** one with `When: after release` isn't part of any slice; it's listed with the user as its owner, and the release call doesn't wait for it.
