@@ -1,0 +1,25 @@
+evals/manual-scenario-not-automated/graders/api-keys-automated.md
+  s_2d8f671602abcc::t_da8860ad0957ca 1-7
+evals/manual-scenario-not-automated/graders/dns-mixed.md
+  s_2d8f671602abcc::t_eab249b5af74d1 1-7
+evals/manual-scenario-not-automated/graders/load-balancer-manual.md
+  s_2d8f671602abcc::t_99d03d479ff2fa 1-7
+evals/manual-scenario-not-automated/graders/no-wrong-moves.md
+  s_2d8f671602abcc::t_f4d482564b44f0 7
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "cceceb66f4540e00678560b1c2f920ff22a06778",
+  "prompts": {},
+  "sessions": {
+    "s_2d8f671602abcc": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e0738b23-0234-4f73-bd6e-d0301d6c240d",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Alan Cox <acox@beakpointinsights.com>"
+    }
+  }
+}
