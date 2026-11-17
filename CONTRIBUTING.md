@@ -87,6 +87,8 @@ Why: checks that give the same answer every time and cost nothing run on every c
 | `xray-split-makes-new-test` | With Xray, an agreed split still puts the scenarios that won't be automated on a new, unlabelled test made with `create-xray-test` |
 | `phase-5-drafts-scenarios` | With `repo-gherkin`, `shape-epic` phase 5 drafts each story's tests as a `scenarios:` comment with full `.feature` text tagged with its key, puts a cross-cutting test on the last story it needs, and files no Xray tests |
 | `bdd-files-to-repo` | With `repo-gherkin`, `live-verified-bdd` files approved scenarios as a `.feature` file on the current branch, tagged with the story's key, not through `create-xray-test` |
+| `manual-scenario-not-automated` | With `repo-gherkin`, `verify-slice-tests` reports a scenario tagged manual by its `manual run:` comments, never as not automated, and flags a file that mixes manual and automated scenarios |
+| `no-manual-without-label` | With `repo-gherkin` and no `tests.manual_label`, `shape-epic` phase 5 writes no manual scenarios; a one-off check goes into the story's acceptance criteria |
 | `which-roost-is-running` | "Which roost is running?" gets the version from the plugin's own manifest, not a guess |
 | `update-moving` | A progress update when nothing needs the user is a `#### 🟢` heading and one plain line |
 | `release-note-for-one-epic` | One epic's release note is dated by its production deploy, not the resolution date, with an evidence table; it leaves out a slice that was cut and leaves an unknown number as `[N]`, all in one paste-ready reply |
