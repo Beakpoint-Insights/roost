@@ -26,7 +26,7 @@ At least one repo with `e2e.scenarios_dir` and `e2e.run_tags` (with `{tags}`); `
 | **Split a test** | "Splitting a test": the scenarios that won't be automated leave the file and the suite, and their checks go into the story's acceptance criteria; every other scenario stays. |
 | **Retire a test** | "Retiring a test". |
 | **Shared setup** | A `Background:` in the file, or step definitions the files share. Never a ticket. |
-| **Manual tests** | Don't exist here yet. A check no scenario can make goes into the story's acceptance criteria, checked on the PR with evidence. |
+| **Manual tests** | "Manual tests", when the config has `tests.manual_label`. Without it there are none: a check no scenario can make goes into the story's acceptance criteria, checked on the PR with evidence. |
 
 ## What a test is
 
@@ -38,7 +38,7 @@ At least one repo with `e2e.scenarios_dir` and `e2e.run_tags` (with `{tags}`); `
 
 ## Running a story's scenarios
 
-Run `e2e.run_tags` with `{tags}` set to the story's tag (`@PROJ-1250`), in the repo that holds the files, on the commit under test. Run it now; don't rely on CI or an earlier run. Several stories at once: `"@PROJ-1250 or @PROJ-1251"`.
+Run `e2e.run_tags` with `{tags}` set to the story's tag (`@PROJ-1250`), in the repo that holds the files, on the commit under test. When the config has `tests.manual_label`, always leave the manual scenarios out: `{tags}` is `@PROJ-1250 and not @manual`, whatever the team's own command does. Run it now; don't rely on CI or an earlier run. Several stories at once: `"@PROJ-1250 or @PROJ-1251"`.
 
 ## Reading a run
 
@@ -76,8 +76,21 @@ When a session is in a repo with `e2e.scenarios_dir` (`live-verified-bdd`, a bug
 
 ## Splitting a test
 
-When the user agrees a split (`verify-slice-tests`), every scenario that will be automated stays in the file. Each scenario that won't be automated is deleted from the file in the story's PR, and its check goes into the story's acceptance criteria, to be checked on the PR with evidence. Add the acceptance criterion first and read it back, then delete the scenario. Never keep a scenario that won't be automated in the file under a tag the runs exclude (`@wip`, `@skip`, `@ignore`): it would look like a test nobody runs. The moved check is an acceptance criterion, not a manual test: don't call it manual or tag it. The test is automated only once a re-run on the new commit shows its remaining scenarios passing, recorded in the `scenarios:` comment; until then, say it will be, not that it is.
+When the user agrees a split (`verify-slice-tests`), every scenario that will be automated stays in the file. Each scenario that won't be automated is deleted from the file in the story's PR, and its check goes into the story's acceptance criteria, to be checked on the PR with evidence. Add the acceptance criterion first and read it back, then delete the scenario. Never keep a scenario that won't be automated in the file under a tag the runs exclude (`@wip`, `@skip`, `@ignore`): it would look like a test nobody runs. The moved check is an acceptance criterion: don't tag it, and don't call it manual unless the config has `tests.manual_label` and the user chooses to make it a manual scenario instead ("Manual tests"). The test is automated only once a re-run on the new commit shows its remaining scenarios passing, recorded in the `scenarios:` comment; until then, say it will be, not that it is.
 
 ## Retiring a test
 
 Delete its scenarios in a PR that says why, and say so on the story. Retired tests leave every count.
+
+## Manual tests
+
+Some checks are one-off on purpose: run once, by hand, against a real environment, because automating them would cost more than it proves. When the config has `tests.manual_label`, such a check is a manual scenario:
+
+- **Tagged** `@<tests.manual_label>` (on the scenario, or on its `Feature:` line), decided while shaping (`shape-epic` phase 5), never later to get out of automating something.
+- **Its Gherkin description says how to run it:** the free text under `Scenario:` (or `Feature:`) gives the environment, the steps or commands, and what passing looks like, and a line `When: after release` if it can only pass after the epic ships. Its steps are for reading; they have no definitions.
+- **A file is all manual or all automated.** A file that mixes them is reported as needing its manual scenarios moved into their own file; nothing is deleted, and neither part is split.
+- **Closed by a recorded run, not by automation.** Whoever runs it adds a comment on the story starting `manual run:` with the date, who ran it, the environment, a pass or fail for each scenario, and the evidence. Its status comes from the newest `manual run:` comment (Manual: passed, failed, not run yet, or after release); there's nothing else to close.
+- **Who runs it:** the session of the repo that owns the story's work runs what it can read-only. Anything that changes a shared or production resource, needs access the session doesn't have, or is in `deploy.runbooks.never_run_against`, goes to the user as a 🙋 **Your turn** action; the session records the run from their answer.
+- **Not automated, ever:** no skill reports a manual scenario as "not automated", proposes splitting it, or writes step definitions for it. It's run once.
+- **After release:** one with `When: after release` isn't part of any slice; it's listed with the user as its owner, and the release call doesn't wait for it.
+- **The team's own run commands leave the tag out** (`not @manual`), so CI never runs them.
