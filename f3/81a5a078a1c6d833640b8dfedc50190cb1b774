@@ -1,0 +1,29 @@
+CONTRIBUTING.md
+  s_2d8f671602abcc::t_83668b00591613 90-91
+evals/manual-scenario-not-automated/graders/manual-by-record.md
+  s_2d8f671602abcc::t_93253e839b3162 1-12
+evals/manual-scenario-not-automated/graders/no-automate-skill.md
+  s_2d8f671602abcc::t_a2c30fdcdad273 1-8
+evals/manual-scenario-not-automated/prompt.md
+  s_2d8f671602abcc::t_77f388106cec4a 1-28
+evals/no-manual-without-label/graders/no-manual-scenario.md
+  s_2d8f671602abcc::t_58098206c4f092 1-9
+evals/no-manual-without-label/prompt.md
+  s_2d8f671602abcc::t_5a6b74a402f5ca 1-15
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f381a5a078a1c6d833640b8dfedc50190cb1b774",
+  "prompts": {},
+  "sessions": {
+    "s_2d8f671602abcc": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e0738b23-0234-4f73-bd6e-d0301d6c240d",
+        "model": "unknown"
+      },
+      "human_author": "Alan Cox <acox@beakpointinsights.com>"
+    }
+  }
+}
