@@ -1,0 +1,19 @@
+skills/roost-config/references/tests-repo-gherkin.md
+  s_2d8f671602abcc::t_30b0d9531c4e50 29,91-92
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6ad49b0b063d85f2f9781e93dd23e9b576924e43",
+  "prompts": {},
+  "sessions": {
+    "s_2d8f671602abcc": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e0738b23-0234-4f73-bd6e-d0301d6c240d",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Alan Cox <acox@beakpointinsights.com>"
+    }
+  }
+}
