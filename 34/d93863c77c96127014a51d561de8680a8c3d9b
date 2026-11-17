@@ -1,0 +1,25 @@
+CONTRIBUTING.md
+  s_2d8f671602abcc::t_dd56dd1df880ab 92
+evals/setup-offers-repo-gherkin/graders/offers-repo-gherkin.md
+  s_2d8f671602abcc::t_692495e292a951 1-13
+evals/setup-offers-repo-gherkin/graders/uses-setup.md
+  s_2d8f671602abcc::t_db3c89a8879eff 1-6
+evals/setup-offers-repo-gherkin/prompt.md
+  s_2d8f671602abcc::t_3deeed1bb4039e 1-19
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "34d93863c77c96127014a51d561de8680a8c3d9b",
+  "prompts": {},
+  "sessions": {
+    "s_2d8f671602abcc": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e0738b23-0234-4f73-bd6e-d0301d6c240d",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Alan Cox <acox@beakpointinsights.com>"
+    }
+  }
+}
