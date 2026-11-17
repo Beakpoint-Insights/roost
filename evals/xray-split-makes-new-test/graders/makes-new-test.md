@@ -2,7 +2,7 @@
 type: llm
 ---
 
-With Xray, a split keeps the automated scenarios on the existing test and moves the rest to a new test.
+The run can't reach Jira or Xray, so it says what it would change. With Xray, a split keeps the automated scenarios on the existing test and moves the rest to a new test.
 
 It passes when the reply:
 - keeps the two automated scenarios on PROJ-1251, saving its current scenarios to a local file first, then marks PROJ-1251 automated (the `automated` label, Done);

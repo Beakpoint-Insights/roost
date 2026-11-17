@@ -1,5 +1,5 @@
 ---
-description: With tests.kind repo-gherkin, verify-slice-tests finds a story's scenarios by whole tag, sorts them by their run (passed, undefined, pending, failed), and records the result in a scenarios: comment with no label or status.
+description: "With tests.kind repo-gherkin, verify-slice-tests finds a story's scenarios by whole tag, sorts them by their run (passed, undefined, pending, failed), and records the result in a scenarios: comment with no label or status."
 tags: [verify-slice-tests, roost-config, issue-138]
 max_turns: 10
 allowed_tools: [Read, Glob, Grep, Skill]
