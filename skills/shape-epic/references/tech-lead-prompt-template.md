@@ -222,7 +222,7 @@ Each comment is a self-contained prompt for a separate coding agent. Write it so
 3. **Plan section:** the path to the plan, and which section to execute with the {{EXECUTE_SKILL}} skill.
 4. **Scope fence. Copy this word for word:**
    > You are the **[repo name]** agent. Change only **[repo name]**. Do not edit any other repo, even for a "quick" fix. If you find you need a change on the other side, stop, write down exactly what you need, and leave it for the other agent.
-5. **E2E tests:** which of the epic's tests (by key or case name) and scenarios to automate at this level of the stack, and which belong to the other layer. If none apply at this level, say "none". {{FLAG_STATE}}
+5. **E2E tests:** which of the epic's tests (named as the tests adapter names a test: a key, a case's name, a `.feature` file) and scenarios to automate at this level of the stack, and which belong to the other layer. If none apply at this level, say "none". {{FLAG_STATE}}
    <!-- FILL: "Don't name flag tags (<stack.flag_tags>) from memory: tag the scenarios for the local stack's real flag state (check with `<stack.flag_state>`)." -->
 6. **Testing:** "The epic's tests in the tracker are the minimum, not the whole job. Write unit tests for every new or changed function, test-first, plus integration tests where code crosses a boundary (database, third-party service, HTTP). Run the full relevant test suite before you open the PR."
 7. **Artifacts:** name the exact artifacts and sections the agent should open. Use the tracker attachment names first and the live links second.

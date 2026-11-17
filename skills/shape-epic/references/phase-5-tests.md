@@ -28,7 +28,7 @@ Slice 3 (Ingestion Health):
   - PROJ-XXXX: Ingestion gradient thresholds
   - PROJ-XXXX: Production ingest endpoint answers after the switch (manual)
 
-Cross-cutting (linked to the last slice they depend on):
+Cross-cutting (with the last slice they depend on):
   - PROJ-XXXX: Full confidence flow
   - PROJ-XXXX: Navigation between all views
 ```

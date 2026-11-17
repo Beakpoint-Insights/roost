@@ -92,7 +92,7 @@ When the user approves the scenarios, ask whether to file them. If yes, file the
 - the epic key, and the story key for each test
 - each test's title and its scenarios
 - the repo and branch this session is on, since "Create a test" may write the file there
-- for scenarios that replace an existing test's, that test's key, so it's updated ("Update a test's scenarios") instead of a new one created
+- for scenarios that replace an existing test's, that test (its key, or its file), so it's updated ("Update a test's scenarios") instead of a new one created
 
 Leave out scenarios marked NOT TESTABLE unless the user says to file them.
 
