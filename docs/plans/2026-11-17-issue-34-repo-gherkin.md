@@ -12,7 +12,7 @@
 
 **Config:** written with roost's own config, `.roost/config.yml` (`team.name: roost`, one repo `roost`, `tracker.kind: github`, `tests.kind: evals`, `vcs.stacking: gh-stack`).
 
-**Status:** waiting for Alan's approval. Nothing is posted on the tracker yet.
+**Approved** 2026-11-17 by Alan, at `6276b1f`, with all seven open questions decided as recommended ("Open questions").
 
 ---
 
@@ -209,9 +209,21 @@ The failures are what the user is told:
 
 ---
 
-## Open questions (checklist 8)
+## Open questions (checklist 8): decided 2026-11-17
 
-Each has a recommendation; nothing is decided until Alan answers.
+Alan decided all seven as recommended:
+
+| # | Decision |
+|---|---|
+| 1 | `ambiguous` is failing. `skipped` is never passed: a backend-marker scenario takes its backend test's result, a flag mismatch is "Couldn't run", and a deliberate blocked skip is not automated, with its reason |
+| 2 | The adapter's "Create a test" covers code that already runs, in #138 |
+| 3 | Add `xray-split-makes-new-test` in #138 |
+| 4 | A separate `examples/config.repo-gherkin.yml` |
+| 5 | The mixed-file rule goes in the adapter only (Task 3.3's fallback stays, only if the eval needs it) |
+| 6 | One `scenarios:` comment per story, with a "Last run" section per repo |
+| 7 | The four extra wordings: `release-qa` and `slice-handoff` in #138, `phase-5-tests.md:50` in #139 |
+
+The questions as asked:
 
 1. **The two results decision 3 doesn't name.** Cucumber also reports `ambiguous` (two step definitions match a step) and `skipped`. **Recommend:** `ambiguous` is **failing** (the automation exists but is wrong; name both definitions). `skipped` is never "passed": a `e2e.backend_marker` scenario takes its backend test's result; a scenario skipped because its flag tags don't match the stack's flag state is "Couldn't run" (as `verify-slice-tests:32` already says); a scenario the suite skips on purpose with a reason (`automate-tests:43`'s "blocked" skip) is **not automated**, with the reason from its comment.
 2. **"Create a test" when the code already runs.** The design's table covers only "before the code exists", but `release-qa:72`, `run-bug:47` and `bug-bash:39` call "Create a test" when the code runs. **Recommend:** #138's adapter covers both cases (decision 1 already decides the second). The cost: #139's `bdd-files-to-repo` may already pass at #138's head, so #139's test-first run may not fail before its change. #139 records that run, and its own work is the wording in `shape-epic` and `live-verified-bdd`.
