@@ -1,0 +1,19 @@
+evals/verify-repo-gherkin-scenarios/graders/sorts-by-run.md
+  s_2d8f671602abcc::t_e0ca6b813b5997 14
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6a3928f7d3be5f353cb21fc312cf0825c83204d0",
+  "prompts": {},
+  "sessions": {
+    "s_2d8f671602abcc": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e0738b23-0234-4f73-bd6e-d0301d6c240d",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Alan Cox <acox@beakpointinsights.com>"
+    }
+  }
+}
