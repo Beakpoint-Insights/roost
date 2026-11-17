@@ -33,7 +33,7 @@ Read everything first; decide nothing yet. Don't trust that the slice recorded e
   - **A ticket already linked to DONE but missing its parent or Components:** set them now; it's DONE's ticket either way (see "Set or clear a parent" in the tracker adapter).
 
   A concern that only ever lived in a session's report can't be found from the tracker. Step 2 asks the user about anything run-slice's state file mentions that has no tracker record.
-- **Every test in the epic:** the tests linked to each story in EPIC so far, with their labels and statuses, leaving out retired tests (the tests adapter's "Retire a test").
+- **Every test in the epic:** each story's tests in EPIC so far ("A story's tests"), and each one's state: marked automated ("Mark a test automated"), closed by a manual run ("Manual tests"), or neither, leaving out retired tests (the tests adapter's "Retire a test").
 - **The stacks:** every PR for EPIC in each repo, its head, its base, and each check's newest completed result (`gh pr view <n> -R <repo.github> --json statusCheckRollup`; ignore runs a newer push cancelled).
 - **Plan changes:** commits on the plan branch since the slice started, and the decisions recorded in `<team.state_dir>/DONE.md` if it exists.
 - **NEXT's kickoff comments,** one per repo, titled with each repo's `kickoff_title`.
@@ -71,12 +71,12 @@ A later slice can break an earlier slice's test. Prove each one still passes, ag
 
 - Ask the session of each repo that holds the epic's automation (the e2e repo, a backend repo, the repo with the eval cases) to run every test of the epic so far that's marked automated ("Run a test"; for a browser suite, every key in one run, `repos[].e2e.run_tags` with `"@PROJ-A or @PROJ-B or …"`, tagged for the stack's real flag state, `stack.flag_state`). Each reports pass or fail per scenario.
 - Make the tests match the result:
-  - **Marked automated, but failing:** unmark it ("Unmark a test"), file a Bug under EPIC, with Components when the tracker requires them, that relates to the failing test and the story that broke it, and sort the bug in step 2.
+  - **Marked automated, but failing:** unmark it ("Unmark a test"), file a Bug under EPIC, with Components when the tracker requires them, that names the failing test (and relates to it, when the test is a ticket) and relates to the story that broke it, and sort the bug in step 2.
   - **Has scenarios without automation** (often added by exploratory testing): not marked automated. Say in the Carry-over comment which slice automates them, normally the one that fixes the bug they came from.
   - **Manual** ("Manual tests"): not run again; it's a one-off check. Done with a passing `manual run:` comment stays done. One of DONE's that isn't, and isn't `When: after release`, is carried over: sort it in step 2 like any open item, with what its description says to run.
   - **Created by a split the user approved** (`verify-slice-tests` step 8; the checkpoint record names it): leave it as it is. It has no automation on purpose.
   - **All scenarios automated and passing:** marked automated.
-- Check NEXT's tests exist, are linked to NEXT, and match what NEXT's kickoffs say to automate.
+- Check NEXT's tests exist ("A story's tests" for NEXT) and match what NEXT's kickoffs say to automate.
 
 ## 5. Bring NEXT's kickoff comments up to date
 

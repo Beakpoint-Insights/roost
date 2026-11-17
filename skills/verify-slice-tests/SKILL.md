@@ -33,9 +33,9 @@ The changes for a story are pushed. Prove which of its tests are automated and p
 6. **Mark the tests that are Automated and passing** ("Mark a test automated"), and close each **Manual: passed** test that isn't closed yet (without marking it automated). Change nothing on any other test. If a test is already marked automated but isn't passing now, leave it as it is and flag it in the table.
 7. **Propose a split for each Not automated test whose automated scenarios all passed.** Never for a manual test. Some scenarios are things the user doesn't want automated. Don't decide that yourself, and don't change the test yet. For each such test, show:
    - **What isn't automated:** each scenario with no automation, or the steps of a scenario that the automation doesn't check, with the reason (for example, it needs a real external service).
-   - **The proposed split** ("Split a test"): the existing test keeps every automated scenario (a scenario that's only partly automated becomes the part the automation checks), and a new test gets the part that isn't automated. Show both in full.
+   - **The proposed split** ("Split a test"): the existing test keeps every automated scenario (a scenario that's only partly automated becomes the part the automation checks), and the part that isn't automated goes where "Split a test" says. Show both in full.
    - Then ask: "Split as proposed, change the split, or automate the rest instead?" **Stop and wait for the answer** before touching that test.
-8. **If the user approves a split,** carry it out as "Split a test" says, saving the existing test's scenarios to a local file first and saying where ("Update a test's scenarios"). Re-run the existing test, push any change, and mark it automated; the new test isn't marked automated.
+8. **If the user approves a split,** carry it out as "Split a test" says, saving the existing test's scenarios to a local file first and saying where ("Update a test's scenarios"). Re-run the existing test, push any change, and mark it automated. Mark only the existing test automated.
 9. **Read the tests back** after your changes, so the table shows each test's real state, not what you meant to set.
 
 ## Output

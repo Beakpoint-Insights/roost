@@ -69,10 +69,10 @@ Only file what you've reproduced by hand at least once.
 
 **Give every behaviour bug a test that would catch it,** so the fix has something to automate and the bug can't quietly come back. Skip purely visual nits.
 - **The covering test isn't marked automated yet:** add the bug's scenario to it (the tests adapter's "Update a test's scenarios", saving the current scenarios first).
-- **The covering test is already marked automated:** don't add to it, which would make that false. Create a new test for the bug's scenario ("Create a test"), linked to the story, unmarked until it's automated.
+- **The covering test is already marked automated:** don't add to it, which would make that false. Create a new test for the bug's scenario ("Create a test"), for the story, not marked automated until it's automated.
 - **No test covers it:** create one, the same way.
 
-Link each test to its bug ("relates to"), and say in the bug which test it is. Whoever fixes the bug automates that test as part of the fix.
+Say in the bug which test it is, and link the two ("relates to") when the test is a ticket. Whoever fixes the bug automates that test as part of the fix.
 
 Problems with the test setup itself (for example "the e2e suite doesn't start") go in **one parent task with a subtask per problem**, when the user asks for them filed.
 

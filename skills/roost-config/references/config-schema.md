@@ -39,7 +39,7 @@ Always `1`.
 
 | Key | Meaning |
 |---|---|
-| `kind` | `xray`: Xray tests in Jira, with Cucumber scenarios. `evals`: eval cases in a plugin's repo, run with `claude plugin eval` (see `tests-evals.md`). (`repo-gherkin` and `none` aren't supported yet.) |
+| `kind` | `xray`: Xray tests in Jira, with Cucumber scenarios. `evals`: eval cases in a plugin's repo, run with `claude plugin eval` (see `tests-evals.md`). `repo-gherkin`: Cucumber scenarios in the repo's own `.feature` files, found by the story's tag and run with each repo's `e2e` commands (see `tests-repo-gherkin.md`); needs a repo with `e2e.scenarios_dir` and `e2e.run_tags`. (`none` isn't supported yet.) |
 | `automated_label` | *For `xray`.* The label for a test whose every scenario is automated and passing. Default `automated`. |
 | `manual_label` | *Optional, for `xray`.* The label for a test that's run by hand on purpose, once, against a real environment, and closes on a recorded run instead of automation (see "Manual tests" in the Xray adapter notes). Leave it out to allow no manual tests. |
 | `xray.test_link_type` | *For `xray`.* The link type between a test and its story: `name`, `id`, and the `outward`/`inward` wording. Default `Test` ("tests" / "is tested by"). |
@@ -70,7 +70,7 @@ A list, one entry per repo a story's work can touch. One entry is fine.
 | `review_focus` | *Optional.* What `/code-review` should focus on in this repo, instead of `planning.review_focus` (for example "IAM least privilege, public exposure, state and secrets, destroy or replace in the plan"). |
 | `apply_gate` | *Optional.* For a repo whose changes are applied to real resources (OpenTofu, Terraform): `plan` (the command that produces the plan, for example `tofu plan -out=tfplan`), `apply` (the command that applies it), `who` (`user`, the default, or `agent_after_approval`: the session may apply a plan the user approved), and `when` (`before_merge`, the default, or `after_merge`). See "The apply gate" in `roost-config`. |
 | `production` | *Optional.* How this repo's changes reach production, for dating release notes (`release-notes`) and confirming a release shipped (`close-out-epic`). One of: a `workflow`, written `{ workflow: <file> }`, for the successful runs of `.github/workflows/<file>` on the default branch or a tag (a change is in production from the first one whose commit contains it); `release`, for the published GitHub release (from the first release whose tag contains the change); or `merge`, when merging to `main` deploys. Without it, `release-notes` says the date wasn't found instead of guessing, and `close-out-epic` confirms production as it would without it. |
-| `e2e` | *Optional.* For the repo that holds the browser e2e suite: `run_all`, `run_tags` (with `{tags}`), `scenarios_dir`, `tag_style`, `backend_marker` (how a UI scenario points at a backend test instead), `secrets_file`, `helpers_hint`. |
+| `e2e` | *Optional.* For the repo that holds the browser e2e suite: `run_all`, `run_tags` (with `{tags}`), `scenarios_dir`, `tag_style`, `backend_marker` (how a UI scenario points at a backend test instead), `secrets_file`, `helpers_hint`. With `tests.kind: repo-gherkin`, the tests adapter finds a story's scenarios under `scenarios_dir` and runs them with `run_tags`, so a repo that holds scenarios needs both. |
 
 ## `stack`
 

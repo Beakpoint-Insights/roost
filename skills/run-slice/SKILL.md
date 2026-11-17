@@ -71,7 +71,7 @@ Work out the slice's real state before sending anything. Reading is fine; you st
    A repo's side is **done** when its PR exists on the stack and its checks pass, and, for a repo with `apply_gate`, its plan is applied and recorded in an `apply:` comment on STORY (see "The apply gate" in `roost-config`). A branch with no PR means that side started and didn't finish.
 
    **Judge checks by each check's newest completed result** on the PR's current head. A run that a newer push cancelled is harmless, and a re-run still in progress isn't "pending" when the same check already passed: report it as "green; a re-run is in progress". If the list shows only the unfinished entry for a check (a re-run of the same job can replace its earlier result), call that check pending. `gh pr checks` lists cancelled and re-run entries as pending, so don't use it to decide. Before anything is **merged**, use the stricter rule: the latest run of every check on the current head has completed successfully, and a queued or running check blocks the merge.
-3. **The tracker:** STORY's status, its linked tests' labels and statuses, and any tickets already created from this slice (linked "relates to"), so they aren't filed twice.
+3. **The tracker:** STORY's status, its tests ("A story's tests") and each one's state: marked automated ("Mark a test automated"), closed by a manual run ("Manual tests"), or neither, and any tickets already created from this slice (linked "relates to"), so they aren't filed twice.
 4. **The stack:** whether every `stack.services` URL answers (`curl -s -o /dev/null -w '%{http_code}' <url>`). Skip this when every repo the story touches has `local_stack: false`.
 
 Then tell the user what you found and where you're picking up, in one short table, and carry straight on. Being asked to run the slice is the go-ahead; don't ask for another. Stop only for a real blocker: a session that isn't open, two candidates for one repo, a refused message, or a resume that would act again on decisions the user may have changed (below).
@@ -203,7 +203,7 @@ New bugs go back to step 3 for the user's decision, then to `bug-bash` in the se
 
 Loop through steps 2 to 5 until all of these are true:
 - `verify-slice-tests` shows every test automated, passing and done, or split with the user's approval, and every manual test done on a passing `manual run:` comment, except those whose description says `When: after release` ("Manual tests" in the tests adapter). For a slice with no tests because no suite can prove its work before release, every acceptance criterion is checked on its PR, with evidence.
-- A test created for an exploratory bug the user deferred may stay open and unlabelled: it's automated with that bug's fix, not in this slice. List it in the slice-done comment's **Left open** table with the bug and where the bug went.
+- A test created for an exploratory bug the user deferred may stay unmarked ("Mark a test automated"): it's automated with that bug's fix, not in this slice. List it in the slice-done comment's **Left open** table with the bug and where the bug went.
 - Every review finding is fixed, ticketed or skipped by the user.
 - Every exploratory bug is fixed or deferred by the user.
 - Every PR on the stack for this slice is pushed and its checks pass.
