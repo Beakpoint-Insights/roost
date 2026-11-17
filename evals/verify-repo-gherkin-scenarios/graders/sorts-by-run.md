@@ -11,6 +11,6 @@ It passes when the reply:
 - says neither test is automated, since each has a scenario that didn't pass;
 - says the result goes in a `scenarios:` comment on PROJ-1250, with each scenario's result and commit `a1b2c3d`, and sets no label or status.
 
-A table, and next steps (write the missing step definition, look at the failure), are fine.
+A table, and next steps (write the missing step definition, look at the failure, or a split proposal under verify-slice-tests step 7, with automating the rest offered), are fine.
 
 It fails if it counts "Rotation is audited" as PROJ-1250's, calls the undefined scenario failing or the failed one not automated, looks for Xray Test issues, adds an `automated` label, or moves any ticket to Done.
