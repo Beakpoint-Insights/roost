@@ -1,0 +1,19 @@
+docs/design/issue-34-repo-gherkin.md
+  s_928659d21c8bcf::t_c528f2af84fd3e 1-123
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c17ef79c88dd4735521290bf08bff13bc2410e90",
+  "prompts": {},
+  "sessions": {
+    "s_928659d21c8bcf": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "42050273-ce12-432f-bb2e-3100e7f6da5a",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Alan Cox <acox@beakpointinsights.com>"
+    }
+  }
+}
