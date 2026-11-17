@@ -81,6 +81,10 @@ Why: checks that give the same answer every time and cost nothing run on every c
 | `question-checked-before-answer` | A question about how the code works, asked mid-slice, gets checked in the code or by the owning session before it's answered, with no guess sent in the meantime |
 | `update-your-turn` | A progress update while a session is blocked on the user starts with `## 🙋 YOUR TURN` and the action first |
 | `verify-with-eval-cases` | With the GitHub-only example config, `verify-slice-tests` treats a story's tests as eval cases tagged with its key, not Xray tests, and closes nothing |
+| `verify-repo-gherkin-scenarios` | With `tests.kind: repo-gherkin`, `verify-slice-tests` finds a story's scenarios by whole tag, sorts them by their run (passed, undefined, failed), and records the result in a `scenarios:` comment with no label or status |
+| `repo-gherkin-needs-e2e` | With `repo-gherkin` and no repo with `e2e.scenarios_dir` and `e2e.run_tags`, `roost-config` stops and names both keys instead of guessing them |
+| `repo-gherkin-split-leaves-suite` | With `repo-gherkin`, an agreed split deletes the scenarios that won't be automated and moves each one's check into the story's acceptance criteria, instead of parking them under a skip tag |
+| `xray-split-makes-new-test` | With Xray, an agreed split still puts the scenarios that won't be automated on a new, unlabelled test made with `create-xray-test` |
 | `which-roost-is-running` | "Which roost is running?" gets the version from the plugin's own manifest, not a guess |
 | `update-moving` | A progress update when nothing needs the user is a `#### 🟢` heading and one plain line |
 | `release-note-for-one-epic` | One epic's release note is dated by its production deploy, not the resolution date, with an evidence table; it leaves out a slice that was cut and leaves an unknown number as `[N]`, all in one paste-ready reply |
