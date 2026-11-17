@@ -17,7 +17,7 @@ At least one repo with `e2e.scenarios_dir` and `e2e.run_tags` (with `{tags}`); `
 | **A story's tests** | The `.feature` files under each repo's `e2e.scenarios_dir` with a scenario carrying the story's tag ("What a test is"), plus any drafted in the story's `scenarios:` comment and not committed yet. |
 | **Read a test's scenarios** | The file's scenarios that carry the story's tag, with its `Background:`. |
 | **Find a scenario's automation** | Its step definitions, as a run reports them ("Reading a run"): a scenario with no undefined or pending step, and not skipped on purpose, has automation. A scenario with `e2e.backend_marker` points at a backend test, which is its automation. |
-| **Run a test** | `e2e.run_tags` with the story's tag, in the file's repo, on the commit under test ("Running a story's scenarios"). |
+| **Run a test** | `e2e.run_tags` with the story's tag, in the file's repo, on the commit under test ("Running a story's scenarios"). Record every run in the story's `scenarios:` comment, whatever its results. |
 | **Mark a test automated** | No label or status: post or edit the story's `scenarios:` comment with each test, each scenario's result and the commit ("The `scenarios:` comment"). |
 | **Write scenarios** | Cucumber scenarios in the Gherkin style guide in the `live-verified-bdd` skill. `Feature:` and `Background:` are allowed. Every scenario carries the story's tag, on itself or from its `Feature:` line. |
 | **Unmark a test** | A test that passed before and fails now: say so in the `scenarios:` comment, with the failing scenario and the commit, and take it off the line of automated tests. A test that gets a new scenario is unmarked the same way until that scenario passes. |
@@ -59,7 +59,7 @@ A test is automated and passing only when every one of its scenarios is (for a `
 
 ## The `scenarios:` comment
 
-One comment per story, starting `scenarios:`, edited in place, never a second one. It holds:
+One comment per story, starting `scenarios:`, edited in place, never a second one. Every run goes in it, passing or not: it's the only record of the story's tests, so a run where nothing passed is recorded too. It holds:
 
 - **The drafts,** before they're committed: each file as a heading with its path and repo, and its full text in a code block ("Writing scenarios before the code"). Once a file is committed, its draft leaves the comment; the file is the test.
 - **The last run,** one section per repo that holds the story's scenarios: the repo, the commit, the date, and a table with each test (its file), each scenario and its result. Under it, one line saying which tests are automated.
