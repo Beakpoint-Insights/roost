@@ -23,7 +23,7 @@
      - **UI work:** UI mockup(s) of the screens it changes.
      - **Work with no UI:** a map of where things run, from the design doc: each environment or component, on the old platform or the new, with what this slice moves or adds highlighted.
      - **Both:** both pictures.
-   - Test pills: which test issues should pass after this slice (with their keys)
+   - Test pills: which tests should pass after this slice, each named as the tests adapter names a test (a key, a case's name, a `.feature` file)
 
    **Test Coverage Matrix:** A summary table at the bottom mapping every test to the slice where it first becomes passable. Cross-cutting tests show the last slice they depend on.
 
@@ -38,7 +38,7 @@
 - The guide is a communication tool for the developer. Optimize for scannability.
 - UI mockups should be simplified representations, not pixel-perfect copies. Use CSS to approximate the prototype's key components. Maps of where things run use the same view of the system in every slice card, so the change from card to card is what stands out.
 - Highlight what's NEW in each slice (use a "new" badge, outline, or color treatment)
-- Make test pills clickable (link to the ticket)
+- Make test pills clickable (link to where the test lives: its ticket, its file, or the story's comment that drafts it)
 - The guide should tell a story: "First we build X, which gives us Y, then we add Z..."
 
 ## Output

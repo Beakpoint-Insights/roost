@@ -38,7 +38,7 @@ Cross-cutting (linked to the last slice they depend on):
 6. **Create the tests** as the tests adapter's "Create a test" says. Give it:
    - The epic key
    - The approved test plan, with each test's title and scenarios
-   - The slice-to-test mapping, so each test is linked to its story (a cross-cutting test to the last story it depends on), with that story's Components where tests are tickets
+   - The slice-to-test mapping, so each test goes with its story (a cross-cutting test with the last story it depends on), and gets what "Create a test" copies from that story (its Components, for a test that's a ticket)
    - Which tests are manual, with each one's description
 
 ## Writing Test Scenarios
@@ -47,4 +47,4 @@ Write scenarios in the form and style the tests adapter's "Write scenarios" give
 
 ## Output
 
-The epic's tests, each linked to a story, with the manual ones marked and described.
+The epic's tests, each with its story ("A story's tests"), with the manual ones marked and described.
