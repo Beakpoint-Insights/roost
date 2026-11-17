@@ -76,7 +76,7 @@ When a session is in a repo with `e2e.scenarios_dir` (`live-verified-bdd`, a bug
 
 ## Splitting a test
 
-When the user agrees a split (`verify-slice-tests`), every scenario that will be automated stays in the file. Each scenario that won't be automated is deleted from the file in the story's PR, and its check goes into the story's acceptance criteria, to be checked on the PR with evidence. Add the acceptance criterion first and read it back, then delete the scenario. Never keep a scenario that won't be automated in the file under a tag the runs exclude (`@wip`, `@skip`, `@ignore`): it would look like a test nobody runs. The test is then automated once its remaining scenarios pass, recorded in the `scenarios:` comment.
+When the user agrees a split (`verify-slice-tests`), every scenario that will be automated stays in the file. Each scenario that won't be automated is deleted from the file in the story's PR, and its check goes into the story's acceptance criteria, to be checked on the PR with evidence. Add the acceptance criterion first and read it back, then delete the scenario. Never keep a scenario that won't be automated in the file under a tag the runs exclude (`@wip`, `@skip`, `@ignore`): it would look like a test nobody runs. The moved check is an acceptance criterion, not a manual test: don't call it manual or tag it. The test is automated only once a re-run on the new commit shows its remaining scenarios passing, recorded in the `scenarios:` comment; until then, say it will be, not that it is.
 
 ## Retiring a test
 
