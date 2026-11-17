@@ -1,0 +1,64 @@
+# An example roost config for a made-up team, Acme, that uses only GitHub for its
+# tracker and keeps its Cucumber scenarios as .feature files in its own web repo, with no
+# test-management tool (tests.kind: repo-gherkin). It ships plain PRs, has no local
+# stack, nothing deployed, no design system and no app to QA in a browser; those
+# sections are left out. Copy it to ~/.claude/roost/config.yml (or .roost/config.yml in
+# the repo), change every value, or run /roost:setup.
+# skills/roost-config/references/config-schema.md says what each key means.
+version: 1
+
+team:
+  name: Acme
+  product: Acme Web
+  shell: zsh
+
+tracker:
+  kind: github
+  github:
+    repo: acme/acme-web
+    issue_types: false
+  statuses:
+    todo: To Do
+    in_progress: In Progress
+    ready_for_release: Ready for Release
+    done: Done
+    wont_do: Won't Do
+  components_required: false
+
+tests:
+  kind: repo-gherkin
+  # Checks run by hand on purpose, once. The run commands below leave the tag out.
+  manual_label: manual
+
+repos:
+  - name: acme-web
+    github: acme/acme-web
+    role: frontend
+    session: Web session
+    order: 1
+    kickoff_title: Kickoff (acme-web)
+    branch_suffix: web
+    owns: the web app and its Cucumber e2e suite
+    tests: component tests next to the components, and Cucumber scenarios in features/
+    local_stack: false
+    production: merge
+    e2e:
+      run_all: npm run test:bdd -- --tags "not @manual"
+      run_tags: 'npm run test:bdd -- --tags "{tags}"'
+      scenarios_dir: features/<area>/
+      tag_style: "the story's key as a tag (@issue-87)"
+
+vcs:
+  host: github
+  stacking: none
+  signed_commits: true
+  pr_title: conventional
+  merge_method: squash
+  branch_name: "{key}-short-description"
+
+planning:
+  lead_repo: acme-web
+  plan_skill: superpowers writing-plans
+  execute_skill: superpowers executing-plans
+  plans_dir: docs/plans
+  review_focus: behaviour against the story's acceptance criteria, and the scenarios that cover it
