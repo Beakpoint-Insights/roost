@@ -56,10 +56,12 @@ Write it as one line: "roost 1.0.0, installed" or "roost 1.0.0, checkout at ~/sr
 | Key | Supported now | Not yet |
 |---|---|---|
 | `tracker.kind` | `jira`, `github` | `linear` |
-| `tests.kind` | `xray`, `evals` | `repo-gherkin`, `none` |
+| `tests.kind` | `xray`, `evals`, `repo-gherkin` | `none` |
 | `vcs.stacking` | `gh-stack`, `none` | `graphite` |
 
 If the config names one that isn't supported yet, stop and say which key and value, and that roost doesn't support it yet.
+
+**Keys a tests kind needs.** With `tests.kind: repo-gherkin`, at least one repo needs both `e2e.scenarios_dir` and `e2e.run_tags`. If none has them, stop and say so, naming both keys. Suggest values only from what the user or the repo shows (a Cucumber config, a test script), for them to confirm; never go on with guessed values as if they were in the config.
 
 **Skills the config names must be installed.** When a step uses a skill the config names (for example `roadmap.skill`) and it isn't in this session's skill list, stop that step and tell the user which skill is missing and which plugin provides it. Don't look for its files on disk or do the step from memory: a fix that only works on this machine is worse than a clear stop. Carry on with steps that don't need it.
 
@@ -71,7 +73,7 @@ In this skill's `references/` folder:
 - The tracker adapter for `tracker.kind`, before any tracker change: `tracker-jira.md` or `tracker-github.md`. Each says how to do every tracker operation (create, set a parent, edit a comment in place, attach a file, change a status, link, search) and how its keys are written.
 
 The skills say *what* to do in tracker-neutral words (a ticket, a comment, attach a file to the epic, move it to a status); the adapter says *how*, and how its keys are written ("Keys").
-- The tests adapter for `tests.kind`, before touching tests: `tests-xray.md` (Xray tests and their Cucumber scenarios), or `tests-evals.md` (eval cases in the repo). Each says what a test is, and its operations ("A story's tests", "Read a test's scenarios", "Run a test", "Mark a test automated", "Create a test", …) say how to do each thing the skills ask, with this team's tests.
+- The tests adapter for `tests.kind`, before touching tests: `tests-xray.md` (Xray tests and their Cucumber scenarios), `tests-evals.md` (eval cases in the repo), or `tests-repo-gherkin.md` (Cucumber scenarios in the repo's own `.feature` files). Each says what a test is, and its operations ("A story's tests", "Read a test's scenarios", "Run a test", "Mark a test automated", "Create a test", …) say how to do each thing the skills ask, with this team's tests.
 
 ## How skills refer to the config
 
