@@ -91,7 +91,8 @@ Explain what changed from the draft and why.
 When the user approves the scenarios, ask whether to file them. If yes, file them as the tests adapter's "Create a test" says, following its "Write scenarios" rules, with:
 - the epic key, and the story key for each test
 - each test's title and its scenarios
-- for scenarios that replace an existing test's, that test's key, so it's updated ("Update a test's scenarios") instead of a new one created
+- the repo and branch this session is on, since "Create a test" may write the file there
+- for scenarios that replace an existing test's, that test (its key, or its file), so it's updated ("Update a test's scenarios") instead of a new one created
 
 Leave out scenarios marked NOT TESTABLE unless the user says to file them.
 

@@ -58,7 +58,7 @@ When invoked without a specific phase, inspect what exists and recommend where t
 1. **No epic key provided:** Ask if they have an existing epic or want to start from a problem statement.
 2. **Epic key provided:** Fetch the epic and its children from the tracker.
    - Has stories under it? Skip to phase 5 or 6.
-   - Has tests? Skip to phase 6.
+   - Has tests ("A story's tests", for each story)? Skip to phase 6.
    - Has a build guide but no `<EPIC> Tech Lead Prompt.md` attachment? Skip to phase 7.
    - Has only a description? Start at phase 3 (design) or phase 4 (slices).
 3. Present what you found and propose the next phase. Let the user override.
@@ -67,7 +67,7 @@ When invoked without a specific phase, inspect what exists and recommend where t
 I found PROJ-1768 with:
   ✓ Rich epic description (goals, scope, technical context)
   ✓ 5 stories (PROJ-1771 through 1775)
-  ✓ 9 test issues
+  ✓ 9 tests
   ✗ No build guide artifact
 
 Recommended next step: Phase 6 (Build Guide)

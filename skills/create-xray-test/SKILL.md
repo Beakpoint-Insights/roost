@@ -1,6 +1,6 @@
 ---
 name: create-xray-test
-description: File Cucumber scenarios you already have into Jira as Xray Test issues, or update the scenarios on an existing Xray Test, through the browser. Sets the parent epic, Components and the link to the story, and checks what was saved. Doesn't write or check scenarios; use live-verified-bdd to write them for a feature that already runs, or shape-epic for a new epic.
+description: File Cucumber scenarios you already have into Jira as Xray Test issues, or update the scenarios on an existing Xray Test, through the browser. Only for teams whose tests are Xray (tests.kind xray); with any other kind, tests are filed as that kind's tests adapter says, not with this skill. Sets the parent epic, Components and the link to the story, and checks what was saved. Doesn't write or check scenarios; use live-verified-bdd to write them for a feature that already runs, or shape-epic for a new epic.
 ---
 
 # Create Xray Test
