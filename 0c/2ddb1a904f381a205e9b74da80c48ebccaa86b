@@ -1,0 +1,25 @@
+skills/live-verified-bdd/SKILL.md
+  s_2d8f671602abcc::t_92d3a395ad9246 95
+skills/shape-epic/SKILL.md
+  s_2d8f671602abcc::t_c6a3583449daf3 61,70
+skills/shape-epic/references/phase-5-tests.md
+  s_2d8f671602abcc::t_a446aab85528f6 31
+skills/shape-epic/references/tech-lead-prompt-template.md
+  s_2d8f671602abcc::t_9085672d2e22f7 225
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0c2ddb1a904f381a205e9b74da80c48ebccaa86b",
+  "prompts": {},
+  "sessions": {
+    "s_2d8f671602abcc": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e0738b23-0234-4f73-bd6e-d0301d6c240d",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Alan Cox <acox@beakpointinsights.com>"
+    }
+  }
+}
