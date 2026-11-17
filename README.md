@@ -64,7 +64,7 @@ The config never holds secrets: it names where a secret comes from, never its va
 | Area | Config key | Supported now | Planned |
 |---|---|---|---|
 | Tracker | `tracker.kind` | Jira (Atlassian MCP), GitHub Issues (`gh`) | [Linear](https://github.com/Beakpoint-Insights/roost/issues/32) |
-| Test management | `tests.kind` | Xray (Cucumber scenarios), eval cases in the repo | [Gherkin files in the repo](https://github.com/Beakpoint-Insights/roost/issues/34) |
+| Test management | `tests.kind` | Xray (Cucumber scenarios), eval cases in the repo, [Gherkin files in the repo](skills/roost-config/references/tests-repo-gherkin.md) | |
 | Branching | `vcs.stacking` | `gh stack`, plain PRs | [Graphite](https://github.com/Beakpoint-Insights/roost/issues/33) |
 | Git host | `vcs.host` | GitHub | [GitLab](https://github.com/Beakpoint-Insights/roost/issues/35) |
 | Coding agent | | Claude Code. Most skills also work in Cursor (see [Using roost in Cursor](#using-roost-in-cursor)) | [Cursor in full](https://github.com/Beakpoint-Insights/roost/issues/37), [Codex](https://github.com/Beakpoint-Insights/roost/issues/38), [GitHub Copilot](https://github.com/Beakpoint-Insights/roost/issues/39), [Gemini CLI](https://github.com/Beakpoint-Insights/roost/issues/40) |
