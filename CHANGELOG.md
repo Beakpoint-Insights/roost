@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.5.0](https://github.com/Beakpoint-Insights/roost/compare/roost-v1.4.0...roost-v1.5.0) (2026-11-17)
+
+
+### Features
+
+* **#138:** verify a story's scenarios in the repo ([#143](https://github.com/Beakpoint-Insights/roost/issues/143)) ([fe66554](https://github.com/Beakpoint-Insights/roost/commit/fe66554167a9d14d370428ff032c7164e3d30784))
+* **#139:** write scenarios before and after the code ([#145](https://github.com/Beakpoint-Insights/roost/issues/145)) ([74de31f](https://github.com/Beakpoint-Insights/roost/commit/74de31f96d92d15f1fe593364ccea143e989af14))
+* **#140:** manual scenarios ([#146](https://github.com/Beakpoint-Insights/roost/issues/146)) ([1c715bd](https://github.com/Beakpoint-Insights/roost/commit/1c715bd15a5367937bb6fce90ed492d17ed42a1c))
+* **#141:** offer Gherkin files in the repo in setup ([#147](https://github.com/Beakpoint-Insights/roost/issues/147)) ([5474008](https://github.com/Beakpoint-Insights/roost/commit/5474008d1862eac59fcaa4b909ce60f4f893092b))
+
 ## [1.4.0](https://github.com/Beakpoint-Insights/roost/compare/roost-v1.3.1...roost-v1.4.0) (2026-11-02)
 
 
