@@ -10,6 +10,6 @@ Our roost team config is the example config in the roost plugin, `examples/confi
 /shape-epic tests for epic PROJ-1280, which moves our API behind a new load balancer. Its one story, PROJ-1281 "[Slice 1] API answers through the new load balancer", has two checks:
 
 - The health page reports the new load balancer's name (our e2e suite can check this).
-- After the DNS change, `curl -sI https://api.acme.example/health` from outside the VPN returns 200 with `x-served-by` naming the new load balancer. It's a one-off check against production.
+- Once, against staging, before the PR merges: `curl -sI https://staging-api.acme.example/health` from outside the VPN returns 200 with `x-served-by` naming the new load balancer. It's a one-off check.
 
 Propose the tests for PROJ-1281.
