@@ -55,7 +55,7 @@ Cucumber reports each scenario as one of these:
 | skipped on purpose, with a reason in a comment (a scenario blocked for now) | not automated: give the reason |
 | skipped for any other reason | couldn't run: say why if the output does |
 
-A test is automated and passing only when every one of its scenarios is (for a `e2e.backend_marker` scenario, when its backend test passed). A story's tests are automated when they are in every repo that holds them. Never read a result from the exit code alone.
+A test is automated and passing only when every one of its scenarios is (for a `e2e.backend_marker` scenario, when its backend test passed). A story's tests are automated when they are in every repo that holds them. Say plainly, for each test, whether it's automated: a test with any scenario that didn't pass isn't, whatever its status is called. Keep the two levels apart: a scenario that failed is "failing" (it has automation), and the test it's in isn't automated yet. Never read a result from the exit code alone.
 
 ## The `scenarios:` comment
 
